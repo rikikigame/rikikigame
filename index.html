@@ -530,7 +530,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '34';
+var APP_VERSION = '35';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2086,7 +2086,7 @@ document.addEventListener('keydown', function(e){
 var ADMIN_PSEUDOS = ['K.vroom'];
 // Nouvelle adresse du jeu. Laisse vide tant qu'il n'y a pas de déménagement.
 // Quand c'est rempli, l'ancienne adresse renvoie automatiquement chacun vers la nouvelle, avec son identité.
-var MOVED_TO = '';
+var MOVED_TO = 'https://rikikigame.github.io/';
 
 function isAdmin(){
   if(!currentProfile) return false;
@@ -2104,7 +2104,7 @@ function migrationRedirectIfNeeded(){
   try{
     ['rikiki_fb_uid','rikiki_fb_name','rikiki_fb_color','rikiki_profile','rikiki_last'].forEach(function(k){ var v = localStorage.getItem(k); if(v!=null) payload[k] = v; });
   }catch(e){}
-  location.replace(target + '#import=' + encodeURIComponent(JSON.stringify(payload)));
+  location.replace(target + (location.search || '') + '#import=' + encodeURIComponent(JSON.stringify(payload))); // le code de partie (?game=…) suit aussi
   return true;
 }
 function migrationImportIfPresent(){
