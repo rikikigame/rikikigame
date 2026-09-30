@@ -605,6 +605,80 @@
   .topbar{ flex-wrap:wrap; row-gap:4px; }
   .topbar .brand{ flex:none; }
   .topbar .actions{ flex:0 1 auto; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
+  /* ===== v40 : tuto animé ===== */
+  .tt-backdrop{ position:fixed; inset:0; z-index:90; background:rgba(8,11,20,0.84); display:flex; align-items:center; justify-content:center; padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px)); box-sizing:border-box; }
+  .tt-box{ width:min(440px, 100%); max-height:100%; overflow-y:auto; background:#1A2133; border:1px solid #232B40; border-radius:24px; padding:14px 18px 18px; color:#EEF0F6; font-family:'Bricolage Grotesque', 'Karla', system-ui, sans-serif; box-sizing:border-box; }
+  .tt-top{ display:flex; justify-content:space-between; align-items:center; }
+  .tt-count{ font-family:'DM Mono', ui-monospace, monospace; font-size:12px; color:#A9B0C2; }
+  .tt-progress{ height:4px; border-radius:4px; background:#232B40; margin:8px 0 12px; overflow:hidden; }
+  .tt-progress span{ display:block; height:100%; background:#FF7A3D; transition:width .3s ease; }
+  .tt-scene{ position:relative; min-height:236px; border-radius:18px; background:#0E1320; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:14px 8px; box-sizing:border-box; overflow:hidden; }
+  .tt-title{ margin:14px 0 4px; font-size:24px; }
+  .tt-text{ margin:0; font-size:15px; line-height:1.45; color:#C9CEDB; }
+  .tt-text strong{ color:#EEF0F6; }
+  .tt-nav{ display:flex; justify-content:space-between; gap:10px; margin-top:16px; }
+  .tt-nav .btn{ min-height:46px; white-space:nowrap; }
+  .tt-more{ display:block; margin:10px auto 0; }
+  .tt-row{ display:flex; gap:8px; align-items:flex-end; justify-content:center; flex-wrap:wrap; }
+  .tt-c{ display:inline-flex; position:relative; }
+  .tt-a{ animation:tt-in .5s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes tt-in{ from{ opacity:0; transform:translateY(18px) scale(.92); } to{ opacity:1; transform:none; } }
+  .tt-glow .card{ animation:tt-glow 1.6s ease-in-out .6s infinite; }
+  @keyframes tt-glow{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,122,61,0); } 50%{ box-shadow:0 0 0 5px rgba(255,122,61,0.7); } }
+  .tt-dim{ opacity:.35; }
+  .tt-lift{ transform:translateY(-10px); }
+  .tt-flip{ display:inline-flex; animation:tt-flip .7s ease .3s both; }
+  @keyframes tt-flip{ from{ transform:rotateY(90deg); opacity:0; } to{ transform:none; opacity:1; } }
+  .tt-back{ display:flex; align-items:center; justify-content:center; width:60px; height:84px; border-radius:8px; background:repeating-linear-gradient(45deg, #FF7A3D 0 6px, #E0662C 6px 12px); border:3px solid #FFF8F1; box-sizing:border-box; }
+  .tt-q .tt-back::after{ content:'?'; font-size:30px; font-weight:800; color:#FFF8F1; text-shadow:0 2px 6px rgba(0,0,0,0.35); }
+  .tt-bubble{ background:#FFF8F1; color:#1B0E06; padding:8px 14px; border-radius:16px; font-weight:600; font-size:15px; }
+  .tt-label{ font-size:13px; color:#C9CEDB; text-align:center; padding:0 6px; }
+  .tt-red{ color:#FF7A3D; font-weight:700; }
+  .tt-table{ position:relative; width:270px; height:200px; }
+  .tt-seat{ position:absolute; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .tt-seat.s0{ left:0; top:50%; transform:translateY(-50%); }
+  .tt-seat.s1{ left:50%; top:0; transform:translateX(-50%); }
+  .tt-seat.s2{ right:0; top:50%; transform:translateY(-50%); }
+  .tt-seat.s3{ left:50%; bottom:0; transform:translateX(-50%); }
+  .tt-name{ font-size:12px; color:#A9B0C2; font-weight:600; }
+  .tt-mini{ display:flex; gap:3px; }
+  .tt-minib{ width:18px; height:26px; border-radius:3px; background:repeating-linear-gradient(45deg, #FF7A3D 0 3px, #E0662C 3px 6px); border:1.5px solid #FFF8F1; box-sizing:border-box; }
+  .tt-deal{ animation:tt-deal .45s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes tt-deal{ from{ opacity:0; transform:scale(.3) translateY(20px); } to{ opacity:1; transform:none; } }
+  .tt-deck{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.7); }
+  .tt-bids{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; width:100%; max-width:300px; }
+  .tt-bid{ display:flex; justify-content:space-between; align-items:center; gap:8px; background:#1A2133; border-radius:14px; padding:10px 12px; }
+  .tt-num{ font-family:'DM Mono', ui-monospace, monospace; font-size:22px; font-weight:700; color:#7CC4FF; }
+  .tt-num.q{ color:#FF7A3D; }
+  .tt-picks{ display:flex; gap:10px; justify-content:center; }
+  .tt-pick{ position:relative; width:56px; height:56px; border-radius:14px; background:#1A2133; border:1.5px solid #2A3247; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:'DM Mono', ui-monospace, monospace; font-size:20px; font-weight:700; }
+  .tt-pick.no{ color:#6B7390; border-color:rgba(255,90,79,0.55); }
+  .tt-pick.no .tt-dig{ text-decoration:line-through; text-decoration-color:#FF5A4F; text-decoration-thickness:3px; }
+  .tt-x{ position:absolute; top:-7px; right:-7px; width:20px; height:20px; border-radius:50%; background:#FF5A4F; color:#FFFFFF; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; font-family:'Bricolage Grotesque', sans-serif; text-decoration:none; }
+  .tt-mt{ font-size:9px; color:#A9B0C2; font-family:'Bricolage Grotesque', sans-serif; font-weight:600; }
+  .tt-opt{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .tt-tag{ font-size:12px; font-weight:700; color:#FF9A66; }
+  .tt-tag.muted{ color:#A9B0C2; }
+  .tt-trick > span{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .tt-who{ font-size:11px; color:#A9B0C2; }
+  .tt-order{ font-family:'DM Mono', ui-monospace, monospace; font-size:11px; color:#A9B0C2; }
+  .tt-results{ display:flex; flex-direction:column; gap:8px; width:100%; max-width:320px; }
+  .tt-res{ display:grid; grid-template-columns:44px 1fr auto; gap:8px; align-items:center; background:#1A2133; border-radius:12px; padding:10px 12px; font-size:14px; }
+  .tt-ok{ color:#3DDC97; font-weight:800; }
+  .tt-ko{ color:#FF7A3D; font-weight:800; }
+  .tt-fan.f0 .tt-c{ transform:rotate(-18deg) translateY(14px); }
+  .tt-fan.f1 .tt-c{ transform:rotate(-9deg) translateY(4px); }
+  .tt-fan.f3 .tt-c{ transform:rotate(9deg) translateY(4px); }
+  .tt-fan.f4 .tt-c{ transform:rotate(18deg) translateY(14px); }
+  .tt-fan{ margin:0 -10px; }
+  .tt-hello{ display:flex; align-items:center; gap:12px; background:#1A2133; border:1px solid #2A3247; border-radius:18px; padding:10px 8px 10px 14px; }
+  .tt-hello-txt{ flex:1; font-size:14px; line-height:1.3; }
+  .tt-hello-txt strong{ display:block; font-size:15px; }
+  .tt-hello .btn{ white-space:nowrap; }
+  @media (prefers-reduced-motion: reduce){
+    .tt-a, .tt-deal, .tt-flip{ animation:none; }
+    .tt-glow .card{ animation:none; box-shadow:0 0 0 4px rgba(255,122,61,0.6); }
+  }
 </style>
 <div id="app"><div class="center-wrap"><span class="muted">Chargement…</span></div></div>
 <div id="chat-root"></div>
@@ -634,7 +708,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '39';
+var APP_VERSION = '40';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -3299,6 +3373,8 @@ function renderEntry(){
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true"><span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span></div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
+  if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
+    + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
   html += '<button class="hc-hero" data-action="quick-create">'
     + '<span class="hc-fan" aria-hidden="true">'
@@ -3318,7 +3394,7 @@ function renderEntry(){
     + tile('do-create', 'plus', 'Créer une partie', 'Un code à partager')
     + tile('sheet-open', 'sheet', 'Vraies cartes', 'Le téléphone compte')
     + tile('league-openscreen', 'trophy', 'Ligue', 'Classement de la saison')
-    + tile('toggle-rules', 'book', 'Règles', 'Max 3 zéros d\'affilée')
+    + tile('tuto-open', 'book', 'Règles', 'Tuto animé · 1 min')
     + '</div>';
   // --- amis ---
   html += renderHomeFriends();
@@ -3338,6 +3414,112 @@ document.addEventListener('click', function(e){
 });
 document.addEventListener('keydown', function(e){
   if(e.key==='Enter' && e.target && e.target.id==='joinCodeInput' && screen==='entry'){ e.preventDefault(); var b = document.querySelector('[data-action="do-join"]'); if(b) b.click(); }
+});
+
+/* ===================== v40 : tuto animé des règles (sans les points) ===================== */
+var tutoStep = null;
+function ttCard(rank, suit, extra){
+  var val = { '2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,J:11,Q:12,K:13,A:14 }[rank] || 0;
+  return '<span class="tt-c'+(extra?' '+extra:'')+'">'+cardHtml({ suit:suit, rank:rank, value:val }, { size:'trick-size' })+'</span>';
+}
+function ttBack(extra){ return '<span class="tt-c tt-backc'+(extra?' '+extra:'')+'"><span class="tt-back"></span></span>'; }
+function ttD(ms){ return ' style="animation-delay:'+ms+'ms"'; }
+var TUTO_STEPS = [
+  { t:'Le but du jeu', d:'À chaque manche, annonce <strong>exactement</strong> combien de plis tu vas gagner. Ni plus, ni moins.',
+    s:function(){ return '<div class="tt-row">'+['7|C','R|H','A|S'].map(function(x,i){ var p=x.split('|'); return '<span class="tt-a"'+ttD(i*140)+'>'+ttCard(p[0],p[1])+'</span>'; }).join('')+'</div>'
+      + '<div class="tt-bubble tt-a"'+ttD(650)+'>« Je fais <strong>2</strong> plis »</div>'; } },
+  { t:'La donne', d:'Chaque manche, on distribue un nombre de cartes différent : 1 carte, puis 2, puis 3… Ici, c\'est la manche à <strong>3 cartes</strong>.',
+    s:function(){
+      var seats = ['Léa','Tom','Max','Toi'], html = '<div class="tt-table">';
+      seats.forEach(function(n, i){
+        html += '<div class="tt-seat s'+i+'"><span class="tt-name">'+n+'</span><span class="tt-mini">';
+        for(var k=0;k<3;k++) html += '<span class="tt-minib tt-deal"'+ttD((k*4+i)*110)+'></span>';
+        html += '</span></div>';
+      });
+      return html + '<div class="tt-deck">'+ttBack()+'</div></div>'; } },
+  { t:'L\'atout', d:'Après la donne, on retourne la carte suivante du paquet : sa couleur devient <strong>l\'atout</strong>. Quand toutes les cartes sont distribuées, il n\'y a pas d\'atout.',
+    s:function(){ return '<div class="tt-row">'+ttBack()+'<span class="tt-flip">'+ttCard('7','H','tt-glow')+'</span></div><div class="tt-label tt-a"'+ttD(700)+'>Atout : <span class="tt-red">♥︎ cœur</span></div>'; } },
+  { t:'Les annonces', d:'Chacun annonce à son tour combien de plis il pense faire, en commençant par le joueur à gauche du donneur. <strong>Le donneur parle en dernier.</strong>',
+    s:function(){ return '<div class="tt-bids">'+[['Léa','1'],['Tom','0'],['Max','2'],['Toi · donneur','?']].map(function(x,i){ return '<div class="tt-bid tt-a"'+ttD(i*450)+'><span class="tt-name">'+x[0]+'</span><span class="tt-num'+(x[1]==='?'?' q':'')+'">'+x[1]+'</span></div>'; }).join('')+'</div>'; } },
+  { t:'Le total ne tombe jamais juste', d:'Le dernier à annoncer ne peut pas choisir le nombre qui rendrait le total égal au nombre de cartes. Résultat : <strong>au moins un joueur ratera</strong> forcément !',
+    s:function(){ return '<div class="tt-label">3 cartes · les autres ont annoncé 1 + 0 + 1</div>'
+      + '<div class="tt-picks">'+['0','1','2','3'].map(function(v,i){ var no = v==='1'; return '<span class="tt-pick tt-a'+(no?' no':'')+'"'+ttD(i*120)+'><span class="tt-dig">'+v+'</span>'+(no?'<span class="tt-x">✕</span>':'')+'</span>'; }).join('')+'</div>'
+      + '<div class="tt-label tt-a"'+ttD(700)+'>1 est interdit : 1 + 0 + 1 + <strong>1</strong> = 3</div>'; } },
+  { t:'Fournir la couleur', d:'Le premier joueur pose une carte. Les autres <strong>doivent jouer la même couleur</strong> s\'ils en ont.',
+    s:function(){ return '<div class="tt-label">Carte demandée</div><div class="tt-row">'+ttCard('R','S','tt-a')+'</div>'
+      + '<div class="tt-label">Ta main</div><div class="tt-row tt-hand">'+ttCard('9','D','tt-dim')+ttCard('4','S','tt-glow tt-lift')+ttCard('V','C','tt-dim')+'</div>'
+      + '<div class="tt-label tt-a"'+ttD(500)+'>Tu as du pique ? Tu dois jouer ton <strong>4♠︎</strong>.</div>'; } },
+  { t:'Pas la couleur ? Coupe !', d:'Si tu n\'as pas la couleur demandée, tu joues <strong>ce que tu veux</strong> : un atout pour couper, ou n\'importe quelle autre carte pour te défausser.',
+    s:function(){ return '<div class="tt-label">Carte demandée : pique · atout : cœur</div><div class="tt-row">'+ttCard('R','S')+'</div>'
+      + '<div class="tt-row tt-hand">'+'<span class="tt-opt tt-a"'+ttD(200)+'>'+ttCard('3','H','tt-glow')+'<span class="tt-tag">couper</span></span>'
+      + '<span class="tt-opt tt-a"'+ttD(450)+'>'+ttCard('9','C')+'<span class="tt-tag muted">se défausser</span></span></div>'; } },
+  { t:'Qui gagne le pli ?', d:'Le plus fort atout gagne. S\'il n\'y a pas d\'atout dans le pli, c\'est la plus forte carte de la couleur demandée. <strong>Le gagnant commence le pli suivant.</strong>',
+    s:function(){ return '<div class="tt-row tt-trick">'
+      + '<span class="tt-a"'+ttD(0)+'>'+ttCard('R','S')+'<span class="tt-who">Léa</span></span>'
+      + '<span class="tt-a"'+ttD(300)+'>'+ttCard('A','S')+'<span class="tt-who">Tom</span></span>'
+      + '<span class="tt-a tt-winner"'+ttD(600)+'>'+ttCard('3','H','tt-glow')+'<span class="tt-who">Toi</span></span>'
+      + '<span class="tt-a"'+ttD(900)+'>'+ttCard('8','S')+'<span class="tt-who">Max</span></span></div>'
+      + '<div class="tt-label tt-a"'+ttD(1200)+'>Ton petit <strong>3♥︎</strong> bat l\'As : c\'est un atout !</div>'
+      + '<div class="tt-order">2 · 3 · 4 · 5 · 6 · 7 · 8 · 9 · 10 · V · D · R · <strong>A</strong></div>'; } },
+  { t:'Fin de la manche', d:'Tu as fait <strong>exactement</strong> ton annonce ? Contrat réussi ! Sinon, c\'est raté. Puis on passe à la manche suivante.',
+    s:function(){ return '<div class="tt-results">'
+      + '<div class="tt-res tt-a"'+ttD(0)+'><span>Léa</span><span class="muted">annonce 1 · fait 1</span><span class="tt-ok">réussi</span></div>'
+      + '<div class="tt-res tt-a"'+ttD(300)+'><span>Tom</span><span class="muted">annonce 0 · fait 1</span><span class="tt-ko">raté</span></div>'
+      + '<div class="tt-res tt-a"'+ttD(600)+'><span>Toi</span><span class="muted">annonce 1 · fait 1</span><span class="tt-ok">réussi</span></div></div>'; } },
+  { t:'Pas plus de 3 zéros d\'affilée', d:'Annoncer 0 est permis… mais <strong>pas plus de 3 manches de suite</strong>. Au 4e zéro, c\'est interdit : il faudra tenter au moins un pli.',
+    s:function(){ return '<div class="tt-picks">'+['0','0','0','0'].map(function(v,i){ var no = i===3; return '<span class="tt-pick tt-a'+(no?' no':'')+'"'+ttD(i*350)+'><span class="tt-mt">manche '+(i+1)+'</span><span class="tt-dig">'+v+'</span>'+(no?'<span class="tt-x">✕</span>':'')+'</span>'; }).join('')+'</div>'; } },
+  { t:'La manche à l\'aveugle', d:'À 1 carte, tu <strong>ne vois pas ta propre carte</strong>… mais tu vois celles de tous les autres, comme si chacun la tenait sur son front. Annonce en fonction !',
+    s:function(){ return '<div class="tt-row tt-trick">'
+      + '<span class="tt-a"'+ttD(0)+'>'+ttCard('A','S')+'<span class="tt-who">Léa</span></span>'
+      + '<span class="tt-a"'+ttD(200)+'>'+ttCard('4','D')+'<span class="tt-who">Tom</span></span>'
+      + '<span class="tt-a"'+ttD(400)+'>'+ttCard('D','H')+'<span class="tt-who">Max</span></span>'
+      + '<span class="tt-a"'+ttD(600)+'>'+ttBack('tt-q')+'<span class="tt-who">Toi</span></span></div>'
+      + '<div class="tt-label tt-a"'+ttD(900)+'>Léa a l\'As de pique… tu annonces 0 ou 1 ?</div>'; } },
+  { t:'À toi de jouer !', d:'Tu connais l\'essentiel. Pour commencer en douceur : une <strong>partie rapide</strong>, 5 manches avec un nombre de cartes au hasard.',
+    s:function(){ return '<div class="tt-row">'+['7|C','D|D','A|S','R|H','V|S'].map(function(x,i){ var p=x.split('|'); return '<span class="tt-a tt-fan f'+i+'"'+ttD(i*120)+'>'+ttCard(p[0],p[1])+'</span>'; }).join('')+'</div>'; } }
+];
+function renderTutorial(){
+  var st = TUTO_STEPS[tutoStep], last = tutoStep === TUTO_STEPS.length-1;
+  var html = '<div class="tt-backdrop"><div class="tt-box" role="dialog" aria-modal="true" aria-label="Tuto des règles">'
+    + '<div class="tt-top"><span class="tt-count">'+(tutoStep+1)+' / '+TUTO_STEPS.length+'</span><button class="btn ghost small" data-action="tuto-close">Passer</button></div>'
+    + '<div class="tt-progress"><span style="width:'+Math.round((tutoStep+1)/TUTO_STEPS.length*100)+'%"></span></div>'
+    + '<div class="tt-scene">'+st.s()+'</div>'
+    + '<h3 class="tt-title">'+st.t+'</h3><p class="tt-text">'+st.d+'</p>'
+    + '<div class="tt-nav">'
+    + (tutoStep>0 ? '<button class="btn secondary" data-action="tuto-prev">← Précédent</button>' : '<span></span>')
+    + (last ? (screen==='entry' ? '<button class="btn" data-action="tuto-quick">⚡ Partie rapide</button>' : '<button class="btn" data-action="tuto-close">C\'est parti !</button>')
+            : '<button class="btn" data-action="tuto-next">Suivant →</button>')
+    + '</div>'
+    + (last ? '<button class="btn ghost small tt-more" data-action="tuto-rules">Voir les règles détaillées</button>' : '')
+    + '</div></div>';
+  return html;
+}
+function renderTutoLayer(){
+  var root = document.getElementById('tuto-root');
+  if(!root){ root = document.createElement('div'); root.id = 'tuto-root'; document.body.appendChild(root); }
+  root.innerHTML = tutoStep==null ? '' : renderTutorial();
+}
+function openTutorial(){ tutoStep = 0; try{ localStorage.setItem('rikiki_tuto_seen', '1'); }catch(e){} showRules = false; render(); renderTutoLayer(); }
+function tutoSeen(){ try{ return !!localStorage.getItem('rikiki_tuto_seen'); }catch(e){ return true; } }
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;
+  var a = el.getAttribute('data-action');
+  if(a==='tuto-open'){ openTutorial(); }
+  else if(a==='tuto-next'){ tutoStep = Math.min(TUTO_STEPS.length-1, tutoStep+1); renderTutoLayer(); }
+  else if(a==='tuto-prev'){ tutoStep = Math.max(0, tutoStep-1); renderTutoLayer(); }
+  else if(a==='tuto-close'){ tutoStep = null; renderTutoLayer(); }
+  else if(a==='tuto-rules'){ tutoStep = null; renderTutoLayer(); showRules = true; render(); }
+  else if(a==='tuto-dismiss'){ try{ localStorage.setItem('rikiki_tuto_seen', '1'); }catch(err){} render(); }
+  else if(a==='tuto-quick'){
+    tutoStep = null; renderTutoLayer();
+    var q = document.querySelector('[data-action="quick-create"]'); if(q) q.click();
+  }
+});
+document.addEventListener('keydown', function(e){
+  if(tutoStep==null) return;
+  if(e.key==='ArrowRight' && tutoStep < TUTO_STEPS.length-1){ tutoStep++; renderTutoLayer(); }
+  else if(e.key==='ArrowLeft' && tutoStep > 0){ tutoStep--; renderTutoLayer(); }
+  else if(e.key==='Escape'){ tutoStep = null; renderTutoLayer(); }
 });
 
 var ROUND_BREAK_MS = 15000;
@@ -3918,6 +4100,7 @@ function renderRulesModal(){
   html += '<div class="card-panel modal">';
   html += '<button class="btn secondary small close-x" data-action="toggle-rules">Fermer</button>';
   html += '<h3>Règles de cette version</h3>';
+  html += '<button class="btn small" style="margin:6px 0 4px;" data-action="tuto-open">▶ Voir le tuto animé</button>';
   html += '<p>Le nombre de cartes distribuées change à chaque manche : par défaut on commence à 1 carte et on monte d\'une carte par manche (l\'hôte peut aussi choisir montant puis descendant, descendant, ou pyramide).</p>';
   html += '<p>Manche à 1 carte (si l\'option est cochée) : on joue à l\'aveugle. Tu ne vois pas ta propre carte, mais tu vois celles de tous les autres joueurs, et tu annonces en fonction.</p>';
   html += '<p>À chaque manche, une carte est retournée pour indiquer l\'atout — sauf quand toutes les cartes du paquet sont distribuées.</p>';
