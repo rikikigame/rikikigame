@@ -70,12 +70,12 @@
   .btn.danger{ background:var(--brick); border-color:var(--brick); color:#fff; }
   .link-btn{ background:none; border:none; padding:0; color:var(--navy); font-weight:700; font-size:13px; text-decoration:underline; text-underline-offset:3px; }
 
-  input[type=text], input[type=number]{
+  input[type=text], input[type=number], input[type=password]{
     font-family:inherit; font-size:16px; background:var(--paper);
     border:1.5px solid var(--line); color:var(--navy); border-radius:10px;
     padding:10px 12px; outline:none; width:100%;
   }
-  input[type=text]:focus, input[type=number]:focus{ border-color:var(--navy); }
+  input[type=text]:focus, input[type=number]:focus, input[type=password]:focus{ border-color:var(--navy); }
   select{
     font-family:inherit; font-size:15px; background:var(--paper); width:100%;
     border:1.5px solid var(--line); color:var(--navy); border-radius:10px; padding:9px 10px;
@@ -708,7 +708,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '40';
+var APP_VERSION = '41';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -728,6 +728,9 @@ var SUITS = ['S','H','D','C'];
 var SUIT_SYMBOL = {S:'♠',H:'♥',D:'♦',C:'♣'};
 var SUIT_NAME = {S:'Pique',H:'Cœur',D:'Carreau',C:'Trèfle'};
 var RED_SUITS = {H:true, D:true};
+// ordre d'affichage de la main : rouge / noir / rouge / noir (cœur, trèfle, carreau, pique) pour ne pas confondre les couleurs
+// (ne pas toucher à SUITS : l'ordre du paquet sert à refaire et vérifier les donnes)
+var HAND_SUIT_ORDER = ['H','C','D','S'];
 var RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 var RANK_VALUE = {}; RANKS.forEach(function(r,i){ RANK_VALUE[r]=i+2; });
 var MAX_PLAYERS = 8, MIN_PLAYERS = 2;
@@ -995,6 +998,10 @@ function botRollout(botId, g, handsIn, myBid){
   }
   return s.tricksWon[botId];
 }
+// v41 : un peu de hasard entre deux coups presque équivalents, pour que les robots soient moins prévisibles
+// (coupé pendant l'analyse, qui compare les humains au robot Fort coup par coup)
+var botJitter = true;
+function pickNear(sorted){ return (botJitter && sorted.length > 1 && Math.random() < 0.3) ? sorted[1] : sorted[0]; }
 function botChooseCard(botId, g, hand){
   if(!hand.length) return null;
   var trick = g.currentTrick || [], n = g.playerOrder.length;
@@ -1028,11 +1035,11 @@ function botChooseCard(botId, g, hand){
       if(trumpMasters.length && need >= 2) return trumpMasters[0];
       // sinon : petite carte d'une couleur courte pour se créer une coupe plus tard
       var pool = side.length ? side : legal;
-      return pool.slice().sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); })[0];
+      return pickNear(pool.slice().sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); }));
     }
     // veut perdre : sa plus petite carte hors atout, dans la couleur où il a le plus de petites cartes
     var safe = (side.length ? side : legal).slice().sort(function(a,b){ return (higherUnseen(b,seen)-higherUnseen(a,seen)) || (a.value-b.value); });
-    return safe[0];
+    return pickNear(safe);
   }
 
   // ---------- il suit ----------
@@ -1040,6 +1047,13 @@ function botChooseCard(botId, g, hand){
   var winners = legal.filter(function(c){ return cardBeatsTrick(c, trick, ledSuit, trumpSuit); });
   var losers = legal.filter(function(c){ return !cardBeatsTrick(c, trick, ledSuit, trumpSuit); });
   if(wantWin){
+    // v41 : il ne coupe pas « pour rien » : si ses cartes maîtresses suffisent déjà à faire son contrat,
+    // il garde ses atouts et se défausse (avant, il coupait tout ce qui passait et finissait souvent au-dessus)
+    if(!hasLed && winners.length && winners.every(isTrump) && left > need){
+      var sure = hand.filter(isMaster).length;
+      var discard = losers.filter(function(c){ return !isTrump(c) && !isMaster(c); });
+      if(sure >= need && discard.length) return discard.sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); })[0];
+    }
     if(winners.length){
       if(isLastToPlay) return winners.slice().sort(asc)[0];           // juste assez pour gagner
       var masterWin = winners.filter(isMaster).sort(asc);
@@ -1648,6 +1662,7 @@ function syncHand(){
 }
 function onGameUpdate(){
   if(!gameDoc) return;
+  witnessGame(gameDoc);
   if(gameDoc.status === 'dealing'){
     handleDealing();
     // filet de sécurité : dès que quelqu'un voit que tout le monde est servi, on passe aux annonces
@@ -1744,12 +1759,21 @@ async function writeHandCards(actorId, round, cards, seed){
 
 function botDriverTick(){
   var g = gameDoc;
-  if(g && g.hostId !== myId && g.status==='round_end'){
-    // secours si l'hôte est parti : le prochain donneur relance 3 s plus tard
-    var nd = g.playerOrder[(g.playerOrder.indexOf(g.dealerId)+1)%g.playerOrder.length];
-    if(nd===myId && roundBreakLeft(g) < -3000 && !botActing){ botActing=true; dealNextRoundAs(myId).catch(function(e){ console.error(e); }).then(function(){ botActing=false; }); }
-  }
+  hostWatchTick(); // v41 : si l'hôte est parti, un autre joueur reprend la main
   if(!g || g.hostId !== myId){ lastBotTurnKey=null; return; }
+  if(g.status==='dealing'){
+    // v41 : un joueur absent ne confirme jamais « servi » → au bout de 10 s l'hôte passe aux annonces
+    // (l'absent a quand même sa main ; l'hôte jouera pour lui à la fin de son temps)
+    if(dealingSeen.seed !== g.dealSeed){ dealingSeen = { seed:g.dealSeed, at:nowMs() }; return; }
+    if(nowMs() - dealingSeen.at < 10000 || botActing) return;
+    botActing = true;
+    var dr = {}; g.playerOrder.forEach(function(id){ dr[id] = g.round; });
+    claudeDb.doc('games/'+g.code).get().then(function(s){
+      var f = s.data(); if(!f || f.status!=='dealing' || f.dealSeed!==g.dealSeed) return;
+      return claudeDb.doc('games/'+g.code).update({ dealtRound: dr, status:'bidding' });
+    }).catch(function(e){ console.error(e); }).then(function(){ botActing = false; });
+    return;
+  }
   if(g.status==='round_end'){
     // entracte : l'hôte relance automatiquement la manche suivante après 15 s
     if(roundBreakLeft(g) > 0 || botActing) return;
@@ -1766,6 +1790,83 @@ function botDriverTick(){
   if(nowMs()-lastBotTurnAt < 1150) return; // laisse le temps de voir chaque carte arriver
   botActing = true;
   performBotAction(turnId).catch(function(e){ console.error(e); }).then(function(){ botActing = false; });
+}
+
+/* ===================== v41 : relais automatique de l'hôte =====================
+   L'hôte fait jouer les robots, joue pour les absents et lance les manches. S'il quitte (onglet fermé, téléphone en veille),
+   la partie se bloque. Chaque joueur surveille donc la partie : si elle n'avance plus alors que c'est à l'hôte d'agir
+   (tour d'un robot, entracte terminé, distribution en attente, joueur absent), un autre joueur devient l'hôte.
+   Pas besoin d'écriture supplémentaire (ni de nouvelle règle Firebase) : on regarde seulement si la partie avance.
+   Seul l'hôte connaît les cartes des robots et la graine de la manche en cours : le nouvel hôte redistribue donc
+   la manche en cours (les scores des manches déjà jouées ne changent pas). */
+var hostWatch = { key:null, since:0, busy:false, seenChange:null }, dealingSeen = { seed:null, at:0 };
+function hostStallKey(g){
+  var nb = 0; Object.keys(g.bids||{}).forEach(function(k){ if(g.bids[k]!=null) nb++; });
+  var nd = 0; Object.keys(g.dealtRound||{}).forEach(function(k){ if(g.dealtRound[k]===g.round) nd++; });
+  return [g.code, g.hostId, g.status, g.round, g.dealSeed, g.turnPlayerId, g.trickNumber||0, (g.currentTrick||[]).length, nb, nd, g.leagueRecorded?1:0].join('|');
+}
+// combien de temps (ms) la partie peut rester immobile avant qu'on considère l'hôte comme parti (null = normal d'attendre)
+function hostStallLimit(g){
+  if(g.status==='round_end') return ROUND_BREAK_MS + 8000;             // l'entracte dure 15 s, puis l'hôte distribue
+  if(g.status==='dealing') return (g.dealtRound && g.dealtRound[g.hostId]===g.round) ? null : 20000; // bloqué par l'hôte lui-même seulement
+  if(g.status==='bidding' || g.status==='playing'){
+    var p = g.players[g.turnPlayerId];
+    if(p && p.isBot) return 15000;                                        // un robot joue en ~1 s quand l'hôte est là
+    var lim = turnLimitSec(g)*1000;
+    if(lim && g.turnPlayerId!==myId && g.turnPlayerId!==g.hostId) return lim + 20000; // l'hôte aurait joué pour l'absent
+    if(lim && g.turnPlayerId===g.hostId) return lim + 20000;                // c'est l'hôte lui-même qui ne joue plus
+    return null;
+  }
+  if(g.status==='game_over' && g.settings && g.settings.league && !g.leagueRecorded && !onlineLeagueCheck(g)) return 25000; // partie de ligue à enregistrer
+  return null;
+}
+function hostWatchTick(){
+  var g = gameDoc;
+  if(!g || !g.players || !g.playerOrder || g.hostId===myId || !g.players[myId] || g.players[myId].isBot) { hostWatch.key = null; return; }
+  if(g.hostChange && g.hostChange.at && hostWatch.seenChange !== g.hostChange.at){
+    if(nowMs() - g.hostChange.at < 30000) showToast((g.players[g.hostChange.to]||{name:'Un joueur'}).name+' reprend la main (l\'hôte est parti)'+(g.hostChange.redealt ? ' : la manche est redistribuée' : ''));
+    hostWatch.seenChange = g.hostChange.at;
+  }
+  var key = hostStallKey(g);
+  if(key !== hostWatch.key){ hostWatch.key = key; hostWatch.since = nowMs(); return; }
+  var limit = hostStallLimit(g); if(limit==null || hostWatch.busy) return;
+  // qui reprend ? les humains dans l'ordre de la table après l'hôte ; chacun attend un peu plus que le précédent
+  var o = g.playerOrder, hi = o.indexOf(g.hostId), cands = [];
+  for(var i=1; i<=o.length; i++){ var id = o[(Math.max(0,hi)+i)%o.length]; if(id!==g.hostId && g.players[id] && !g.players[id].isBot) cands.push(id); }
+  var rank = cands.indexOf(myId); if(rank < 0) return;
+  if(nowMs() - hostWatch.since < limit + rank*8000) return;
+  hostWatch.busy = true;
+  takeOverHost(g, key).catch(function(e){ console.error(e); }).then(function(){ hostWatch.busy = false; hostWatch.key = null; });
+}
+async function takeOverHost(g, key){
+  var ref = claudeDb.doc('games/'+g.code);
+  var fresh = (await ref.get()).data();
+  if(!fresh || hostStallKey(fresh) !== key) return; // la partie a bougé entre-temps (l'hôte est revenu, ou un autre a repris)
+  var mid = fresh.status==='dealing' || fresh.status==='bidding' || fresh.status==='playing';
+  await ref.update({ hostId: myId, hostChange: { from: fresh.hostId, to: myId, at: nowMs(), redealt: mid } });
+  var g2 = Object.assign({}, fresh, { hostId: myId });
+  gameDoc = Object.assign({}, gameDoc, { hostId: myId });
+  hostWatch.seenChange = null;
+  showToast('L\'hôte est parti : tu reprends la main'+(mid ? ', la manche est redistribuée' : ''));
+  if(mid) await redealCurrentRound(g2);
+  else if(fresh.status==='round_end'){ await dealNextRoundAs(myId); }
+  // game_over : maybeRecordOnline s'en charge maintenant que je suis l'hôte
+  onGameUpdate(); render();
+}
+// même manche, même donneur, nouvelles cartes (seul le nouvel hôte les connaît, comme n'importe quel hôte)
+async function redealCurrentRound(g){
+  var order = g.playerOrder, n = order.length, round = g.round, handSize = g.roundPlan[round];
+  var startIdx = (order.indexOf(g.dealerId)+1) % n;
+  var bidOrder = order.slice(startIdx).concat(order.slice(0,startIdx));
+  var dd = await dealSecretly(g, order, round, handSize, g.dealerId);
+  var bids = {}, tricks = {}, dealtRound = {};
+  order.forEach(function(id){ bids[id] = null; tricks[id] = 0; dealtRound[id] = g.players[id].isBot ? round : -1; });
+  await claudeDb.doc('games/'+g.code).update({
+    status:'dealing', dealSeed: dd.dealSeed, dealHash: dd.dealHash, blindCards: dd.blindCards,
+    bidOrder: bidOrder, leadPlayerId: bidOrder[0], turnPlayerId: bidOrder[0],
+    bids: bids, tricksWon: tricks, currentTrick: [], trickNumber:0, lastTrick:null,
+    trumpCard: dd.trumpCard, botHands: null, dealtRound: dealtRound, played: []
+  });
 }
 
 async function performBotAction(botId){
@@ -2243,9 +2344,9 @@ function renderProfileBox(){
       + '<button class="btn secondary" style="flex:1;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button></div>';
     if(authOn()){
       if(profileUi.mode==='forgot'){
-        html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
+        html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
           + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (4 à 6 chiffres)" style="margin-bottom:8px;">'
-          + '<button class="btn secondary small" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button></div>';
+          + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
       } else html += '<button class="btn ghost" style="font-size:12.5px; margin-top:6px;" data-action="profile-mode" data-mode="forgot">Code oublié ?</button>';
       if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
     }
@@ -2396,7 +2497,7 @@ document.addEventListener('click', function(e){
    l'analyse peut ainsi rejouer la manche coup par coup.
    analysis/params : { agree, bidBias, bidSd, n } — le profil « humain » moyen, appliqué aux robots de niveau Humain. */
 var BOT_LEVEL_LABEL = { facile:'Facile', humain:'Humain', fort:'Fort' };
-var DEFAULT_HUMAN = { agree:0.7, mix:0.5, bidBias:0, bidSd:0.8, n:0 };
+var DEFAULT_HUMAN = { agree:0.7, mix:0.5, bidBias:0, bidSd:0.8, ruff:0.6, n:0 };
 function botLevelOf(g){ var l = g && g.settings && g.settings.botLevel; return BOT_LEVEL_LABEL[l] ? l : 'humain'; }
 function humanParams(g){ return Object.assign({}, DEFAULT_HUMAN, (g && g.settings && g.settings.botHuman) || {}); }
 function gaussian(){ var u = 1 - Math.random(), v = Math.random(); return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v); }
@@ -2436,9 +2537,26 @@ function botLevelBid(botId, g, hand){
   var est = isBlindRound(g) ? blindWinProbability(botId, g) : botHeuristicEstimate(botId, g, hand);
   return botBidFromEstimate(botId, g, est + (hp.bidBias||0) + gaussian()*(hp.bidSd||0));
 }
+// v41 : situation de coupe (il n'a plus la couleur demandée, il lui faut des plis, et un atout gagnerait)
+function ruffChoice(botId, g, hand){
+  var trick = g.currentTrick || [], trumpSuit = g.trumpCard ? g.trumpCard.suit : null;
+  if(!trick.length || !trumpSuit) return null;
+  var led = trick[0].card.suit;
+  if(led===trumpSuit || hand.some(function(c){ return c.suit===led; })) return null;
+  if((g.bids[botId]||0) - (g.tricksWon[botId]||0) <= 0) return null;
+  var ruffs = hand.filter(function(c){ return c.suit===trumpSuit && cardBeatsTrick(c, trick, led, trumpSuit); }).sort(function(a,b){ return a.value-b.value; });
+  var others = hand.filter(function(c){ return c.suit!==trumpSuit; }).sort(function(a,b){ return a.value-b.value; });
+  if(!ruffs.length || !others.length) return null;
+  return { ruff: ruffs[0], discard: others[0] };
+}
 function botLevelCard(botId, g, hand){
   var lvl = botLevelOf(g);
   if(lvl==='fort' || legalCards(g, hand).length < 2) return botChooseCard(botId, g, hand);
+  var rc = ruffChoice(botId, g, hand);
+  if(rc){ // coupe aussi souvent que vous (taux mesuré par l'analyse) ; le Facile coupe presque toujours
+    var rate = lvl==='facile' ? 0.9 : humanParams(g).ruff;
+    return Math.random() < rate ? rc.ruff : rc.discard;
+  }
   if(lvl==='facile') return Math.random() < 0.35 ? botChooseCard(botId, g, hand) : botNaiveCard(botId, g, hand);
   var hp = humanParams(g), mix = (typeof hp.mix==='number') ? hp.mix : Math.max(0, (hp.agree-0.4)/0.6);
   return Math.random() < mix ? botChooseCard(botId, g, hand) : botNaiveCard(botId, g, hand);
@@ -2470,8 +2588,11 @@ async function maybeRecordAnalysis(g){
 }
 
 // --- l'analyse : rejoue chaque manche coup par coup ---
-function newStat(name, isBot, level){ return { name:name, isBot:isBot, level:level, rounds:0, ok:0, absErr:0, bias:0, bidN:0, bidDelta:0, bidDelta2:0, dec:0, agree:0, naiveSame:0, lastDec:0, avoidable:0, missed:0 }; }
+function newStat(name, isBot, level){ return { name:name, isBot:isBot, level:level, rounds:0, ok:0, absErr:0, bias:0, bidN:0, bidDelta:0, bidDelta2:0, dec:0, agree:0, naiveSame:0, lastDec:0, avoidable:0, missed:0, ruffOpp:0, ruffYes:0 }; }
 function analyzeRecords(recs){
+  botJitter = false; try{ return analyzeRecordsInner(recs); } finally { botJitter = true; }
+}
+function analyzeRecordsInner(recs){
   var by = {}, all = { humans: newStat('Tous les humains', false), bots:{} };
   function statFor(rec, id){
     var p = rec.players[id] || { name:'?', isBot:false };
@@ -2519,7 +2640,8 @@ function analyzeRecords(recs){
               var wins = isLast && cardBeatsTrick(card, g.currentTrick, led, trumpSuit);
               var canLose = isLast && legal.some(function(c){ return !cardBeatsTrick(c, g.currentTrick, led, trumpSuit); });
               var canWin = isLast && legal.some(function(c){ return cardBeatsTrick(c, g.currentTrick, led, trumpSuit); });
-              add(s2, function(x){ x.dec++; if(same) x.agree++; if(naiveSame) x.naiveSame++;
+              var rc = ruffChoice(id, g, hand), ruffed = !!rc && card.suit===trumpSuit;
+              add(s2, function(x){ x.dec++; if(same) x.agree++; if(naiveSame) x.naiveSame++; if(rc){ x.ruffOpp++; if(ruffed) x.ruffYes++; }
                 if(isLast){ x.lastDec++; if(need<=0 && wins && canLose) x.avoidable++; if(need>0 && !wins && canWin) x.missed++; } });
             }
             hand.splice(idx, 1);
@@ -2540,7 +2662,8 @@ function paramsFromStat(s){
   var A = s.dec ? s.agree/s.dec : DEFAULT_HUMAN.agree, q = s.dec ? s.naiveSame/s.dec : 0.4;
   // le coup « humain » du robot coïncide parfois avec celui du Fort : on corrige pour viser exactement le taux mesuré
   var mix = q < 0.99 ? Math.max(0, Math.min(1, (A - q)/(1 - q))) : A;
-  return { agree: Math.round(1000*A)/1000, mix: Math.round(1000*mix)/1000, bidBias: Math.round(mean*100)/100, bidSd: Math.round(sd*100)/100, n: s.rounds };
+  var ruff = s.ruffOpp >= 5 ? s.ruffYes/s.ruffOpp : DEFAULT_HUMAN.ruff; // v41 : à quel point vous coupez quand vous pouvez
+  return { agree: Math.round(1000*A)/1000, mix: Math.round(1000*mix)/1000, bidBias: Math.round(mean*100)/100, bidSd: Math.round(sd*100)/100, ruff: Math.round(100*ruff)/100, ruffN: s.ruffOpp, n: s.rounds };
 }
 
 // --- écran Analyse ---
@@ -2594,7 +2717,8 @@ function renderAnalysis(){
     + '« Plis pris évitables » : en dernier à jouer, déjà à son contrat, il a pris le pli alors qu\'il pouvait le perdre. « Plis ratés » : en dernier, il lui fallait un pli et il pouvait le prendre, mais ne l\'a pas pris (en % des coups joués en dernier).</p></div>';
   var p = paramsFromStat(r.all);
   html += '<div class="card-panel"><h3 style="margin:0 0 6px;">Robots niveau Humain</h3>'
-    + '<p style="font-size:14px; margin:0 0 6px;">Profil mesuré sur vous : joue comme le robot Fort <strong>'+Math.round(p.agree*100)+' %</strong> du temps, annonce en moyenne <strong>'+signedNum(p.bidBias,2)+'</strong> pli par rapport à l\'estimation du robot (dispersion ± '+p.bidSd+'), sur '+p.n+' manches.</p>'
+    + '<p style="font-size:14px; margin:0 0 6px;">Profil mesuré sur vous : joue comme le robot Fort <strong>'+Math.round(p.agree*100)+' %</strong> du temps, annonce en moyenne <strong>'+signedNum(p.bidBias,2)+'</strong> pli par rapport à l\'estimation du robot (dispersion ± '+p.bidSd+'), sur '+p.n+' manches. '
+    + (p.ruffN >= 5 ? 'Quand vous pouvez couper, vous coupez <strong>'+Math.round(p.ruff*100)+' %</strong> du temps ('+p.ruffN+' occasions).' : 'Pas encore assez d\'occasions de coupe mesurées (il en faut 5).')+'</p>'
     + '<p class="muted" style="font-size:13px; margin:0 0 10px;">Actuellement appliqué : '+(analysis.params ? ('comme le Fort '+Math.round(analysis.params.agree*100)+' %, annonces '+signedNum(analysis.params.bidBias,2)+' ± '+analysis.params.bidSd+' ('+analysis.params.n+' manches)') : 'profil par défaut (70 %, ± 0,8)')+'.</p>';
   if(isAdmin()) html += '<button class="btn" data-action="analysis-apply" '+(r.all.rounds < 10 ? 'disabled' : '')+'>'+(r.all.rounds < 10 ? 'Il faut au moins 10 manches humaines' : 'Appliquer ce profil aux robots « Humain »')+'</button>';
   else html += '<p class="muted" style="font-size:13px; margin:0;">Seul l\'organisateur ('+esc(ADMIN_PSEUDOS[0]||'')+') peut appliquer le profil.</p>';
@@ -3400,7 +3524,7 @@ function renderEntry(){
   html += renderHomeFriends();
   // --- pied de page ---
   html += '<div class="hc-foot"><span class="hc-status">'
-    + (usingFirebase ? '<span class="hc-dot"></span>En ligne · '+homeIcon('lock', 11)+' cartes secrètes' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
+    + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
     + '</span><span class="hc-ver">v'+APP_VERSION+'</span></div>';
   html += '</div>';
   if(showRules) html += renderRulesModal();
@@ -3410,6 +3534,7 @@ document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action="home-profile"]') : null; if(!el) return;
   homeProfileOpen = !homeProfileOpen;
   if(!homeProfileOpen){ profileUi.err=''; profileUi.ok=''; profileUi.mode=null; }
+  else if(isAdmin()) loadClaims().then(render); // l'organisateur voit les nouvelles demandes « code oublié » sans recharger
   render();
 });
 document.addEventListener('keydown', function(e){
@@ -3930,7 +4055,7 @@ function renderHand(g){
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
   var hasLed = ledSuit ? myHand.cards.some(function(c){ return c.suit===ledSuit; }) : false;
   var sorted = myHand.cards.slice().sort(function(a,b){
-    if(a.suit!==b.suit) return SUITS.indexOf(a.suit)-SUITS.indexOf(b.suit);
+    if(a.suit!==b.suit) return HAND_SUIT_ORDER.indexOf(a.suit)-HAND_SUIT_ORDER.indexOf(b.suit);
     return a.value-b.value;
   });
   var n = sorted.length;
@@ -4019,12 +4144,111 @@ function renderRoundEnd(g){
   var dc = checkRevealedDeal(g, lastLog);
   if(dc==='ok') html += '<div class="muted" style="text-align:center; font-size:12px; margin:6px 0 0;">🔒 Donne vérifiée : personne ne connaissait vos cartes, et la distribution n\'a pas été modifiée.</div>';
   else if(dc==='bad') html += '<div class="error-text" style="text-align:center;">⚠️ La distribution de cette manche ne correspond pas à son empreinte.</div>';
+  html += auditHtml(g);
   html += coachReviewHtml(g, lastLog);
   var left = Math.max(0, roundBreakLeft(g));
   html += '<div class="countdown"><div class="bar"><i id="cd-bar" style="width:'+(100*left/ROUND_BREAK_MS)+'%"></i></div>'
     + '<div class="row between"><span class="muted" id="cd-text" style="font-size:13.5px;">'+(left>0?('Manche suivante dans '+Math.ceil(left/1000)+' s'):'Distribution…')+'</span>'
     + '<button class="btn small" data-action="deal-next" title="Lancer tout de suite la manche '+(g.round+2)+' ('+nh+' carte'+(nh>1?'s':'')+')">Passer →</button></div></div>';
   return html;
+}
+
+/* ===================== v41 : vérification croisée des scores =====================
+   Sans serveur, n'importe quel appareil peut écrire dans la partie : un joueur doué pourrait modifier les scores.
+   Chaque téléphone vérifie donc tout seul :
+   - il rejoue chaque manche à partir de la graine révélée (contrôlée avec l'empreinte annoncée AVANT la manche) :
+     chaque carte jouée était bien dans la main du joueur, il a suivi la couleur, les plis et les points sont justes ;
+   - il compare avec ce qu'il a VU en direct (annonces, plis) : réécrire l'historique après coup se voit ;
+   - le total doit être égal à la somme des manches, et le barème ne doit pas changer en cours de partie.
+   Si quelque chose cloche, tout le monde voit l'alerte, et la ligue n'enregistre que des scores recalculés et vérifiés. */
+var witnessed = { tricks:{}, bids:{}, scoring:{} };
+function witnessGame(g){
+  if(!g || !g.dealSeed || !g.playerOrder) return;
+  var n = g.playerOrder.length, gid = g.code+'|'+(g.startedAt||g.createdAt);
+  if(g.status!=='lobby' && g.settings && !witnessed.scoring[gid]) witnessed.scoring[gid] = JSON.stringify(getScoring(g));
+  if(g.status==='playing' && g.bids && !witnessed.bids[g.dealSeed] && g.playerOrder.every(function(id){ return g.bids[id]!=null; })){
+    witnessed.bids[g.dealSeed] = JSON.stringify(g.playerOrder.map(function(id){ return g.bids[id]; }));
+  }
+  var lt = g.lastTrick;
+  if(lt && lt.cards && lt.cards.length===n && (g.status==='playing' || g.status==='round_end' || g.status==='game_over')){
+    var w = witnessed.tricks[g.dealSeed] || (witnessed.tricks[g.dealSeed] = {});
+    w[lt.cards.map(function(p){ return p.playerId+':'+cardKey(p.card); }).join(',')] = 1;
+  }
+}
+// rejoue une manche de l'historique ; renvoie la liste des problèmes (vide = tout est juste)
+function auditRound(g, e, sc){
+  var issues = [], order = g.playerOrder, H = e.handSize, label = 'Manche '+(e.round+1)+' : ';
+  if(!e.dealSeed) return { issues:[], unverified:true };
+  if(!Array.isArray(e.played) || e.played.length !== H*order.length || !Array.isArray(e.bidOrder) || !e.bidOrder.length) return { issues:[label+'historique incomplet'] };
+  var hands = dealCards(e.dealSeed, order, H).hands, rem = {}, won = {};
+  order.forEach(function(id){ rem[id] = hands[id].slice(); won[id] = 0; });
+  var trumpSuit = e.trump ? e.trump.suit : null, real = dealCards(e.dealSeed, order, H).trumpCard;
+  if((real ? cardKey(real) : null) !== (e.trump ? cardKey(e.trump) : null)) issues.push(label+'l\'atout ne correspond pas à la donne');
+  var lead = e.bidOrder[0], k = 0, seenTricks = {};
+  for(var t=0; t<H && !issues.length; t++){
+    var i0 = order.indexOf(lead), trick = [];
+    for(var q=0; q<order.length; q++){
+      var id = order[(i0+q)%order.length], c = e.played[k++], hand = rem[id];
+      var idx = hand.findIndex(function(x){ return c && x.suit===c.suit && x.rank===c.rank; });
+      if(idx < 0){ issues.push(label+(g.players[id]||{name:'?'}).name+' a joué une carte qu\'il n\'avait pas'); break; }
+      var led = trick.length ? trick[0].card.suit : null;
+      if(led && c.suit!==led && hand.some(function(x){ return x.suit===led; })){ issues.push(label+(g.players[id]||{name:'?'}).name+' n\'a pas suivi la couleur'); break; }
+      hand.splice(idx, 1); trick.push({ playerId:id, card:c });
+    }
+    if(issues.length) break;
+    seenTricks[trick.map(function(p){ return p.playerId+':'+cardKey(p.card); }).join(',')] = 1;
+    lead = trickWinner(trick, trick[0].card.suit, trumpSuit); won[lead]++;
+  }
+  if(issues.length) return { issues:issues };
+  var pts = {};
+  order.forEach(function(id){
+    if((e.tricksWon||{})[id] !== won[id]) issues.push(label+'plis de '+(g.players[id]||{name:'?'}).name+' faux ('+(e.tricksWon||{})[id]+' au lieu de '+won[id]+')');
+    pts[id] = scoreRound(sc, e.bids[id], won[id]);
+    if((e.points||{})[id] !== pts[id]) issues.push(label+'points de '+(g.players[id]||{name:'?'}).name+' faux');
+  });
+  // ce que j'ai vu en direct doit se retrouver dans l'historique
+  var wb = witnessed.bids[e.dealId];
+  if(wb && wb !== JSON.stringify(order.map(function(id){ return e.bids[id]; }))) issues.push(label+'les annonces ont été modifiées après coup');
+  var wt = witnessed.tricks[e.dealId];
+  if(wt && Object.keys(wt).some(function(key){ return !seenTricks[key]; })) issues.push(label+'les plis ne correspondent pas à ce qui a été joué');
+  return { issues:issues, points:pts };
+}
+// bilan de toute la partie : { state:'ok'|'bad'|'partial', issues, scores recalculés }
+function auditGame(g){
+  var out = { state:'ok', issues:[], scores:{} };
+  if(!g || !g.playerOrder) return out;
+  var sc = getScoring(g), log = g.roundLog || [], unverified = 0, gid = g.code+'|'+(g.startedAt||g.createdAt);
+  g.playerOrder.forEach(function(id){ out.scores[id] = 0; });
+  if(witnessed.scoring[gid] && witnessed.scoring[gid] !== JSON.stringify(sc)) out.issues.push('le barème a été modifié en cours de partie');
+  log.forEach(function(e){
+    var r = auditRound(g, e, sc);
+    if(r.unverified){ unverified++; g.playerOrder.forEach(function(id){ out.scores[id] += scoreRound(sc, e.bids[id], (e.tricksWon||{})[id]||0); }); return; }
+    out.issues = out.issues.concat(r.issues);
+    if(r.points) g.playerOrder.forEach(function(id){ out.scores[id] += r.points[id]; });
+    if(e.dealHash && e.dealId && dealChecks[e.dealId]==='bad') out.issues.push('Manche '+(e.round+1)+' : la graine révélée ne correspond pas à l\'empreinte');
+    else if(e.dealHash && e.dealId) checkRevealedDeal(g, e); // lance la vérification de l'empreinte (asynchrone)
+  });
+  var complete = log.length && log[log.length-1].round === g.round && (g.status==='round_end' || g.status==='game_over');
+  if(complete) g.playerOrder.forEach(function(id){
+    if((g.scores[id]||0) !== out.scores[id]) out.issues.push('score affiché de '+(g.players[id]||{name:'?'}).name+' : '+(g.scores[id]||0)+' au lieu de '+out.scores[id]);
+  });
+  out.state = out.issues.length ? 'bad' : (unverified || !complete ? 'partial' : 'ok');
+  return out;
+}
+// version complète (attend les empreintes) : utilisée avant d'enregistrer dans la ligue
+async function auditGameFull(g){
+  var log = g.roundLog || [];
+  for(var i=0; i<log.length; i++){
+    var e = log[i];
+    if(e.dealHash && e.dealId && e.dealSeed && !dealChecks[e.dealId]) dealChecks[e.dealId] = (await sha256hex(e.dealSeed))===e.dealHash ? 'ok' : 'bad';
+  }
+  return auditGame(g);
+}
+function auditHtml(g){
+  var a = auditGame(g);
+  if(a.state==='bad') return '<div class="error-text" style="text-align:center; margin:8px 0 0;">⚠️ Scores suspects : '+esc(a.issues.slice(0,3).join(' · '))+(a.issues.length>3?' …':'')+'<br><span style="font-weight:400;">Les points ont peut-être été trafiqués. Cette partie ne comptera pas pour la ligue.</span></div>';
+  if(a.state==='ok') return '<div class="muted" style="text-align:center; font-size:12px; margin:6px 0 0;">✓ Scores vérifiés par ton téléphone : chaque carte et chaque point ont été recontrôlés.</div>';
+  return '';
 }
 
 function renderGameOver(g){
@@ -4038,6 +4262,7 @@ function renderGameOver(g){
       + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="display" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
+  html += auditHtml(g);
   if(g.settings && g.settings.league){
     var why = onlineLeagueCheck(g);
     html += '<p class="muted" style="text-align:center; font-size:13.5px; margin:10px 0 0;">'+(why ? esc(why) : (g.leagueRecorded ? 'Partie de ligue enregistrée ✓ <button class="link-btn" data-action="league-openscreen" data-mode="online">Voir le classement en ligne</button>' : 'Enregistrement dans la ligue…'))+'</p>';
@@ -4549,12 +4774,14 @@ async function maybeRecordOnline(g){
   if(onlineLeagueCheck(g)) return;
   leagueRecording = true;
   try{
+    var audit = await auditGameFull(g);
+    if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
     for(var i=0;i<g.playerOrder.length;i++){
       var uid = g.playerOrder[i], p = g.players[uid];
       var mid = await ensureMember({ userId: uid, name: p.name });
       var st = statsFromLog(g.roundLog||[], uid);
-      rows.push({ memberId: mid, name: p.name, score: g.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff });
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff }); // scores recalculés, pas ceux affichés
     }
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
