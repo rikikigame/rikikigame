@@ -708,7 +708,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '42';
+var APP_VERSION = '43';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -777,7 +777,7 @@ function dealCards(dealSeed, order, handSize){
   return { hands: hands, trumpCard: trumpCard };
 }
 // Règle maison : on ne peut pas annoncer 0 plus de N fois de suite (N = 3 par défaut, 0 = pas de limite)
-function maxZerosOf(g){ return 3; } // règle officielle : toujours active, pour tout le monde
+function maxZerosOf(g){ return (g && g.settings && g.settings.direction==='quick') ? 0 : 3; } // règle officielle ; pas en partie rapide (v42, choix du propriétaire)
 function zeroStreakIn(log, id){ var n = 0; for(var i=(log||[]).length-1; i>=0; i--){ if(log[i] && log[i].bids && log[i].bids[id]===0) n++; else break; } return n; }
 function zeroBanned(g, id){ var mz = maxZerosOf(g); return !!mz && zeroStreakIn(g.roundLog, id) >= mz; }
 // annonces permises pour ce joueur maintenant (total interdit pour le dernier + règle des zéros)
@@ -846,7 +846,9 @@ function playedThisTrick(g, id){
   return t.some(function(p){ return p.playerId===id; });
 }
 /* ---- barème des points (réglable par l'hôte) ---- */
-var DEFAULT_SCORING = { bonus:10, perTrick:5, missFixed:0, missPerTrick:1 };
+// v42 : barèmes par défaut choisis par le propriétaire
+var DEFAULT_SCORING = { bonus:10, perTrick:5, missFixed:0, missPerTrick:5 };        // vraies cartes
+var ONLINE_DEFAULT_SCORING = { bonus:4, perTrick:4, missFixed:0, missPerTrick:2 };  // en ligne
 var SCORING_FIELDS = [
   { key:'bonus',        label:'Bonus contrat réussi',        min:0, max:100 },
   { key:'perTrick',     label:'+ par pli (si réussi)',       min:0, max:50 },
@@ -856,7 +858,7 @@ var SCORING_FIELDS = [
 function getScoring(g){
   var s = (g && g.settings && g.settings.scoring) || {};
   var r = {};
-  Object.keys(DEFAULT_SCORING).forEach(function(k){ r[k] = (typeof s[k]==='number' && isFinite(s[k])) ? s[k] : DEFAULT_SCORING[k]; });
+  Object.keys(ONLINE_DEFAULT_SCORING).forEach(function(k){ r[k] = (typeof s[k]==='number' && isFinite(s[k])) ? s[k] : ONLINE_DEFAULT_SCORING[k]; });
   return r;
 }
 function scoreRound(sc, bid, won){
@@ -1402,6 +1404,7 @@ function fbDecode(v){
     var plain = null;
     Object.keys(v).forEach(function(k){ if(k!=='__json' && k!=='__at'){ plain = plain || {}; plain[k] = v[k]; } });
     if(plain && o && typeof o==='object') o.__plain = plain; // champs en clair (propriétaire, e-mail caché…) lus par les règles
+    if(o && typeof o==='object' && typeof v.__at==='number') o.__serverAt = v.__at; // v43 : date contrôlée par les règles (ligue)
     return o;
   }
   return v; // ancien format brut (parties créées avant ce correctif)
@@ -1563,6 +1566,7 @@ async function init(){
   if(authOn() && !adminUid){ try{ await claimAdmin(); }catch(e){ console.error(e); } }
   if(isAdmin()){ loadClaims().then(render); setInterval(function(){ if(screen==='entry') loadClaims().then(render); }, 60000); }
   checkMergedProfile(); // v42 : si mon profil a été regroupé avec un autre, on bascule dessus
+  setTimeout(function(){ processAttestTodos().catch(function(e){ console.warn(e); }); }, 3000); // v43 : confirmations en retard
   socialStart();
   if(!claudeDb || !myId){
     clearTimeout(loadWatchdog);
@@ -1769,6 +1773,7 @@ function syncHand(){
 function onGameUpdate(){
   if(!gameDoc) return;
   witnessGame(gameDoc);
+  try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
   if(gameDoc.status === 'dealing'){
     handleDealing();
     // filet de sécurité : dès que quelqu'un voit que tout le monde est servi, on passe aux annonces
@@ -2018,7 +2023,7 @@ async function startGame(){
     try{ var ps = await claudeDb.doc('analysis/params').get(); if(ps.exists) botHuman = ps.data(); }catch(e){ console.error(e); }
   }
   await ref.update({
-    settings: { botHuman: botHuman },
+    settings: { botHuman: botHuman, scoring: getScoring(g) }, // v42 : barème figé au lancement (même calcul sur tous les appareils)
     status:'dealing', startedAt: nowMs(), playerOrder: ids, roundPlan: roundPlan, round:0, dealerId: dealerId, dealSeed: dd.dealSeed, dealHash: dd.dealHash, blindCards: dd.blindCards,
     bidOrder: bidOrder, leadPlayerId: bidOrder[0], turnPlayerId: bidOrder[0],
     bids: bids, tricksWon: tricksWon, currentTrick: [], trickNumber:0, lastTrick:null,
@@ -4491,6 +4496,96 @@ async function auditGameFull(g){
   }
   return auditGame(g);
 }
+/* ===================== v43 : confirmation des parties de ligue en ligne =====================
+   Avant, l'hôte écrivait seul le résultat dans la ligue : un joueur doué pouvait y inscrire une fausse partie.
+   Maintenant chaque téléphone de joueur, après avoir revérifié toute la partie (auditGame), dépose tout seul une
+   confirmation à SON nom : leagueAttest/{partie}__{compte} (les règles Firebase interdisent d'écrire au nom d'un autre
+   et de modifier une confirmation). Une partie de ligue en ligne compte quand la MAJORITÉ des joueurs l'a confirmée.
+   Filets de sécurité si quelqu'un ferme l'appli trop tôt :
+   1. confirmation immédiate dès la fin de la partie (pendant l'affichage du classement) ;
+   2. rattrapage : la partie est notée sur le téléphone dès son lancement ; à la prochaine ouverture du jeu,
+      le téléphone relit la partie terminée, la revérifie et confirme ;
+   3. majorité seulement (2 sur 3, 3 sur 4 ou 5…) ;
+   4. l'organisateur peut valider à la main une partie restée en attente (leagueValid/{partie}).
+   Les parties enregistrées avant ATTEST_FROM (et les vraies cartes) comptent comme avant. */
+var ATTEST_FROM = Date.UTC(2026, 9, 1); // 1er octobre 2026
+var attestDone = {}, attestBusy = {};
+function leagueGameId(g){ return 'o_'+g.code+'_'+(g.startedAt||g.createdAt); }
+function resultDigest(pairs){ // [[compte, score]] → texte comparable, indépendant de l'ordre
+  return pairs.map(function(p){ return String(p[0])+':'+Number(p[1]); }).sort().join('|');
+}
+function attestTodos(){ try{ return JSON.parse(localStorage.getItem('rikiki_attest_todo_'+myId)||'{}') || {}; }catch(e){ return {}; } }
+function saveAttestTodos(t){ try{ localStorage.setItem('rikiki_attest_todo_'+myId, JSON.stringify(t)); }catch(e){} }
+function iPlayLeague(g){
+  return !!(g && g.settings && g.settings.league && g.players && g.players[myId] && !g.players[myId].isBot && g.status!=='lobby' && !onlineLeagueCheck(g));
+}
+// noté dès le lancement : si je quitte avant la fin, je confirmerai à la prochaine ouverture
+function rememberLeagueGame(g){
+  if(!iPlayLeague(g) || g.status==='game_over') return;
+  var gid = leagueGameId(g), t = attestTodos(); if(t[gid]) return;
+  t[gid] = { code:g.code, startedAt:g.startedAt||g.createdAt, at:nowMs() }; saveAttestTodos(t);
+}
+async function attestResult(g){
+  var gid = leagueGameId(g);
+  if(attestDone[gid] || attestBusy[gid]) return attestDone[gid] || 'busy';
+  attestBusy[gid] = true;
+  try{
+    var audit = await auditGameFull(g);
+    if(audit.state==='bad'){ attestDone[gid] = 'bad'; return 'bad'; } // jamais de confirmation pour une partie suspecte
+    if(audit.state!=='ok') return 'wait';                               // graines pas encore révélées : on réessaiera
+    var digest = resultDigest(g.playerOrder.map(function(id){ return [keyOfPlayer(g, id), audit.scores[id]||0]; }));
+    try{ await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).set({ gid:gid, digest:digest, at:nowMs() }); }
+    catch(e){ // déjà confirmé (les règles refusent de réécrire) : c'est bon aussi
+      var ex = await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).get().catch(function(){ return null; });
+      if(!(ex && ex.exists)) throw e;
+    }
+    attestDone[gid] = 'ok';
+    var t = attestTodos(); delete t[gid]; saveAttestTodos(t);
+    return 'ok';
+  }catch(e){ console.warn('confirmation de ligue', e); return 'wait'; }
+  finally{ attestBusy[gid] = false; }
+}
+// appelée en continu pendant la partie : note la partie, puis confirme dès que c'est possible
+function maybeAttest(g){
+  if(!iPlayLeague(g)) return;
+  rememberLeagueGame(g);
+  if(g.status==='game_over') attestResult(g);
+}
+// rattrapage au démarrage : parties de ligue que j'ai quittées avant la fin
+async function processAttestTodos(){
+  var t = attestTodos(), ids = Object.keys(t); if(!ids.length || !claudeDb) return;
+  for(var i=0; i<ids.length; i++){
+    var gid = ids[i], it = t[gid];
+    try{
+      if(nowMs() - it.at > 14*86400000){ delete t[gid]; continue; } // trop vieux : l'organisateur validera
+      var gs = await claudeDb.doc('games/'+it.code).get(), gd = gs.exists ? gs.data() : null;
+      if(!gd || (gd.startedAt||gd.createdAt) !== it.startedAt){ delete t[gid]; continue; } // partie remplacée par « Rejouer »
+      if(gd.status!=='game_over') continue;                                                  // pas encore finie : on garde
+      var ls = await claudeDb.doc('gameLogs/'+it.code).get(), ld = ls.exists ? ls.data() : null;
+      var rounds = (ld && ld.rounds) || {}, seeds = (ld && ld.seeds) || {};
+      var log = Object.keys(rounds).map(Number).sort(function(a,b){ return a-b; }).map(function(k){
+        var e = Object.assign({}, rounds[k]); if(!e.dealSeed && e.dealId && seeds[e.dealId]) e.dealSeed = seeds[e.dealId]; return e; });
+      if(!log.length && Array.isArray(gd.roundLog)) log = gd.roundLog;
+      var g2 = Object.assign({}, gd, { roundLog: log });
+      if(!iPlayLeague(g2)){ delete t[gid]; continue; }
+      var r = await attestResult(g2);
+      if(r==='ok' || r==='bad') delete t[gid];
+    }catch(e){ console.warn('rattrapage de confirmation', e); }
+  }
+  var cur = attestTodos(); ids.forEach(function(id){ if(!(id in t)) delete cur[id]; }); saveAttestTodos(cur); // retire ce qui est réglé
+}
+// dans le classement : une partie en ligne récente compte-t-elle ?
+function attestStatus(rec){
+  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : rec.at;
+  if(rec.mode!=='online' || at < ATTEST_FROM) return { counts:true, legacy:true };
+  var ps = rec.players || [], need = Math.floor(ps.length/2) + 1;
+  if(league.valid && league.valid[rec.id]) return { counts:true, byAdmin:true, need:need, have:need };
+  if(!ps.every(function(p){ return p.uid; })) return { counts:false, need:need, have:0 };
+  var digest = resultDigest(ps.map(function(p){ return [p.uid, p.score]; })), have = 0;
+  ps.forEach(function(p){ var a = league.attest && league.attest[rec.id+'__'+p.uid]; if(a && a.digest===digest) have++; });
+  return { counts: have >= need, need:need, have:have };
+}
+
 function auditHtml(g){
   var a = auditGame(g);
   if(a.state==='bad') return '<div class="error-text" style="text-align:center; margin:8px 0 0;">⚠️ Scores suspects : '+esc(a.issues.slice(0,3).join(' · '))+(a.issues.length>3?' …':'')+'<br><span style="font-weight:400;">Les points ont peut-être été trafiqués. Cette partie ne comptera pas pour la ligue.</span></div>';
@@ -4513,6 +4608,8 @@ function renderGameOver(g){
   if(g.settings && g.settings.league){
     var why = onlineLeagueCheck(g);
     html += '<p class="muted" style="text-align:center; font-size:13.5px; margin:10px 0 0;">'+(why ? esc(why) : (g.leagueRecorded ? 'Partie de ligue enregistrée ✓ <button class="link-btn" data-action="league-openscreen" data-mode="online">Voir le classement en ligne</button>' : 'Enregistrement dans la ligue…'))+'</p>';
+    if(!why && iPlayLeague(g)){ var ad = attestDone[leagueGameId(g)];
+      html += '<p class="muted" style="text-align:center; font-size:12px; margin:4px 0 0;">'+(ad==='ok' ? '🔒 Ton téléphone a confirmé le résultat.' : (ad==='bad' ? '⚠️ Ton téléphone ne confirme pas ce résultat.' : '🔒 Confirmation du résultat en cours…'))+'</p>'; }
   }
   html += '<div style="text-align:center; margin:18px 0 6px;">'
     + (g.hostId===myId ? '<button class="btn" data-action="replay">↻ Rejouer (mêmes joueurs, mêmes règles)</button>'
@@ -4691,7 +4788,7 @@ function sheetSetValue(pid, v){
   if(sheet.phase==='bid') sheet.bids[pid]=v; else if(sheet.phase==='tricks') sheet.tricks[pid]=v;
   saveSheet(); render();
 }
-function sheetMaxZeros(){ return 3; } // règle officielle, aussi en vraies cartes
+function sheetMaxZeros(){ return (sheet && sheet.settings && sheet.settings.direction==='quick') ? 0 : 3; } // règle officielle, aussi en vraies cartes (sauf partie rapide)
 function sheetZeroBanned(pid){
   var mz = sheetMaxZeros(); if(!mz || zeroStreakIn(sheet.roundLog, pid) < mz) return false;
   // exception : manche à 1 carte où le donneur ne peut pas annoncer 1 → le zéro reste permis
@@ -4755,7 +4852,7 @@ function renderSheetSetup(){
   html += '<div id="sheetDealerWrap">'+dealerSelectHtml(d)+'</div>';
   if(d.league) html += '<datalist id="leagueMemberList">'+league.members.map(function(m){ return '<option value="'+esc(m.name)+'"></option>'; }).join('')+'</datalist>';
   html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:12px 0 0;"><input type="checkbox" id="sheetLeague" '+(d.league?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
-  html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">Règle : pas plus de 3 zéros d\'affilée.</p>';
+  html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">'+(d.direction==='quick' ? 'Partie rapide : pas de limite de zéros.' : 'Règle : pas plus de 3 zéros d\'affilée.')+'</p>';
   if(d.league) html += '<p class="muted" style="font-size:12.5px; margin:4px 0 0;">Tape le prénom d\'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum '+LEAGUE_MIN_HUMANS+' joueurs.</p>';
   html += '<div class="divider"></div>';
   html += '<div class="settings-grid">';
@@ -4968,11 +5065,18 @@ async function loadLeague(force){
     // v42 : fusion de doublons. Les parties enregistrées ne sont jamais réécrites : on redirige en mémoire
     // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
     league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
-    league.games = gs.docs.map(function(d){
+    // v43 : confirmations des joueurs + validations de l'organisateur
+    league.attest = {}; league.valid = {};
+    try{ (await claudeDb.collection('leagueAttest').get()).docs.forEach(function(d){ league.attest[d.id] = d.data(); }); }catch(e){ console.warn('confirmations', e); }
+    try{ (await claudeDb.collection('leagueValid').get()).docs.forEach(function(d){ league.valid[d.id] = d.data(); }); }catch(e){ console.warn('validations', e); }
+    var all = gs.docs.map(function(d){
       var g = Object.assign({ id:d.id }, d.data());
       g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
+      g.attest = attestStatus(g);
       return g;
     });
+    league.games = all.filter(function(g){ return g.attest.counts; });     // seules les parties confirmées comptent
+    league.pending = all.filter(function(g){ return !g.attest.counts; });
     league.loaded = true;
   }catch(e){ console.error(e); league.error = dbErrorText(e); }
   league.loading = false;
@@ -5014,7 +5118,7 @@ function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo
 async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   // rows: [{ memberId, name, score, contracts, absDiff }]
   var ranks = ranksFromScores(rows.map(function(r){ return { key:r.memberId, score:r.score }; }));
-  var players = rows.map(function(r){ return { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; });
+  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; return p; });
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
@@ -5051,7 +5155,7 @@ async function maybeRecordOnline(g){
       var uid = g.playerOrder[i], p = g.players[uid];
       var mid = await ensureMember({ userId: uid, name: p.name });
       var st = statsFromLog(g.roundLog||[], uid);
-      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff }); // scores recalculés, pas ceux affichés
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid) }); // scores recalculés, pas ceux affichés
     }
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
@@ -5189,6 +5293,19 @@ function renderLeague(){
       html += '</div>';
     }
   }
+  // v43 : parties en ligne pas encore confirmées par la majorité des joueurs
+  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return leagueView.season==='all' || g.season===leagueView.season; }) : [];
+  if(pend.length){
+    html += '<div class="card-panel" style="margin-top:14px;"><div class="eyebrow" style="margin-bottom:6px;">⏳ En attente de confirmation</div>'
+      + '<p class="muted" style="font-size:12.5px; margin:0 0 8px;">Une partie compte dès que la majorité des joueurs l\'a confirmée. C\'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.</p>';
+    pend.slice().reverse().slice(0, 10).forEach(function(g){
+      html += '<div class="row between" style="margin-top:6px; gap:8px;"><span style="flex:1; min-width:0; font-size:13.5px;">'+new Date(g.at).toLocaleDateString('fr-BE')+' · '
+        + esc((g.players||[]).map(function(p){ return p.name; }).join(', '))+' <span class="muted">('+g.attest.have+'/'+g.attest.need+' confirmations)</span></span>'
+        + (isAdmin() ? '<button class="btn small" data-action="league-validate" data-id="'+esc(g.id)+'">Valider</button>' : '') + '</div>';
+    });
+    if(isAdmin()) html += '<p class="muted" style="font-size:11.5px; margin:8px 0 0;">Organisateur : valide à la main seulement si tu es sûr du résultat (tu as joué, ou tu as vu la partie).</p>';
+    html += '</div>';
+  }
   if(leagueView.help){
     html += '<div class="modal-backdrop" data-action="league-help"><div class="card-panel modal">'
       + '<button class="btn ghost close-x" data-action="league-help">Fermer</button><h3>Comment marche le classement</h3>'
@@ -5197,6 +5314,7 @@ function renderLeague(){
       + '<p>Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.</p>'
       + '<p>Chaque saison (un trimestre) repart de '+ELO_START+'. Le classement « Général » cumule toutes les parties.</p>'
       + '<p>Seules les parties cochées « Partie de ligue », avec au moins '+LEAGUE_MIN_HUMANS+' joueurs humains, sans bot et jouées jusqu\'au bout, comptent. Il faut '+LEAGUE_MIN_GAMES+' parties pour apparaître dans le classement.</p>'
+      + '<p>Anti-triche (en ligne) : à la fin d\'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l\'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.</p>'
       + '<p>Contrats réussis = manches où l\'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).</p>'
       + '</div></div>';
   }
@@ -5212,6 +5330,13 @@ document.addEventListener('click', function(e){
   else if(a==='league-home'){ screen='entry'; leagueView.help=false; render(); }
   else if(a==='league-open'){ var id=el.getAttribute('data-id'); leagueView.open = leagueView.open===id ? null : id; render(); }
   else if(a==='league-help'){ leagueView.help = !leagueView.help; render(); }
+  else if(a==='league-validate' && isAdmin()){
+    var gid = el.getAttribute('data-id');
+    if(!confirm('Compter cette partie dans le classement, même sans la majorité des confirmations ?')) return;
+    claudeDb.doc('leagueValid/'+gid).set({ by: currentProfile ? currentProfile.pseudo : '', at: nowMs() })
+      .then(function(){ league.loaded = false; return loadLeague(true); })
+      .catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
+  }
   else if(a==='league-claim'){
     var id2 = el.getAttribute('data-id');
     claudeDb.collection('leagueMembers').doc(id2).update({ userId: myId }).then(function(){ var m=memberById(id2); if(m) m.userId=myId; render(); })
@@ -5251,7 +5376,7 @@ document.addEventListener('click', function(e){
   }
   else if(action==='start-game'){ startGame(); }
   else if(action==='toggle-ready'){ toggleReady(); }
-  else if(action==='reset-scoring'){ updateSettings({ scoring: Object.assign({}, DEFAULT_SCORING) }); }
+  else if(action==='reset-scoring'){ updateSettings({ scoring: Object.assign({}, ONLINE_DEFAULT_SCORING) }); }
   else if(action==='add-bot'){ addBot(); }
   else if(action==='remove-bot'){ removeBot(el.getAttribute('data-bot')); }
   else if(action==='bid'){ submitBid(parseInt(el.getAttribute('data-value'),10)); }
@@ -5282,7 +5407,7 @@ document.addEventListener('change', function(e){
     var key = el.getAttribute('data-key');
     var f = SCORING_FIELDS.filter(function(x){ return x.key===key; })[0];
     if(!f) return;
-    var n = parseInt(el.value,10); if(!isFinite(n)) n = DEFAULT_SCORING[key];
+    var n = parseInt(el.value,10); if(!isFinite(n)) n = ONLINE_DEFAULT_SCORING[key];
     n = Math.max(f.min, Math.min(f.max, n));
     var sp = {}; sp[key] = n;
     updateSettings({ scoring: sp });
