@@ -708,7 +708,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '41';
+var APP_VERSION = '42';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -731,6 +731,21 @@ var RED_SUITS = {H:true, D:true};
 // ordre d'affichage de la main : rouge / noir / rouge / noir (cœur, trèfle, carreau, pique) pour ne pas confondre les couleurs
 // (ne pas toucher à SUITS : l'ordre du paquet sert à refaire et vérifier les donnes)
 var HAND_SUIT_ORDER = ['H','C','D','S'];
+// v42 : quand une couleur manque, on réordonne les couleurs présentes pour alterner rouge / noir dès que possible
+// (ex. cœur, carreau, pique → cœur, pique, carreau) ; à égalité, l'ordre cœur, trèfle, carreau, pique
+function handSuitOrder(cards){
+  var present = HAND_SUIT_ORDER.filter(function(s){ return cards.some(function(c){ return c.suit===s; }); });
+  var best = present, bestScore = -1;
+  (function perm(done, rest){
+    if(!rest.length){
+      var sc = 0; for(var i=1;i<done.length;i++) if(!!RED_SUITS[done[i]] !== !!RED_SUITS[done[i-1]]) sc++;
+      if(sc > bestScore){ bestScore = sc; best = done; } // les permutations arrivent dans l'ordre préféré : la 1re meilleure gagne
+      return;
+    }
+    rest.forEach(function(s, i){ perm(done.concat([s]), rest.slice(0,i).concat(rest.slice(i+1))); });
+  })([], present);
+  return best;
+}
 var RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 var RANK_VALUE = {}; RANKS.forEach(function(r,i){ RANK_VALUE[r]=i+2; });
 var MAX_PLAYERS = 8, MIN_PLAYERS = 2;
@@ -1073,6 +1088,96 @@ function botChooseCard(botId, g, hand){
   // toutes ses cartes gagnent : dernier à jouer → il gagne de toute façon, il lâche la plus forte ;
   // sinon la plus petite, en espérant que quelqu'un passe par-dessus
   return isLastToPlay ? winners.slice().sort(desc)[0] : winners.slice().sort(asc)[0];
+}
+
+/* ===================== v42 : robot Fort qui réfléchit carte par carte =====================
+   Pour chaque carte qu'il peut jouer, il imagine des répartitions possibles des cartes qu'il ne voit pas,
+   termine la manche « dans sa tête » (tout le monde joue avec l'IA ci-dessus) et garde la carte qui rapporte
+   le plus de points en moyenne. Il ne triche pas : il n'utilise que sa main, les cartes déjà jouées
+   et les couleurs où un joueur a montré qu'il n'en avait plus (il n'a pas fourni). */
+var BOT_SEARCH_BUDGET = 20000; // nombre de cartes jouées « dans la tête » par décision (~0,1 à 0,3 s sur téléphone)
+// qui a joué quoi dans les plis déjà faits de la manche, et qui n'a plus quelle couleur
+function roundHistory(g){
+  var order = g.playerOrder, n = order.length, played = g.played || [], voids = {}, count = {};
+  order.forEach(function(id){ voids[id] = {}; count[id] = 0; });
+  var trump = g.trumpCard ? g.trumpCard.suit : null, lead = (g.bidOrder && g.bidOrder[0]) || order[0];
+  var full = Math.floor(played.length / n), cur = g.currentTrick || [];
+  for(var t=0; t<full; t++){
+    var li = order.indexOf(lead), trick = [];
+    for(var q=0; q<n; q++){ var id = order[(li+q)%n], c = played[t*n+q]; trick.push({ playerId:id, card:c }); count[id]++;
+      if(q && c.suit!==trick[0].card.suit) voids[id][trick[0].card.suit] = 1; }
+    lead = trickWinner(trick, trick[0].card.suit, trump);
+  }
+  cur.forEach(function(p, q){ count[p.playerId]++; if(q && p.card.suit!==cur[0].card.suit) voids[p.playerId][cur[0].card.suit] = 1; });
+  return { voids: voids, count: count };
+}
+// une répartition possible des cartes cachées, compatible avec ce qu'on sait
+function sampleHands(g, botId, hand, hist){
+  var H = g.roundPlan[g.round], seen = botSeen(g, hand), pool = buildDeck().filter(function(c){ return !seen[cardKey(c)]; });
+  var need = {}, others = g.playerOrder.filter(function(id){ return id!==botId; });
+  others.forEach(function(id){ need[id] = Math.max(0, H - hist.count[id]); });
+  for(var attempt=0; attempt<30; attempt++){
+    for(var i=pool.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=pool[i]; pool[i]=pool[j]; pool[j]=t; }
+    var hands = {}, left = Object.assign({}, need), ok = true, strict = attempt < 25;
+    others.forEach(function(id){ hands[id] = []; });
+    // on sert d'abord les cartes « difficiles » (peu de joueurs peuvent les avoir)
+    var cards = pool.slice().sort(function(a,b){
+      var ea = others.filter(function(id){ return !hist.voids[id][a.suit]; }).length, eb = others.filter(function(id){ return !hist.voids[id][b.suit]; }).length;
+      return ea-eb; });
+    var total = 0; others.forEach(function(id){ total += left[id]; });
+    for(var k=0; k<cards.length && total>0; k++){
+      var c = cards[k], el = others.filter(function(id){ return left[id]>0 && (!strict || !hist.voids[id][c.suit]); });
+      if(!el.length){ if(strict) continue; ok = false; break; }
+      var who = el[Math.floor(Math.random()*el.length)]; hands[who].push(c); left[who]--; total--;
+    }
+    if(ok && total===0){ hands[botId] = hand.slice(); return hands; }
+  }
+  return null;
+}
+// termine la manche à partir de l'état actuel ; renvoie le nombre de plis du robot
+function finishRound(botId, g, handsIn, firstCard){
+  var n = g.playerOrder.length, H = g.roundPlan[g.round], trump = g.trumpCard ? g.trumpCard.suit : null;
+  var hands = {}; Object.keys(handsIn).forEach(function(id){ hands[id] = handsIn[id].slice(); });
+  var s = { playerOrder:g.playerOrder, roundPlan:[H], round:0, settings:{ blindOne:false }, trumpCard:g.trumpCard, bidOrder:g.bidOrder,
+            bids:Object.assign({}, g.bids), tricksWon:Object.assign({}, g.tricksWon), currentTrick:(g.currentTrick||[]).slice(),
+            trickNumber:g.trickNumber||0, played:(g.played||[]).slice() };
+  var play = function(id, c){ hands[id] = hands[id].filter(function(x){ return x!==c; }); s.currentTrick.push({ playerId:id, card:c }); s.played.push(c); };
+  var order = g.playerOrder, turn = botId, first = true;
+  while(s.trickNumber < H){
+    while(s.currentTrick.length < n){
+      var c = first ? firstCard : botChooseCard(turn, s, hands[turn]); first = false;
+      if(!c) return s.tricksWon[botId];
+      play(turn, c); turn = order[(order.indexOf(turn)+1)%n];
+    }
+    var w = trickWinner(s.currentTrick, s.currentTrick[0].card.suit, trump);
+    s.tricksWon[w] = (s.tricksWon[w]||0)+1; s.trickNumber++; s.currentTrick = []; turn = w;
+  }
+  return s.tricksWon[botId];
+}
+function botSearchCard(botId, g, hand){
+  var prevJ = botJitter;
+  botJitter = false; // le Fort joue toujours son meilleur coup (pas de hasard), et imagine les autres sans fantaisie
+  try{ return botSearchCardInner(botId, g, hand); } finally { botJitter = prevJ; }
+}
+function botSearchCardInner(botId, g, hand){
+  var legal = legalCards(g, hand);
+  if(legal.length < 2) return legal[0] || null;
+  var base = botChooseCard(botId, g, hand);
+  if(!g.bidOrder || g.bids[botId]==null) return base;
+  var hist = roundHistory(g), sc = getScoring(g), n = g.playerOrder.length;
+  var cardsLeft = (g.roundPlan[g.round] - (g.trickNumber||0)) * n;
+  var R = Math.max(8, Math.min(60, Math.floor(BOT_SEARCH_BUDGET / (legal.length * Math.max(1, cardsLeft)))));
+  var total = legal.map(function(){ return 0; }), done = 0;
+  for(var r=0; r<R; r++){
+    var hands = sampleHands(g, botId, hand, hist); if(!hands) continue;
+    done++;
+    legal.forEach(function(c, i){ total[i] += scoreRound(sc, g.bids[botId], finishRound(botId, g, hands, c)); });
+  }
+  if(!done) return base;
+  // à égalité, on garde le choix de l'IA classique (souvent la carte la plus économe)
+  var best = legal.indexOf(base) >= 0 ? legal.indexOf(base) : 0;
+  total.forEach(function(v, i){ if(v > total[best] + 1e-9) best = i; });
+  return legal[best];
 }
 function genCode(){ var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var s=''; for(var i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
 function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
@@ -1456,7 +1561,8 @@ async function init(){
   await initAuth();
   applyProfileIdentity();
   if(authOn() && !adminUid){ try{ await claimAdmin(); }catch(e){ console.error(e); } }
-  if(isAdmin()) loadClaims().then(render);
+  if(isAdmin()){ loadClaims().then(render); setInterval(function(){ if(screen==='entry') loadClaims().then(render); }, 60000); }
+  checkMergedProfile(); // v42 : si mon profil a été regroupé avec un autre, on bascule dessus
   socialStart();
   if(!claudeDb || !myId){
     clearTimeout(loadWatchdog);
@@ -2262,11 +2368,35 @@ function readProfileForm(){
   return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '' };
 }
 function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); }
+// v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
+function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
+function editDistance(a, b){
+  var d = []; for(var i=0;i<=a.length;i++){ d[i] = [i]; } for(var j=0;j<=b.length;j++) d[0][j] = j;
+  for(i=1;i<=a.length;i++) for(j=1;j<=b.length;j++) d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1] + (a[i-1]===b[j-1]?0:1));
+  return d[a.length][b.length];
+}
+function similarProfiles(pseudo){
+  var a = looseName(pseudo); if(a.length < 2) return [];
+  return league.members.filter(function(m){
+    if(!m.userId) return false; // joueur « vraies cartes » sans profil : le relier est justement le but
+    var b = looseName(m.name); if(b.length < 2) return false;
+    return a===b || (Math.min(a.length,b.length) >= 3 && (a.indexOf(b)===0 || b.indexOf(a)===0)) || (Math.min(a.length,b.length) >= 4 && editDistance(a,b) <= 1);
+  }).map(function(m){ return m.name; });
+}
 async function profileCreate(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
   if(key.length < 2){ profileUi.err = 'Choisis un pseudo d\'au moins 2 lettres ou chiffres.'; render(); return; }
   if(!validPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 4 à 6 chiffres.'; render(); return; }
+  if(profileUi.similarOk !== key){
+    try{ await loadLeague(); }catch(e){}
+    var sim = similarProfiles(f.pseudo);
+    if(sim.length){
+      profileUi.similarOk = key; profileUi.suggestForgot = authOn();
+      profileUi.err = 'Il y a déjà « '+sim.slice(0,3).join(' », « ')+' » dans la ligue. Si c\'est toi, ne crée pas de nouveau profil : connecte-toi avec ce pseudo (ou « J\'ai oublié mon code »). Si c\'est quelqu\'un d\'autre, clique encore « Créer mon profil ».';
+      render(); return;
+    }
+  }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authProfileCreate(f, key); }
@@ -2294,7 +2424,7 @@ async function profileLogin(){
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authProfileLogin(f, key); }
-    catch(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Connexion impossible : '+authErrText(e)); render(); }
+    catch(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Connexion impossible : '+authErrText(e)); profileUi.suggestForgot = !!(e && e.forgot); render(); }
     return;
   }
   try{
@@ -2306,6 +2436,7 @@ async function profileLogin(){
       if(profileUi.fails >= 5){ profileUi.lockUntil = nowMs() + 30000; profileUi.fails = 0; }
       profileUi.err = 'Code PIN incorrect.'; render(); return;
     }
+    if(d.mergedInto){ var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(); if(ts.exists){ key = d.mergedInto; d = ts.data(); } } // doublon fusionné
     saveProfileLocal({ key:key, pseudo:d.pseudo, playerId:d.playerId, color:d.color });
     try{ localStorage.setItem('rikiki_fb_name', d.pseudo); localStorage.setItem('rikiki_fb_uid', d.playerId); localStorage.removeItem('rikiki_last'); }catch(e){}
     location.reload();
@@ -2347,6 +2478,10 @@ function renderProfileBox(){
         html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
           + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (4 à 6 chiffres)" style="margin-bottom:8px;">'
           + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
+      } else if(profileUi.suggestForgot){ // v42 : après un mauvais code, on propose tout de suite la bonne porte (au lieu de recréer un profil)
+        html += '<div style="margin-top:12px; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px;"><strong style="font-size:14px;">Tu ne retrouves plus ton code ?</strong>'
+          + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Ne crée pas de nouveau profil : tu perdrais ta cote et ton historique. Choisis un nouveau code, l\'organisateur le valide.</p>'
+          + '<button class="btn secondary small" data-action="profile-mode" data-mode="forgot">J\'ai oublié mon code →</button></div>';
       } else html += '<button class="btn ghost" style="font-size:12.5px; margin-top:6px;" data-action="profile-mode" data-mode="forgot">Code oublié ?</button>';
       if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
     }
@@ -2447,6 +2582,14 @@ async function profileAdminReset(){
     profileUi.busy=false; profileUi.ok = 'Nouveau code de '+d.pseudo+' : '+pin+' — envoie-le lui, il pourra le changer ensuite.'; render();
   }catch(e){ console.error(e); profileUi.busy=false; profileUi.err = 'Réinitialisation impossible : '+dbErrorText(e); render(); }
 }
+// demandes « code oublié » en attente (profil de l'organisateur ET bandeau de son accueil)
+function renderClaimsList(){
+  if(!(isAdmin() && authOn() && profileClaimsList.length)) return '';
+  return '<div style="margin-top:8px;"><strong style="font-size:13.5px;">🔑 Demandes « code oublié »</strong>' + profileClaimsList.map(function(c){
+    return '<div class="row between" style="margin-top:6px; gap:6px;"><span style="flex:1; min-width:0;">'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span></span>'
+      + '<button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button><button class="btn ghost small" data-action="claim-refuse" data-key="'+esc(c.id)+'">Refuser</button></div>';
+  }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si tu es sûr que c\'est bien ton ami (demande-lui par message).</div></div>';
+}
 function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
@@ -2456,17 +2599,30 @@ function renderProfileExtras(){
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-admin-reset" '+(profileUi.busy?'disabled':'')+'>Générer un nouveau code</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div></div>';
+  } else if(profileUi.mode==='merge' && isAdmin()){
+    html += '<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Regrouper deux profils</strong>'
+      + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Pour un ami qui s\'est recréé un profil. Ses parties, sa cote et ses deux pseudos mènent ensuite au profil principal.</p>'
+      + '<label for="mergeDup">Doublon (le profil en trop)</label><input type="text" id="mergeDup" maxlength="24" placeholder="ex. Tom2" style="margin-bottom:8px;">'
+      + '<label for="mergeMain">Profil principal (celui à garder)</label><input type="text" id="mergeMain" maxlength="24" placeholder="ex. Tom" style="margin-bottom:8px;">'
+      + '<label for="mergeKeep">Code pour se connecter</label><select id="mergeKeep" style="margin-bottom:10px;"><option value="dup">celui du doublon (le code dont il se souvient)</option><option value="main">celui du profil principal</option></select>'
+      + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-merge" '+(profileUi.busy?'disabled':'')+'>Regrouper</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div></div>';
+  } else if(profileUi.mode==='mergeMembers' && isAdmin()){
+    var opts = league.members.slice().sort(function(a,b){ return normName(a.name) < normName(b.name) ? -1 : 1; })
+      .map(function(m){ return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.userId ? '' : ' (vraies cartes)')+'</option>'; }).join('');
+    html += '<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Regrouper deux joueurs du classement</strong>'
+      + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Pour les noms tapés deux fois en vraies cartes (« Tom » et « Thomas »). Ne touche pas aux profils.</p>'
+      + (league.loaded ? '<label for="mmDup">Doublon</label><select id="mmDup" style="margin-bottom:8px;">'+opts+'</select><label for="mmMain">Compte pour</label><select id="mmMain" style="margin-bottom:10px;">'+opts+'</select>'
+         + '<div class="row"><button class="btn" style="flex:1;" data-action="member-merge" '+(profileUi.busy?'disabled':'')+'>Regrouper</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div>'
+         : '<p class="muted">Chargement du classement…</p>')
+      + '</div>';
   } else {
     html += '<div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap;"><button class="btn ghost" data-action="profile-mode" data-mode="change">Changer mon code</button>'
-      + ((isAdmin() && !authOn()) ? '<button class="btn ghost" data-action="profile-mode" data-mode="reset">Code oublié d\'un ami</button>' : '') + '</div>';
+      + ((isAdmin() && !authOn()) ? '<button class="btn ghost" data-action="profile-mode" data-mode="reset">Code oublié d\'un ami</button>' : '')
+      + (isAdmin() ? '<button class="btn ghost" data-action="profile-mode" data-mode="merge">Regrouper deux profils</button><button class="btn ghost" data-action="profile-mode" data-mode="mergeMembers">Regrouper deux joueurs</button>' : '') + '</div>';
   }
   if(isAdmin()){
     html += '<div class="muted" style="font-size:12px; margin-top:8px;">⭐ Tu es l\'organisateur.</div>';
-    if(authOn() && profileClaimsList.length){
-      html += '<div style="margin-top:8px;"><strong style="font-size:13.5px;">Demandes « code oublié »</strong>' + profileClaimsList.map(function(c){
-        return '<div class="row between" style="margin-top:6px;"><span>'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span></span><button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button></div>';
-      }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si tu es sûr que c\'est bien ton ami (demande-lui par message).</div></div>';
-    }
+    html += renderClaimsList();
   }
   if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
@@ -2475,14 +2631,31 @@ function renderProfileExtras(){
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;
   var a = el.getAttribute('data-action');
-  if(a==='profile-mode'){ readProfileForm(); profileUi.mode = el.getAttribute('data-mode') || null; profileUi.err=''; profileUi.ok=''; render(); }
+  if(a==='profile-mode'){ readProfileForm(); profileUi.mode = el.getAttribute('data-mode') || null; profileUi.err=''; profileUi.ok=''; render();
+    if(profileUi.mode==='mergeMembers') loadLeague(true); }
+  else if(a==='profile-merge'){
+    var dup = ((document.getElementById('mergeDup')||{}).value||'').trim(), main = ((document.getElementById('mergeMain')||{}).value||'').trim(), keep = (document.getElementById('mergeKeep')||{}).value || 'dup';
+    if(!confirm('Regrouper « '+dup+' » dans « '+main+' » ? On ne peut pas l\'annuler depuis le jeu.')) return;
+    profileUi.err=''; profileUi.ok=''; profileUi.busy = true; render();
+    mergeProfiles(dup, main, keep).then(function(msg){ profileUi.busy=false; profileUi.mode=null; profileUi.ok=msg; render(); })
+      .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Regroupement impossible : '+dbErrorText(e)); render(); });
+  }
+  else if(a==='member-merge'){
+    var d1 = (document.getElementById('mmDup')||{}).value, m1 = (document.getElementById('mmMain')||{}).value;
+    var n1 = memberById(d1), n2 = memberById(m1);
+    if(!confirm('Les parties de « '+(n1?n1.name:'?')+' » compteront pour « '+(n2?n2.name:'?')+' ». Continuer ?')) return;
+    profileUi.err=''; profileUi.ok=''; profileUi.busy = true; render();
+    mergeMembers(d1, m1).then(function(msg){ profileUi.busy=false; profileUi.mode=null; profileUi.ok=msg; render(); })
+      .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Regroupement impossible : '+dbErrorText(e)); render(); });
+  }
+  else if(a==='claim-refuse'){ var kr = el.getAttribute('data-key'); refuseClaim(kr).then(function(){ profileUi.ok='Demande refusée.'; render(); }).catch(function(e){ console.error(e); profileUi.err='Impossible : '+authErrText(e); render(); }); }
   else if(a==='profile-forgot-send'){
     var f = readProfileForm(), key = profileKey(f.pseudo), np = ((document.getElementById('forgotPin')||{}).value||'').trim();
     profileUi.err=''; profileUi.ok='';
     if(key.length<2){ profileUi.err='Entre ton pseudo.'; render(); return; }
     if(!validPin(np)){ profileUi.err='Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
     profileUi.busy = true; render();
-    authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.ok='Demande envoyée ✓ Préviens l\'organisateur : dès qu\'il valide, connecte-toi avec ton nouveau code.'; render(); })
+    authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.suggestForgot=false; profileUi.ok='Demande envoyée ✓ L\'organisateur la voit sur son accueil. Dès qu\'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.'; render(); })
       .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Demande impossible : '+authErrText(e)); render(); });
   }
   else if(a==='claim-admin'){ claimAdmin().then(function(){ loadClaims().then(render); }).catch(function(e){ console.error(e); profileUi.err='Impossible : '+authErrText(e); render(); }); }
@@ -2532,7 +2705,7 @@ function blindWinProbability(botId, g){
 }
 function botLevelBid(botId, g, hand){
   var lvl = botLevelOf(g);
-  if(lvl==='fort') return botChooseBid(botId, g, hand);
+  if(lvl==='fort'){ var pj = botJitter; botJitter = false; try{ return botChooseBid(botId, g, hand); } finally { botJitter = pj; } }
   var hp = lvl==='humain' ? humanParams(g) : { bidBias:0, bidSd:1.2 };
   var est = isBlindRound(g) ? blindWinProbability(botId, g) : botHeuristicEstimate(botId, g, hand);
   return botBidFromEstimate(botId, g, est + (hp.bidBias||0) + gaussian()*(hp.bidSd||0));
@@ -2551,7 +2724,8 @@ function ruffChoice(botId, g, hand){
 }
 function botLevelCard(botId, g, hand){
   var lvl = botLevelOf(g);
-  if(lvl==='fort' || legalCards(g, hand).length < 2) return botChooseCard(botId, g, hand);
+  if(lvl==='fort') return botSearchCard(botId, g, hand); // v42 : réfléchit carte par carte
+  if(legalCards(g, hand).length < 2) return botChooseCard(botId, g, hand);
   var rc = ruffChoice(botId, g, hand);
   if(rc){ // coupe aussi souvent que vous (taux mesuré par l'analyse) ; le Facile coupe presque toujours
     var rate = lvl==='facile' ? 0.9 : humanParams(g).ruff;
@@ -2671,7 +2845,7 @@ var analysis = { loading:false, loaded:false, error:'', res:null, params:null, m
 async function loadAnalysis(){
   analysis.loading = true; analysis.error=''; render();
   try{
-    var snap = await claudeDb.collection('analysisGames').orderBy('at').limit(400).get();
+    var snap = await claudeDb.collection('analysisGames').orderBy('at', 'desc').limit(400).get(); // v42 : les 400 plus RÉCENTES (avant : les 400 plus anciennes)
     var recs = snap.docs.map(function(d){ return d.data(); });
     analysis.res = analyzeRecords(recs);
     try{ var ps = await claudeDb.doc('analysis/params').get(); analysis.params = ps.exists ? ps.data() : null; }catch(e){ analysis.params = null; }
@@ -3096,7 +3270,12 @@ async function authProfileLogin(f, key){
       var u = await authCreateOrLink(email, authPw(f.pin));
       d = Object.assign(stripLegacy(d), { __plain:{ owner:u.uid, email:email } });
       await claudeDb.doc('profiles/'+key).set(d);
-    } else throw { ui:'Code PIN incorrect.' };
+    } else throw { ui:'Code PIN incorrect.', forgot:true };
+  }
+  if(d.mergedInto){ // v42 : doublon fusionné par l'organisateur → on arrive sur le profil principal
+    var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(), t = ts.exists ? ts.data() : null;
+    if(t && t.__plain && t.__plain.owner === authUid()) return finishLogin(d.mergedInto, t);
+    throw { ui:'Ce profil a été regroupé avec « '+(t ? t.pseudo : d.mergedInto)+' » : connecte-toi avec ce pseudo.' };
   }
   finishLogin(key, d);
 }
@@ -3129,6 +3308,71 @@ async function approveClaim(key){
   await ref.set(Object.assign(stripLegacy(d), { __plain:{ owner:c.__plain.newOwner, email:c.__plain.email } }));
   await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:c.__plain }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
+}
+async function refuseClaim(key){
+  var c = profileClaimsList.filter(function(x){ return x.id===key; })[0]; if(!c) return;
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:c.__plain }));
+  profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
+}
+
+/* ===================== v42 : regrouper des doublons =====================
+   Un ami a oublié son code et s'est recréé un profil ? L'organisateur regroupe le doublon avec le profil principal :
+   - le doublon garde une étiquette mergedInto → se connecter avec l'un ou l'autre pseudo mène au profil principal ;
+   - on choisit quel code garder (celui du doublon = celui dont l'ami se souvient, en général) ;
+   - dans la ligue, le membre du doublon est marqué « fusionné » : ses parties comptent pour le principal
+     (les parties enregistrées ne sont jamais réécrites, la redirection se fait au chargement du classement). */
+async function mergeProfiles(dupName, mainName, keep){
+  if(!isAdmin()) throw { ui:'Réservé à l\'organisateur.' };
+  var dk = profileKey(dupName), mk = profileKey(mainName);
+  if(dk.length < 2 || mk.length < 2) throw { ui:'Entre les deux pseudos.' };
+  if(dk === mk) throw { ui:'C\'est deux fois le même pseudo.' };
+  var dref = claudeDb.doc('profiles/'+dk), mref = claudeDb.doc('profiles/'+mk);
+  var ds = await dref.get(), ms = await mref.get();
+  if(!ds.exists) throw { ui:'Aucun profil « '+dupName+' ».' };
+  if(!ms.exists) throw { ui:'Aucun profil « '+mainName+' ».' };
+  var d = ds.data(), m = ms.data();
+  if(d.mergedInto) throw { ui:'« '+d.pseudo+' » est déjà regroupé avec un autre profil.' };
+  if(m.mergedInto) throw { ui:'« '+m.pseudo+' » est lui-même un doublon : choisis le profil principal.' };
+  // 1. le code de connexion à garder
+  if(keep === 'dup'){
+    if(authOn()){
+      if(!(d.__plain && d.__plain.owner)) throw { ui:'« '+d.pseudo+' » n\'a pas encore de compte sécurisé : garde plutôt le code de « '+m.pseudo+' ».' };
+      await mref.set(Object.assign(stripLegacy(m), { __plain:{ owner:d.__plain.owner, email:d.__plain.email } }));
+    } else await mref.set(Object.assign({}, m, { salt:d.salt, pinHash:d.pinHash }));
+  }
+  // 2. le doublon renvoie vers le principal
+  var mark = { mergedInto: mk, mergedAt: nowMs(), mergedBy: currentProfile ? currentProfile.pseudo : '' };
+  if(authOn()) await dref.set(Object.assign(stripLegacy(d), mark, { __plain: (d.__plain && d.__plain.owner != null) ? d.__plain : { owner:'', email:authEmail(dk) } }));
+  else await dref.set(Object.assign({}, d, mark));
+  // 3. la ligue
+  await loadLeague(true);
+  var mainMid = await ensureMember({ userId: m.playerId, name: m.pseudo });
+  var dups = (league.allMembers || league.members).filter(function(x){ return x.userId===d.playerId && x.id!==mainMid && !x.mergedInto; });
+  for(var i=0; i<dups.length; i++) await claudeDb.collection('leagueMembers').doc(dups[i].id).update({ mergedInto: mainMid });
+  league.loaded = false;
+  return 'Regroupé ✓ « '+d.pseudo+' » → « '+m.pseudo+' »'+(dups.length ? ' (parties de ligue reprises)' : '')+'. Ton ami se connecte avec « '+m.pseudo+' » et le code '+(keep==='dup' ? 'de « '+d.pseudo+' »' : 'de « '+m.pseudo+' »')+'.';
+}
+// joueurs du classement seulement (utile pour les « vraies cartes » : Tom / Thomas)
+async function mergeMembers(dupId, mainId){
+  if(!isAdmin()) throw { ui:'Réservé à l\'organisateur.' };
+  if(!dupId || !mainId || dupId===mainId) throw { ui:'Choisis deux joueurs différents.' };
+  if(canonMember(mainId) === dupId) throw { ui:'Ces deux joueurs sont déjà regroupés dans l\'autre sens.' };
+  await claudeDb.collection('leagueMembers').doc(dupId).update({ mergedInto: mainId });
+  var a = memberById(dupId), b = memberById(mainId);
+  league.loaded = false; await loadLeague(true);
+  return 'Regroupé ✓ « '+(a ? a.name : '?')+' » compte maintenant pour « '+(b ? b.name : '?')+' ».';
+}
+// au démarrage : si mon profil a été regroupé, je passe sur le profil principal
+async function checkMergedProfile(){
+  if(!currentProfile || !claudeDb) return;
+  try{
+    var s = await claudeDb.doc('profiles/'+currentProfile.key).get(); if(!s.exists) return;
+    var d = s.data(); if(!d.mergedInto) return;
+    var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(); if(!ts.exists) return;
+    var t = ts.data();
+    if(!authOn() || (t.__plain && t.__plain.owner === authUid())) finishLogin(d.mergedInto, t);
+    else { profileUi.err = 'Ton profil a été regroupé avec « '+t.pseudo+' » : déconnecte-toi puis connecte-toi avec ce pseudo.'; homeProfileOpen = true; render(); }
+  }catch(e){ console.warn('profil regroupé ?', e); }
 }
 async function claimAdmin(){
   // réservé au profil de l'organisateur (K.vroom) ; les règles de sécurité le vérifient aussi
@@ -3494,6 +3738,8 @@ function renderEntry(){
   html += '</div>';
   var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
   if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
+  else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
+    html += '<div class="home-panel"><div class="card-panel" style="margin-bottom:12px; padding:12px 16px;">'+renderClaimsList()+'</div></div>';
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true"><span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span></div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
@@ -4054,8 +4300,9 @@ function renderHand(g){
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
   var hasLed = ledSuit ? myHand.cards.some(function(c){ return c.suit===ledSuit; }) : false;
+  var suitOrder = handSuitOrder(myHand.cards);
   var sorted = myHand.cards.slice().sort(function(a,b){
-    if(a.suit!==b.suit) return HAND_SUIT_ORDER.indexOf(a.suit)-HAND_SUIT_ORDER.indexOf(b.suit);
+    if(a.suit!==b.suit) return suitOrder.indexOf(a.suit)-suitOrder.indexOf(b.suit);
     return a.value-b.value;
   });
   var n = sorted.length;
@@ -4697,6 +4944,17 @@ function seasonLabel(key){
   return 'Saison T'+t+' '+parts[0]+' · '+months[t-1];
 }
 function memberById(id){ return league.members.filter(function(m){ return m.id===id; })[0] || null; }
+// membre principal d'un membre éventuellement fusionné (on suit la chaîne « fusionné dans »)
+function canonMember(id){
+  var all = league.allMembers || league.members, seen = {};
+  for(var i=0; i<10 && id && !seen[id]; i++){
+    seen[id] = 1;
+    var m = all.filter(function(x){ return x.id===id; })[0];
+    if(!m || !m.mergedInto) return id;
+    id = m.mergedInto;
+  }
+  return id;
+}
 function myMember(){ return myId ? (league.members.filter(function(m){ return m.userId===myId; })[0] || null) : null; }
 function normName(s){ return (s||'').trim().toLowerCase(); }
 
@@ -4706,8 +4964,15 @@ async function loadLeague(force){
   try{
     var ms = await claudeDb.collection('leagueMembers').get();
     var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
-    league.members = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
-    league.games = gs.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    // v42 : fusion de doublons. Les parties enregistrées ne sont jamais réécrites : on redirige en mémoire
+    // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
+    league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
+    league.games = gs.docs.map(function(d){
+      var g = Object.assign({ id:d.id }, d.data());
+      g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
+      return g;
+    });
     league.loaded = true;
   }catch(e){ console.error(e); league.error = dbErrorText(e); }
   league.loading = false;
@@ -4718,7 +4983,11 @@ async function loadLeague(force){
 async function ensureMember(opts){
   await loadLeague();
   var m = null;
-  if(opts.userId) m = league.members.filter(function(x){ return x.userId===opts.userId; })[0];
+  if(opts.userId){ // y compris un membre fusionné : on renvoie alors le membre principal
+    var any = (league.allMembers || league.members).filter(function(x){ return x.userId===opts.userId; })[0];
+    if(any && any.mergedInto){ var cid = canonMember(any.id); if(memberById(cid)) return cid; }
+    m = league.members.filter(function(x){ return x.userId===opts.userId; })[0];
+  }
   if(!m && opts.userId){
     // premier passage en ligne : si un membre IRL du même prénom n'est relié à aucun compte, on le relie
     var same = league.members.filter(function(x){ return !x.userId && normName(x.name)===normName(opts.name); });
@@ -4731,6 +5000,7 @@ async function ensureMember(opts){
   var doc = { name:(opts.name||'Joueur').slice(0,24), userId: opts.userId || null, createdAt: nowMs() };
   await claudeDb.collection('leagueMembers').doc(id).set(doc);
   league.members.push(Object.assign({ id:id }, doc));
+  if(league.allMembers && league.allMembers !== league.members) league.allMembers.push(Object.assign({ id:id }, doc));
   return id;
 }
 
