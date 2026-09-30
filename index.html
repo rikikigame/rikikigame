@@ -2,7 +2,7 @@
 <title>Rikiki</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Karla:wght@400;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Bodoni+Moda:ital,opsz,wght@0,6..96,800;1,6..96,500&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   /* Rikiki — salon rétro : sable, bleu marine, rouge brique. Thème clair unique, choisi par le joueur. */
   :root{
@@ -448,6 +448,74 @@
   .chat-fab{ width:52px; height:52px; border-radius:50%; border:none; background:#1F2E4A; color:#fff; font-size:22px; box-shadow:0 6px 18px rgba(0,0,0,0.3); cursor:pointer; position:relative; }
   .chat-badge{ position:absolute; top:-4px; right:-4px; min-width:20px; height:20px; border-radius:10px; background:#B5452F; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px; }
   .chat-badge:empty{ display:none; }
+  /* ===== v38 : nouvel accueil « Nuit » ===== */
+  :root.is-home, :root.is-home body{ background:#0E1320 !important; }
+  .home-c{ max-width:440px; margin:0 auto; padding:18px 18px 24px; box-sizing:border-box; color:#EEF0F6; font-family:'Bricolage Grotesque', 'Karla', system-ui, sans-serif; display:flex; flex-direction:column; gap:12px; }
+  .hc-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .hc-hello{ display:flex; flex-direction:column; min-width:0; flex:1; }
+  .hc-hi{ font-size:13px; color:#A9B0C2; font-weight:500; margin:0; letter-spacing:0; text-transform:none; }
+  .hc-name{ font-size:22px; font-weight:800; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .home-c input.hc-name-input{ margin:4px 0 0; height:44px; font-size:17px; background:#1A2133; color:#EEF0F6; border:1.5px solid #2A3247; border-radius:12px; padding:0 12px; font-family:inherit; }
+  .home-c input.hc-name-input:focus{ border-color:#7CC4FF; }
+  .hc-avatar{ flex:none; width:46px; height:46px; border-radius:50%; border:2px solid #FF7A3D; background:#1A2133; color:#EEF0F6; font:inherit; font-weight:800; font-size:17px; cursor:pointer; }
+  .hc-avatar.guest{ width:auto; border-radius:999px; padding:0 14px; font-size:14px; }
+  .home-panel .card-panel{ margin:0 !important; }
+  .hc-brand{ display:flex; flex-direction:column; align-items:center; }
+  .hc-suits{ display:flex; gap:16px; font-size:16px; line-height:1; }
+  .hc-suits .r{ color:#FF7A3D; }
+  .hc-title{ margin:6px 0 0; font-family:'Bodoni Moda', 'DM Serif Display', Georgia, serif; font-weight:800; font-size:52px; line-height:0.9; letter-spacing:-0.03em; color:#EEF0F6; }
+  .hc-tag{ margin-top:6px; font-family:'Bodoni Moda', 'DM Serif Display', Georgia, serif; font-style:italic; font-size:16px; color:#C9CEDB; }
+  .hc-hero{ position:relative; overflow:hidden; display:block; width:100%; min-height:196px; border:none; border-radius:26px; background:#FF7A3D; color:#1B0E06; font:inherit; text-align:left; padding:20px; cursor:pointer; box-shadow:0 14px 30px rgba(255,122,61,0.18); }
+  .hc-hero:active{ transform:scale(0.99); }
+  .hc-fan{ position:absolute; right:-30px; top:14px; width:190px; height:150px; pointer-events:none; }
+  .hc-card{ position:absolute; width:58px; height:84px; box-sizing:border-box; padding:5px 6px; border-radius:10px; background:#FFF8F1; color:#0E1320; box-shadow:0 10px 20px rgba(27,14,6,0.35); display:flex; flex-direction:column; justify-content:space-between; font-weight:800; font-family:'Bricolage Grotesque', 'Karla', sans-serif; }
+  .hc-card.red{ color:#C23A22; }
+  .hc-idx{ font-size:15px; line-height:0.95; }
+  .hc-rot{ align-self:flex-end; transform:rotate(180deg); }
+  .hc-mid{ align-self:center; font-size:24px; line-height:1; }
+  .hc-card.f1{ left:10px; top:36px; transform:rotate(-24deg); }
+  .hc-card.f2{ left:38px; top:18px; transform:rotate(-12deg); }
+  .hc-card.f3{ left:66px; top:8px; border:2px solid #1B0E06; box-shadow:0 12px 24px rgba(27,14,6,0.4); }
+  .hc-card.f3 .hc-mid{ font-size:28px; }
+  .hc-card.f4{ left:94px; top:18px; transform:rotate(12deg); }
+  .hc-card.f5{ left:122px; top:36px; transform:rotate(24deg); }
+  .hc-hero-txt{ position:relative; display:flex; flex-direction:column; gap:4px; max-width:150px; min-height:156px; }
+  .hc-kicker{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:auto; }
+  .hc-hero-title{ font-size:32px; font-weight:800; line-height:0.95; letter-spacing:-0.02em; }
+  .hc-hero-sub{ font-size:14px; font-weight:600; }
+  .hc-play{ display:inline-flex; align-self:flex-start; align-items:center; gap:8px; height:42px; padding:0 16px; border-radius:999px; background:#1B0E06; color:#FFF8F1; font-size:15px; font-weight:700; margin-top:10px; }
+  .hc-join{ display:flex; align-items:center; min-height:58px; border-radius:18px; background:#1A2133; padding:0 8px 0 16px; gap:10px; }
+  .hc-join label{ font-size:14px; font-weight:700; white-space:nowrap; color:#EEF0F6; margin:0; letter-spacing:0; text-transform:none; }
+  .home-c .hc-join input[type=text]{ width:0; min-width:0; flex:1; height:40px; margin:0; border:none; border-radius:10px; background:#0E1320; color:#EEF0F6; font-family:'DM Mono', ui-monospace, monospace; font-size:18px; letter-spacing:0.3em; text-align:center; text-transform:uppercase; padding:0; }
+  .hc-join button{ height:42px; padding:0 16px; border-radius:12px; border:none; background:#7CC4FF; color:#0B1A2B; font:inherit; font-size:14px; font-weight:800; cursor:pointer; }
+  .hc-tiles{ display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .hc-tile{ min-height:92px; border-radius:18px; border:none; background:#1A2133; color:#EEF0F6; font:inherit; text-align:left; padding:14px; display:flex; flex-direction:column; justify-content:space-between; gap:10px; cursor:pointer; }
+  .hc-tile:hover, .hc-join button:hover, .hc-avatar:hover{ filter:brightness(1.1); }
+  .hc-tile-txt{ display:flex; flex-direction:column; gap:2px; }
+  .hc-tile-title{ font-size:16px; font-weight:700; }
+  .hc-tile-sub{ font-size:12px; color:#A9B0C2; }
+  .home-friends{ display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  .hf-head{ display:flex; justify-content:space-between; align-items:center; }
+  .hf-title{ font-size:15px; font-weight:800; }
+  .hf-count{ font-size:12px; font-weight:600; color:#A9B0C2; }
+  .hf-link{ min-height:44px; border:none; background:transparent; color:#FF9A66; font:inherit; font-size:13px; font-weight:700; padding:0; cursor:pointer; }
+  .hf-empty{ margin:0; font-size:13px; color:#A9B0C2; }
+  .hf-row{ display:flex; gap:10px; overflow-x:auto; padding-bottom:2px; }
+  .hf-item{ flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; width:68px; background:none; border:none; padding:0; color:#C9CEDB; font:inherit; }
+  button.hf-item{ cursor:pointer; }
+  .hf-av{ position:relative; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; color:#FFFFFF; font-size:16px; box-sizing:border-box; }
+  .hf-av.off{ color:#A9B0C2; }
+  .hf-av.add{ background:transparent; border:2px dashed #4A5470; color:#C9CEDB; }
+  .hf-dot{ position:absolute; right:0; bottom:0; width:12px; height:12px; border-radius:50%; background:#3DDC97; border:2px solid #0E1320; }
+  .hf-name{ font-size:12px; max-width:68px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hf-st{ font-size:10.5px; color:#A9B0C2; }
+  .hf-st.join{ color:#3DDC97; font-weight:700; }
+  .hc-foot{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding-top:10px; margin-top:4px; border-top:1px solid #232B40; font-size:11px; color:#A9B0C2; }
+  .hc-status{ display:flex; align-items:center; gap:6px; }
+  .hc-dot{ width:7px; height:7px; border-radius:50%; background:#3DDC97; flex:none; }
+  .hc-ver{ font-family:'DM Mono', ui-monospace, monospace; }
+  .hc-error{ margin-top:-4px; }
+  @media (prefers-reduced-motion: reduce){ .hc-hero:active{ transform:none; } }
   .quick-hero{ position:relative; overflow:hidden; display:flex; align-items:center; gap:14px; width:100%; margin:0 0 12px; padding:16px 18px; border:none; border-radius:18px; cursor:pointer; text-align:left;
     color:#FFF8EC; background:linear-gradient(120deg, #B5452F 0%, #C9772F 55%, #D3A94E 100%); box-shadow:0 10px 26px rgba(181,69,47,0.35), inset 0 1px 0 rgba(255,255,255,0.25); font-family:inherit; }
   .quick-hero::after{ content:""; position:absolute; top:0; bottom:0; left:-60%; width:40%; background:linear-gradient(100deg, transparent, rgba(255,255,255,0.28), transparent); transform:skewX(-20deg); animation:qh-shine 3.6s ease-in-out infinite; }
@@ -530,7 +598,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '37';
+var APP_VERSION = '38';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -3128,6 +3196,114 @@ function checkRevealedDeal(g, log){
   return 'pending';
 }
 
+/* ===================== v38 : nouvel accueil (direction « Nuit ») ===================== */
+var homeProfileOpen = false;
+var HOME_COLORS = ['#5E7CE2','#B3372B','#3F8F6B','#C9772F','#8A5CC7','#2F8FA3','#C24E86','#7A8A2E'];
+function homeColorFor(id){ var h = 0; String(id).split('').forEach(function(c){ h = (h*31 + c.charCodeAt(0)) >>> 0; }); return HOME_COLORS[h % HOME_COLORS.length]; }
+function homeIcon(name, size, color){
+  var p = {
+    bolt:'<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"></path>',
+    arrow:'<path d="M5 12h14M13 6l6 6-6 6"></path>',
+    plus:'<path d="M12 5v14M5 12h14"></path>',
+    sheet:'<rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path>',
+    trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"></path>',
+    book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"></path><path d="M20 17v4H6.5A2.5 2.5 0 0 1 4 18.5"></path>',
+    lock:'<rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path>'
+  }[name] || '';
+  return '<svg width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" fill="none" stroke="'+(color||'currentColor')+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
+}
+function homeFanCard(rank, suit, red, cls){
+  var sym = { S:'♠︎', H:'♥︎', D:'♦︎', C:'♣︎' }[suit];
+  return '<span class="hc-card '+cls+(red?' red':'')+'"><span class="hc-idx">'+rank+'<br>'+sym+'</span><span class="hc-mid">'+sym+'</span><span class="hc-idx hc-rot">'+rank+'<br>'+sym+'</span></span>';
+}
+function renderHomeFriends(){
+  if(!socialOn()){
+    return '<div class="home-friends"><div class="hf-head"><span class="hf-title">Amis en ligne</span></div>'
+      + '<p class="hf-empty">Crée ou connecte ton profil pour ajouter des amis, les voir en ligne et les inviter.</p></div>';
+  }
+  var ids = friendIds(), online = ids.filter(friendOnline).length;
+  var reqIds = Object.keys(social.reqs).filter(function(k){ return social.reqs[k] && !social.friends[k]; });
+  var html = '<div class="home-friends"><div class="hf-head"><span class="hf-title">Amis en ligne'
+    + (ids.length ? ' <span class="hf-count">· '+online+' sur '+ids.length+'</span>' : '') + '</span>'
+    + '<button class="hf-link" data-action="friends-toggle">'+(social.open ? 'Fermer' : 'Ajouter')+(reqIds.length ? ' <span class="top-badge">'+reqIds.length+'</span>' : '')+'</button></div>';
+  html += '<div class="hf-row">';
+  ids.slice(0, 4).forEach(function(fid){
+    var on = friendOnline(fid), pr = social.presence[fid], name = social.friends[fid].name || '?';
+    var inLobby = on && pr && pr.status==='lobby' && pr.code;
+    var st = !on ? 'hors ligne' : (pr && pr.status==='lobby' ? 'en salon' : (pr && pr.status==='playing' ? 'en partie' : (pr && pr.status==='cards' ? 'vraies cartes' : 'en ligne')));
+    var av = '<span class="hf-av'+(on?'':' off')+'" style="background:'+(on ? homeColorFor(fid) : '#2A3247')+'">'+esc(name.charAt(0).toUpperCase())+(on?'<span class="hf-dot"></span>':'')+'</span>';
+    var label = '<span class="hf-name">'+esc(name)+'</span><span class="hf-st'+(inLobby?' join':'')+'">'+(inLobby ? 'Rejoindre' : st)+'</span>';
+    html += inLobby
+      ? '<button class="hf-item" data-action="friend-join" data-code="'+esc(pr.code)+'" aria-label="Rejoindre '+esc(name)+' dans son salon">'+av+label+'</button>'
+      : '<div class="hf-item">'+av+label+'</div>';
+  });
+  html += '<button class="hf-item" data-action="friends-toggle" aria-label="Ajouter un ami"><span class="hf-av add">'+homeIcon('plus', 18)+'</span><span class="hf-name">'+(ids.length ? 'Ajouter' : 'Ajoute')+'</span><span class="hf-st">'+(ids.length ? 'un ami' : 'tes amis')+'</span></button>';
+  html += '</div>';
+  if(social.open) html += '<div class="home-panel">'+renderFriendsPanel()+'</div>';
+  return html + '</div>';
+}
+function renderEntry(){
+  var html = '<div class="home-c">';
+  // --- en-tête ---
+  var pseudo = currentProfile ? currentProfile.pseudo : '';
+  html += '<div class="hc-head">';
+  if(currentProfile){
+    html += '<div class="hc-hello"><span class="hc-hi">Salut</span><span class="hc-name">'+esc(pseudo)+'</span></div>'
+      + '<input type="hidden" id="nameInput" value="'+esc(myProfile.name || pseudo)+'">';
+  } else {
+    html += '<div class="hc-hello"><label class="hc-hi" for="nameInput">Salut, ton prénom ?</label>'
+      + '<input type="text" id="nameInput" class="hc-name-input" maxlength="24" placeholder="Ton prénom" value="'+esc(myProfile.name)+'" autocomplete="given-name"></div>';
+  }
+  var init = (pseudo || myProfile.name || '?').charAt(0).toUpperCase();
+  html += '<button class="hc-avatar'+(currentProfile?'':' guest')+'" data-action="home-profile" aria-label="'+(currentProfile ? 'Mon profil' : 'Créer ou connecter mon profil')+'" aria-expanded="'+(homeProfileOpen?'true':'false')+'">'
+    + (currentProfile ? esc(init) : '<span class="hc-avatar-txt">Profil</span>') + '</button>';
+  html += '</div>';
+  var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
+  if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
+  // --- titre ---
+  html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true"><span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span></div>'
+    + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
+  // --- partie rapide ---
+  html += '<button class="hc-hero" data-action="quick-create">'
+    + '<span class="hc-fan" aria-hidden="true">'
+    + homeFanCard('7','C',false,'f1') + homeFanCard('D','D',true,'f2') + homeFanCard('A','S',false,'f3') + homeFanCard('R','H',true,'f4') + homeFanCard('V','S',false,'f5')
+    + '</span>'
+    + '<span class="hc-hero-txt"><span class="hc-kicker">'+homeIcon('bolt', 16)+' Mode rapide</span>'
+    + '<span class="hc-hero-title">Partie rapide</span><span class="hc-hero-sub">5 manches · cartes au hasard</span>'
+    + '<span class="hc-play">Jouer '+homeIcon('arrow', 18)+'</span></span></button>';
+  // --- rejoindre avec un code ---
+  html += '<div class="hc-join"><label for="joinCodeInput">Code</label>'
+    + '<input type="text" id="joinCodeInput" maxlength="4" placeholder="K7QT" value="'+esc(prefillCode||'')+'" autocapitalize="characters" autocomplete="off">'
+    + '<button data-action="do-join">Rejoindre</button></div>';
+  if(errorMsg) html += '<div class="error-text hc-error">'+esc(errorMsg)+'</div>';
+  // --- modes ---
+  var tile = function(action, icon, title, sub){ return '<button class="hc-tile" data-action="'+action+'">'+homeIcon(icon, 22, '#7CC4FF')+'<span class="hc-tile-txt"><span class="hc-tile-title">'+title+'</span><span class="hc-tile-sub">'+sub+'</span></span></button>'; };
+  html += '<div class="hc-tiles">'
+    + tile('do-create', 'plus', 'Créer une partie', 'Un code à partager')
+    + tile('sheet-open', 'sheet', 'Vraies cartes', 'Le téléphone compte')
+    + tile('league-openscreen', 'trophy', 'Ligue', 'Classement de la saison')
+    + tile('toggle-rules', 'book', 'Règles', 'Max 3 zéros d\'affilée')
+    + '</div>';
+  // --- amis ---
+  html += renderHomeFriends();
+  // --- pied de page ---
+  html += '<div class="hc-foot"><span class="hc-status">'
+    + (usingFirebase ? '<span class="hc-dot"></span>En ligne · '+homeIcon('lock', 11)+' cartes secrètes' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
+    + '</span><span class="hc-ver">v'+APP_VERSION+'</span></div>';
+  html += '</div>';
+  if(showRules) html += renderRulesModal();
+  return html;
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="home-profile"]') : null; if(!el) return;
+  homeProfileOpen = !homeProfileOpen;
+  if(!homeProfileOpen){ profileUi.err=''; profileUi.ok=''; profileUi.mode=null; }
+  render();
+});
+document.addEventListener('keydown', function(e){
+  if(e.key==='Enter' && e.target && e.target.id==='joinCodeInput' && screen==='entry'){ e.preventDefault(); var b = document.querySelector('[data-action="do-join"]'); if(b) b.click(); }
+});
+
 var ROUND_BREAK_MS = 15000;
 var dealingNext = false;
 async function dealNextRoundAs(actorId){
@@ -3228,7 +3404,10 @@ function finalTrickShowing(g){ return !!(g.lastTrick && g.lastTrick.at && g.last
 function renderInner(){
   var app = document.getElementById('app');
   // réglages = table en verre claire ; partie = bleu nuit (verre fumé)
-  try{ document.documentElement.setAttribute('data-look', currentMode()==='game' ? 'dark' : 'glass'); }catch(e){}
+  try{
+    document.documentElement.setAttribute('data-look', (currentMode()==='game' || screen==='entry') ? 'dark' : 'glass');
+    document.documentElement.classList.toggle('is-home', screen==='entry'); // v38 : accueil « Nuit »
+  }catch(e){}
   renderIntroLayer();
   if(fatalError){ app.innerHTML = renderFatalError(); return; }
   if(screen==='no-identity'){ app.innerHTML = renderNoIdentity(); return; }
@@ -3262,38 +3441,7 @@ function renderLoading(){
   return '<div class="center-wrap"><span class="muted">Chargement…</span></div>';
 }
 
-function renderEntry(){
-  var html = '<div class="center-wrap"><div class="entry-box">';
-  html += '<div class="entry-title display">Rikiki</div>';
-  html += '<div class="suits-line" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div>';
-  html += '<p class="muted" style="text-align:center; font-size:14px; margin:0 0 22px;">Le jeu de plis à annonces <span style="opacity:0.6; font-size:12px;">· version '+APP_VERSION+'</span></p>';
-  if(usingMock) html += '<p class="muted" style="text-align:center; font-size:12px; margin:-12px 0 18px;">Mode local : synchronisé entre les onglets de ce navigateur seulement</p>';
-  if(usingFirebase) html += '<p style="text-align:center; font-size:12px; margin:-12px 0 18px; color:#3F8F6B;">● En ligne</p>';
-  html += renderProfileBox();
-  html += renderFriendsPanel();
-  html += '<div class="card-panel">';
-  html += '<div class="toggle-row">';
-  html += '<button class="btn secondary'+(entryMode==='create'?' active':'')+'" data-action="mode-create">Créer</button>';
-  html += '<button class="btn secondary'+(entryMode==='join'?' active':'')+'" data-action="mode-join">Rejoindre</button>';
-  html += '</div>';
-  html += '<label for="nameInput">Ton prénom</label>';
-  html += '<input type="text" id="nameInput" maxlength="24" placeholder="Ton prénom" value="'+esc(myProfile.name)+'"'+(currentProfile?' readonly title="Nom de ton profil"':'')+' style="margin-bottom:12px;">';
-  if(entryMode==='join'){
-    html += '<label for="joinCodeInput">Code de la partie</label>';
-    html += '<input type="text" id="joinCodeInput" maxlength="4" placeholder="K7QT" value="'+esc(prefillCode||'')+'" style="text-transform:uppercase; letter-spacing:0.2em; margin-bottom:12px;">';
-    html += '<button class="btn" style="width:100%;" data-action="do-join">Rejoindre la partie</button>';
-  } else {
-    html += '<button class="btn" style="width:100%;" data-action="do-create">Créer une partie</button>';
-  }
-  if(errorMsg) html += '<div class="error-text">'+esc(errorMsg)+'</div>';
-  html += '</div>';
-  html += '<button class="quick-hero" style="margin-top:12px;" data-action="quick-create"><span class="qh-icon">⚡</span><span class="qh-text"><span class="qh-title">Partie rapide</span><span class="qh-sub">5 manches · nombre de cartes au hasard</span></span><span class="qh-go">Jouer →</span></button>';
-  html += '<div class="entry-more"><button class="btn secondary" data-action="sheet-open">Jouer avec de vraies cartes</button><button class="btn secondary" data-action="league-openscreen">Ligue · classement</button></div>';
-  html += '<div style="text-align:center; margin-top:0;">'
-    + '<div class="muted" style="font-size:12.5px; margin-top:6px;">Ce téléphone compte les points</div></div>';
-  html += '</div></div>';
-  return html;
-}
+// (v38) renderEntry : voir le nouvel accueil plus bas
 
 function renderTopbar(g){
   return '<div class="topbar"><div class="brand"><span class="display hide-narrow">Rikiki</span>'
