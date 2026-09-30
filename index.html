@@ -569,6 +569,42 @@
   .gif-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; overflow-y:auto; }
   .gif-grid img{ width:100%; height:78px; object-fit:cover; border-radius:6px; cursor:pointer; }
   .gif-note{ font-size:12px; color:#7A7466; }
+  /* ===== v39 : le style « Nuit » de l'accueil, partout ===== */
+  :root[data-look="dark"]{
+    --sand:#0E1320; --sand-2:#141A2A; --paper:#1A2133; --navy:#EEF0F6; --navy-2:#C9CEDB;
+    --brick:#FF7A3D; --brass:#FFB27A; --green:#3DDC97; --cream-dim:#A9B0C2; --line:#232B40; --card-face:#FFF8F1;
+  }
+  :root[data-look="dark"], :root[data-look="dark"] body{ background:#0E1320; }
+  :root[data-look="dark"] body{ font-family:'Bricolage Grotesque', 'Karla', system-ui, sans-serif; color:#EEF0F6; }
+  :root[data-look="dark"] h1, :root[data-look="dark"] h2, :root[data-look="dark"] h3, :root[data-look="dark"] .display{
+    font-family:'Bodoni Moda', 'DM Serif Display', Georgia, serif; font-weight:800; letter-spacing:-0.01em; }
+  :root[data-look="dark"] .eyebrow{ color:#A9B0C2; }
+  :root[data-look="dark"] .btn{ background:#FF7A3D; border-color:#FF7A3D; color:#1B0E06; border-radius:14px; font-weight:800; }
+  :root[data-look="dark"] .btn.secondary{ background:#1A2133; border-color:#2A3247; color:#EEF0F6; }
+  :root[data-look="dark"] .btn.secondary.active{ background:#7CC4FF; border-color:#7CC4FF; color:#0B1A2B; }
+  :root[data-look="dark"] .btn.ghost{ background:transparent; border-color:transparent; color:#EEF0F6; border-radius:12px; }
+  :root[data-look="dark"] .btn.ghost:hover{ background:rgba(238,240,246,0.08); }
+  :root[data-look="dark"] .btn:disabled{ opacity:0.45; }
+  :root[data-look="dark"] .card-panel{ background:#1A2133; border:1px solid #232B40; border-radius:20px; box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
+  :root[data-look="dark"] .modal{ background:#1A2133; border-radius:22px; }
+  :root[data-look="dark"] .roll-row{ background:#1A2133; border-color:#232B40; border-radius:14px; }
+  :root[data-look="dark"] .roll-row.active{ background:#FF7A3D; border-color:#FF7A3D; color:#1B0E06; }
+  :root[data-look="dark"] .roll-row.active .mt, :root[data-look="dark"] .roll-row.active .tag{ color:rgba(27,14,6,0.78); }
+  :root[data-look="dark"] .felt{ background:#141A2A; border:1px solid #232B40; box-shadow:inset 0 0 0 1px rgba(124,196,255,0.05); border-radius:22px; }
+  :root[data-look="dark"] .bid-btn{ background:#1A2133; border-color:#2A3247; color:#EEF0F6; font-family:'DM Mono', ui-monospace, monospace; border-radius:12px; }
+  :root[data-look="dark"] .bid-btn:hover:not(:disabled){ border-color:#7CC4FF; }
+  :root[data-look="dark"] .bid-btn.picked{ background:#7CC4FF; border-color:#7CC4FF; color:#0B1A2B; }
+  :root[data-look="dark"] input[type=text], :root[data-look="dark"] input[type=number], :root[data-look="dark"] input[type=password], :root[data-look="dark"] select, :root[data-look="dark"] textarea{
+    background:#0E1320; border:1.5px solid #2A3247; color:#EEF0F6; border-radius:12px; }
+  :root[data-look="dark"] input:focus, :root[data-look="dark"] select:focus{ border-color:#7CC4FF; }
+  :root[data-look="dark"] .code-pill{ font-family:'DM Mono', ui-monospace, monospace; background:#1A2133; border-color:#2A3247; border-radius:10px; }
+  :root[data-look="dark"] .badge{ border-color:#2A3247; color:#A9B0C2; }
+  :root[data-look="dark"] .badge.good{ color:#3DDC97; border-color:rgba(61,220,151,0.4); }
+  :root[data-look="dark"] .badge.bad{ color:#FF9A66; border-color:rgba(255,154,102,0.4); }
+  :root[data-look="dark"] .toast{ background:#FF7A3D; color:#1B0E06; font-weight:700; }
+  .topbar{ flex-wrap:wrap; row-gap:4px; }
+  .topbar .brand{ flex:none; }
+  .topbar .actions{ flex:0 1 auto; flex-wrap:wrap; justify-content:flex-end; margin-left:auto; }
 </style>
 <div id="app"><div class="center-wrap"><span class="muted">Chargement…</span></div></div>
 <div id="chat-root"></div>
@@ -598,7 +634,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '38';
+var APP_VERSION = '39';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -3405,7 +3441,7 @@ function renderInner(){
   var app = document.getElementById('app');
   // réglages = table en verre claire ; partie = bleu nuit (verre fumé)
   try{
-    document.documentElement.setAttribute('data-look', (currentMode()==='game' || screen==='entry') ? 'dark' : 'glass');
+    document.documentElement.setAttribute('data-look', 'dark'); // v39 : le même style « Nuit » sur tout le site
     document.documentElement.classList.toggle('is-home', screen==='entry'); // v38 : accueil « Nuit »
   }catch(e){}
   renderIntroLayer();
