@@ -70,12 +70,12 @@
   .btn.danger{ background:var(--brick); border-color:var(--brick); color:#fff; }
   .link-btn{ background:none; border:none; padding:0; color:var(--navy); font-weight:700; font-size:13px; text-decoration:underline; text-underline-offset:3px; }
 
-  input[type=text], input[type=number]{
+  input[type=text], input[type=number], input[type=password]{
     font-family:inherit; font-size:16px; background:var(--paper);
     border:1.5px solid var(--line); color:var(--navy); border-radius:10px;
     padding:10px 12px; outline:none; width:100%;
   }
-  input[type=text]:focus, input[type=number]:focus{ border-color:var(--navy); }
+  input[type=text]:focus, input[type=number]:focus, input[type=password]:focus{ border-color:var(--navy); }
   select{
     font-family:inherit; font-size:15px; background:var(--paper); width:100%;
     border:1.5px solid var(--line); color:var(--navy); border-radius:10px; padding:9px 10px;
@@ -514,6 +514,11 @@
   .hc-status{ display:flex; align-items:center; gap:6px; }
   .hc-dot{ width:7px; height:7px; border-radius:50%; background:#3DDC97; flex:none; }
   .hc-ver{ font-family:'DM Mono', ui-monospace, monospace; }
+  .hc-beer{ font:inherit; font-size:13px; background:transparent; border:none; padding:0 4px; margin-right:6px; cursor:pointer; opacity:0.55; vertical-align:middle; }
+  .hc-beer:hover, .hc-beer:focus-visible{ opacity:1; }
+  .hc-lang{ display:inline-flex; gap:2px; margin-right:8px; vertical-align:middle; }
+  .hc-lang button{ font:inherit; font-size:11px; background:transparent; color:inherit; border:1px solid #2A3247; border-radius:6px; padding:2px 6px; cursor:pointer; opacity:0.7; }
+  .hc-lang button.on{ background:#2A3247; color:#EEF0F6; opacity:1; }
   .hc-error{ margin-top:-4px; }
   @media (prefers-reduced-motion: reduce){ .hc-hero:active{ transform:none; } }
   .quick-hero{ position:relative; overflow:hidden; display:flex; align-items:center; gap:14px; width:100%; margin:0 0 12px; padding:16px 18px; border:none; border-radius:18px; cursor:pointer; text-align:left;
@@ -708,7 +713,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '40';
+var APP_VERSION = '49';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -728,6 +733,24 @@ var SUITS = ['S','H','D','C'];
 var SUIT_SYMBOL = {S:'♠',H:'♥',D:'♦',C:'♣'};
 var SUIT_NAME = {S:'Pique',H:'Cœur',D:'Carreau',C:'Trèfle'};
 var RED_SUITS = {H:true, D:true};
+// ordre d'affichage de la main : rouge / noir / rouge / noir (cœur, trèfle, carreau, pique) pour ne pas confondre les couleurs
+// (ne pas toucher à SUITS : l'ordre du paquet sert à refaire et vérifier les donnes)
+var HAND_SUIT_ORDER = ['H','C','D','S'];
+// v42 : quand une couleur manque, on réordonne les couleurs présentes pour alterner rouge / noir dès que possible
+// (ex. cœur, carreau, pique → cœur, pique, carreau) ; à égalité, l'ordre cœur, trèfle, carreau, pique
+function handSuitOrder(cards){
+  var present = HAND_SUIT_ORDER.filter(function(s){ return cards.some(function(c){ return c.suit===s; }); });
+  var best = present, bestScore = -1;
+  (function perm(done, rest){
+    if(!rest.length){
+      var sc = 0; for(var i=1;i<done.length;i++) if(!!RED_SUITS[done[i]] !== !!RED_SUITS[done[i-1]]) sc++;
+      if(sc > bestScore){ bestScore = sc; best = done; } // les permutations arrivent dans l'ordre préféré : la 1re meilleure gagne
+      return;
+    }
+    rest.forEach(function(s, i){ perm(done.concat([s]), rest.slice(0,i).concat(rest.slice(i+1))); });
+  })([], present);
+  return best;
+}
 var RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 var RANK_VALUE = {}; RANKS.forEach(function(r,i){ RANK_VALUE[r]=i+2; });
 var MAX_PLAYERS = 8, MIN_PLAYERS = 2;
@@ -759,7 +782,7 @@ function dealCards(dealSeed, order, handSize){
   return { hands: hands, trumpCard: trumpCard };
 }
 // Règle maison : on ne peut pas annoncer 0 plus de N fois de suite (N = 3 par défaut, 0 = pas de limite)
-function maxZerosOf(g){ return 3; } // règle officielle : toujours active, pour tout le monde
+function maxZerosOf(g){ return (g && g.settings && g.settings.direction==='quick') ? 0 : 3; } // règle officielle ; pas en partie rapide (v42, choix du propriétaire)
 function zeroStreakIn(log, id){ var n = 0; for(var i=(log||[]).length-1; i>=0; i--){ if(log[i] && log[i].bids && log[i].bids[id]===0) n++; else break; } return n; }
 function zeroBanned(g, id){ var mz = maxZerosOf(g); return !!mz && zeroStreakIn(g.roundLog, id) >= mz; }
 // annonces permises pour ce joueur maintenant (total interdit pour le dernier + règle des zéros)
@@ -828,7 +851,9 @@ function playedThisTrick(g, id){
   return t.some(function(p){ return p.playerId===id; });
 }
 /* ---- barème des points (réglable par l'hôte) ---- */
-var DEFAULT_SCORING = { bonus:10, perTrick:5, missFixed:0, missPerTrick:1 };
+// v42 : barèmes par défaut choisis par le propriétaire
+var DEFAULT_SCORING = { bonus:10, perTrick:5, missFixed:0, missPerTrick:5 };        // vraies cartes
+var ONLINE_DEFAULT_SCORING = { bonus:4, perTrick:4, missFixed:0, missPerTrick:2 };  // en ligne
 var SCORING_FIELDS = [
   { key:'bonus',        label:'Bonus contrat réussi',        min:0, max:100 },
   { key:'perTrick',     label:'+ par pli (si réussi)',       min:0, max:50 },
@@ -838,7 +863,7 @@ var SCORING_FIELDS = [
 function getScoring(g){
   var s = (g && g.settings && g.settings.scoring) || {};
   var r = {};
-  Object.keys(DEFAULT_SCORING).forEach(function(k){ r[k] = (typeof s[k]==='number' && isFinite(s[k])) ? s[k] : DEFAULT_SCORING[k]; });
+  Object.keys(ONLINE_DEFAULT_SCORING).forEach(function(k){ r[k] = (typeof s[k]==='number' && isFinite(s[k])) ? s[k] : ONLINE_DEFAULT_SCORING[k]; });
   return r;
 }
 function scoreRound(sc, bid, won){
@@ -995,6 +1020,10 @@ function botRollout(botId, g, handsIn, myBid){
   }
   return s.tricksWon[botId];
 }
+// v41 : un peu de hasard entre deux coups presque équivalents, pour que les robots soient moins prévisibles
+// (coupé pendant l'analyse, qui compare les humains au robot Fort coup par coup)
+var botJitter = true;
+function pickNear(sorted){ return (botJitter && sorted.length > 1 && Math.random() < 0.3) ? sorted[1] : sorted[0]; }
 function botChooseCard(botId, g, hand){
   if(!hand.length) return null;
   var trick = g.currentTrick || [], n = g.playerOrder.length;
@@ -1028,11 +1057,11 @@ function botChooseCard(botId, g, hand){
       if(trumpMasters.length && need >= 2) return trumpMasters[0];
       // sinon : petite carte d'une couleur courte pour se créer une coupe plus tard
       var pool = side.length ? side : legal;
-      return pool.slice().sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); })[0];
+      return pickNear(pool.slice().sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); }));
     }
     // veut perdre : sa plus petite carte hors atout, dans la couleur où il a le plus de petites cartes
     var safe = (side.length ? side : legal).slice().sort(function(a,b){ return (higherUnseen(b,seen)-higherUnseen(a,seen)) || (a.value-b.value); });
-    return safe[0];
+    return pickNear(safe);
   }
 
   // ---------- il suit ----------
@@ -1040,6 +1069,13 @@ function botChooseCard(botId, g, hand){
   var winners = legal.filter(function(c){ return cardBeatsTrick(c, trick, ledSuit, trumpSuit); });
   var losers = legal.filter(function(c){ return !cardBeatsTrick(c, trick, ledSuit, trumpSuit); });
   if(wantWin){
+    // v41 : il ne coupe pas « pour rien » : si ses cartes maîtresses suffisent déjà à faire son contrat,
+    // il garde ses atouts et se défausse (avant, il coupait tout ce qui passait et finissait souvent au-dessus)
+    if(!hasLed && winners.length && winners.every(isTrump) && left > need){
+      var sure = hand.filter(isMaster).length;
+      var discard = losers.filter(function(c){ return !isTrump(c) && !isMaster(c); });
+      if(sure >= need && discard.length) return discard.sort(function(a,b){ return (suitLen[a.suit]-suitLen[b.suit]) || (a.value-b.value); })[0];
+    }
     if(winners.length){
       if(isLastToPlay) return winners.slice().sort(asc)[0];           // juste assez pour gagner
       var masterWin = winners.filter(isMaster).sort(asc);
@@ -1060,12 +1096,482 @@ function botChooseCard(botId, g, hand){
   // sinon la plus petite, en espérant que quelqu'un passe par-dessus
   return isLastToPlay ? winners.slice().sort(desc)[0] : winners.slice().sort(asc)[0];
 }
+
+/* ===================== v42 : robot Fort qui réfléchit carte par carte =====================
+   Pour chaque carte qu'il peut jouer, il imagine des répartitions possibles des cartes qu'il ne voit pas,
+   termine la manche « dans sa tête » (tout le monde joue avec l'IA ci-dessus) et garde la carte qui rapporte
+   le plus de points en moyenne. Il ne triche pas : il n'utilise que sa main, les cartes déjà jouées
+   et les couleurs où un joueur a montré qu'il n'en avait plus (il n'a pas fourni). */
+var BOT_SEARCH_BUDGET = 20000; // nombre de cartes jouées « dans la tête » par décision (~0,1 à 0,3 s sur téléphone)
+// qui a joué quoi dans les plis déjà faits de la manche, et qui n'a plus quelle couleur
+function roundHistory(g){
+  var order = g.playerOrder, n = order.length, played = g.played || [], voids = {}, count = {};
+  order.forEach(function(id){ voids[id] = {}; count[id] = 0; });
+  var trump = g.trumpCard ? g.trumpCard.suit : null, lead = (g.bidOrder && g.bidOrder[0]) || order[0];
+  var full = Math.floor(played.length / n), cur = g.currentTrick || [];
+  for(var t=0; t<full; t++){
+    var li = order.indexOf(lead), trick = [];
+    for(var q=0; q<n; q++){ var id = order[(li+q)%n], c = played[t*n+q]; trick.push({ playerId:id, card:c }); count[id]++;
+      if(q && c.suit!==trick[0].card.suit) voids[id][trick[0].card.suit] = 1; }
+    lead = trickWinner(trick, trick[0].card.suit, trump);
+  }
+  cur.forEach(function(p, q){ count[p.playerId]++; if(q && p.card.suit!==cur[0].card.suit) voids[p.playerId][cur[0].card.suit] = 1; });
+  return { voids: voids, count: count };
+}
+// une répartition possible des cartes cachées, compatible avec ce qu'on sait
+function sampleHands(g, botId, hand, hist){
+  var H = g.roundPlan[g.round], seen = botSeen(g, hand), pool = buildDeck().filter(function(c){ return !seen[cardKey(c)]; });
+  var need = {}, others = g.playerOrder.filter(function(id){ return id!==botId; });
+  others.forEach(function(id){ need[id] = Math.max(0, H - hist.count[id]); });
+  for(var attempt=0; attempt<30; attempt++){
+    for(var i=pool.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=pool[i]; pool[i]=pool[j]; pool[j]=t; }
+    var hands = {}, left = Object.assign({}, need), ok = true, strict = attempt < 25;
+    others.forEach(function(id){ hands[id] = []; });
+    // on sert d'abord les cartes « difficiles » (peu de joueurs peuvent les avoir)
+    var cards = pool.slice().sort(function(a,b){
+      var ea = others.filter(function(id){ return !hist.voids[id][a.suit]; }).length, eb = others.filter(function(id){ return !hist.voids[id][b.suit]; }).length;
+      return ea-eb; });
+    var total = 0; others.forEach(function(id){ total += left[id]; });
+    for(var k=0; k<cards.length && total>0; k++){
+      var c = cards[k], el = others.filter(function(id){ return left[id]>0 && (!strict || !hist.voids[id][c.suit]); });
+      if(!el.length){ if(strict) continue; ok = false; break; }
+      var who = el[Math.floor(Math.random()*el.length)]; hands[who].push(c); left[who]--; total--;
+    }
+    if(ok && total===0){ hands[botId] = hand.slice(); return hands; }
+  }
+  return null;
+}
+// termine la manche à partir de l'état actuel ; renvoie le nombre de plis du robot
+function finishRound(botId, g, handsIn, firstCard){
+  var n = g.playerOrder.length, H = g.roundPlan[g.round], trump = g.trumpCard ? g.trumpCard.suit : null;
+  var hands = {}; Object.keys(handsIn).forEach(function(id){ hands[id] = handsIn[id].slice(); });
+  var s = { playerOrder:g.playerOrder, roundPlan:[H], round:0, settings:{ blindOne:false }, trumpCard:g.trumpCard, bidOrder:g.bidOrder,
+            bids:Object.assign({}, g.bids), tricksWon:Object.assign({}, g.tricksWon), currentTrick:(g.currentTrick||[]).slice(),
+            trickNumber:g.trickNumber||0, played:(g.played||[]).slice() };
+  var play = function(id, c){ hands[id] = hands[id].filter(function(x){ return x!==c; }); s.currentTrick.push({ playerId:id, card:c }); s.played.push(c); };
+  var order = g.playerOrder, turn = botId, first = true;
+  while(s.trickNumber < H){
+    while(s.currentTrick.length < n){
+      var c = first ? firstCard : botChooseCard(turn, s, hands[turn]); first = false;
+      if(!c) return s.tricksWon[botId];
+      play(turn, c); turn = order[(order.indexOf(turn)+1)%n];
+    }
+    var w = trickWinner(s.currentTrick, s.currentTrick[0].card.suit, trump);
+    s.tricksWon[w] = (s.tricksWon[w]||0)+1; s.trickNumber++; s.currentTrick = []; turn = w;
+  }
+  return s.tricksWon[botId];
+}
+function botSearchCard(botId, g, hand){
+  var prevJ = botJitter;
+  botJitter = false; // le Fort joue toujours son meilleur coup (pas de hasard), et imagine les autres sans fantaisie
+  try{ return botSearchCardInner(botId, g, hand); } finally { botJitter = prevJ; }
+}
+function botSearchCardInner(botId, g, hand){
+  var legal = legalCards(g, hand);
+  if(legal.length < 2) return legal[0] || null;
+  var base = botChooseCard(botId, g, hand);
+  if(!g.bidOrder || g.bids[botId]==null) return base;
+  var hist = roundHistory(g), sc = getScoring(g), n = g.playerOrder.length;
+  var cardsLeft = (g.roundPlan[g.round] - (g.trickNumber||0)) * n;
+  var R = Math.max(8, Math.min(60, Math.floor(BOT_SEARCH_BUDGET / (legal.length * Math.max(1, cardsLeft)))));
+  var total = legal.map(function(){ return 0; }), done = 0;
+  for(var r=0; r<R; r++){
+    var hands = sampleHands(g, botId, hand, hist); if(!hands) continue;
+    done++;
+    legal.forEach(function(c, i){ total[i] += scoreRound(sc, g.bids[botId], finishRound(botId, g, hands, c)); });
+  }
+  if(!done) return base;
+  // à égalité, on garde le choix de l'IA classique (souvent la carte la plus économe)
+  var best = legal.indexOf(base) >= 0 ? legal.indexOf(base) : 0;
+  total.forEach(function(v, i){ if(v > total[best] + 1e-9) best = i; });
+  return legal[best];
+}
 function genCode(){ var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var s=''; for(var i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
 function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
 // Figures à la française : Roi, Dame, Valet (V, D, R dans les coins)
 var RANK_LABEL = { J:'V', Q:'D', K:'R' }, RANK_NAME = { J:'Valet', Q:'Dame', K:'Roi', A:'As' };
-function rankLabel(r){ return RANK_LABEL[r] || r; }
+function rankLabel(r){ return LANG==='en' ? r : (RANK_LABEL[r] || r); } // en anglais : J, Q, K
 function rankName(r){ return RANK_NAME[r] || r; }
+
+/* ===================== v46 : « Offrir une bière » (discret) =====================
+   Un petit 🍺 en bas de l'accueil, à côté de la version. Il n'apparaît que si BEER_URL est rempli
+   (page Buy Me a Coffee du créateur). Rien ne s'ouvre tout seul, jamais pendant une partie. */
+var BEER_URL = 'https://buymeacoffee.com/vroombat'; // ← lien de la page (vide = bouton caché)
+var beerOpen = false;
+function renderBeerModal(){
+  var url = BEER_URL;
+  return '<div class="modal-backdrop" data-action="beer-close"><div class="card-panel modal" style="max-width:360px; text-align:center;">'
+    + '<div style="font-size:40px; line-height:1;">🍺</div><h3 style="margin:8px 0 6px;">Offrir une bière au créateur</h3>'
+    + '<p class="muted" style="font-size:13.5px; margin:0 0 14px;">Rikiki est gratuit et sans pub. Si le jeu vous fait passer de bonnes soirées, une bière fait toujours plaisir. Merci !</p>'
+    + '<a class="btn" style="display:inline-block; text-decoration:none;" href="'+esc(url)+'" target="_blank" rel="noopener">🍺 Choisir combien de bières</a>'
+    + '<div style="margin-top:10px;"><button class="btn ghost small" data-action="beer-close">Non merci</button></div></div></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="beer-open"], [data-action="beer-close"]') : null; if(!el) return;
+  if(el.getAttribute('data-action')==='beer-close' && e.target.closest('.modal') && !e.target.closest('button')) return; // clic dans la fenêtre : on la garde
+  beerOpen = el.getAttribute('data-action')==='beer-open'; render();
+});
+
+/* ===================== v44 : français / anglais =====================
+   Le jeu est écrit en français. En anglais, un traducteur réécrit le texte AFFICHÉ (nœuds de texte + placeholder,
+   title, aria-label) grâce au dictionnaire I18N_EN : phrases exactes, puis modèles avec des nombres ou des noms.
+   Avantage : pas besoin de toucher aux ~1000 phrases du code. Le chat (.chat-msg) et les zones data-noi18n ne sont
+   jamais traduits. Les boîtes confirmT() passent par T(). Phrase oubliée = elle reste en français (rien ne casse). */
+var LANG = (function(){ try{ var s = localStorage.getItem('rikiki_lang'); if(s==='fr' || s==='en') return s; }catch(e){}
+  return /^fr/i.test((navigator.language||'fr')) ? 'fr' : 'en'; })();
+var i18nMissing = null; // tests : ensemble des textes restés en français
+var i18nDone = {};     // textes anglais déjà produits (pour ne pas les retraiter)
+function i18nExact(){ return (typeof I18N_EN!=='undefined' && I18N_EN.exact) || {}; }
+function i18nPatterns(){ return (typeof I18N_EN!=='undefined' && I18N_EN.patterns) || []; }
+function T(fr){
+  if(LANG!=='en' || fr==null) return fr;
+  var s = String(fr), m = s.match(/^(\s*)([\s\S]*?)(\s*)$/), core = m[2];
+  if(!core) return s;
+  var ex = i18nExact();
+  if(Object.prototype.hasOwnProperty.call(ex, core)){ i18nDone[ex[core]] = 1; return m[1]+ex[core]+m[3]; }
+  if(i18nDone[core]) return s; // déjà traduit
+  var ps = i18nPatterns();
+  for(var i=0;i<ps.length;i++){
+    if(ps[i][0].test(core)){
+      var rep = ps[i][1];
+      var out = core.replace(ps[i][0], function(){ var a = arguments;
+        if(typeof rep==='function') return rep.apply(null, a);
+        return rep.replace(/\$(\d)/g, function(_, k){ return a[+k]==null ? '' : T(a[+k]); }); });
+      i18nDone[out] = 1;
+      return m[1]+out+m[3];
+    }
+  }
+  if(i18nMissing && /[a-zA-ZÀ-ÿ]{2,}/.test(core)) i18nMissing[core] = (i18nMissing[core]||0)+1;
+  return s;
+}
+function i18nSkip(el){ return !!(el && el.closest && el.closest('.chat-msg, [data-noi18n], script, style, textarea')); }
+function i18nNode(n){
+  if(LANG!=='en' || !n) return;
+  if(n.nodeType===3){
+    if(!n.nodeValue || !/[A-Za-zÀ-ÿ]/.test(n.nodeValue) || i18nSkip(n.parentElement)) return;
+    var t = T(n.nodeValue); if(t!==n.nodeValue) n.nodeValue = t; return;
+  }
+  if(n.nodeType!==1 || i18nSkip(n)) return;
+  ['placeholder','title','aria-label'].forEach(function(a){ var v = n.getAttribute(a); if(v && /[A-Za-zÀ-ÿ]/.test(v)){ var t = T(v); if(t!==v) n.setAttribute(a, t); } });
+  if(n.tagName==='INPUT' && (n.type==='button' || n.type==='submit') && n.value){ var tv = T(n.value); if(tv!==n.value) n.value = tv; }
+  for(var c=n.firstChild; c; c=c.nextSibling) i18nNode(c);
+}
+var i18nObserver = null;
+function i18nStart(){
+  try{ document.documentElement.setAttribute('lang', LANG); }catch(e){}
+  if(LANG!=='en' || i18nObserver || !window.MutationObserver) return;
+  i18nNode(document.body);
+  i18nObserver = new MutationObserver(function(list){
+    list.forEach(function(r){
+      if(r.type==='characterData') i18nNode(r.target);
+      else if(r.type==='attributes') i18nNode(r.target);
+      else r.addedNodes.forEach(function(x){ i18nNode(x); });
+    });
+  });
+  i18nObserver.observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['placeholder','title','aria-label'] });
+}
+function confirmT(msg){ return window.confirm(T(msg)); }
+function setLang(l){ try{ localStorage.setItem('rikiki_lang', l); }catch(e){} location.reload(); }
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="set-lang"]') : null; if(!el) return;
+  setLang(el.getAttribute('data-lang')==='en' ? 'en' : 'fr');
+});
+/* ---- dictionnaire anglais (phrase française affichée → anglais). Pour ajouter une phrase : la copier telle
+   qu'elle s'affiche (sans espaces autour). Les morceaux coupés par du gras (<strong>) se traduisent séparément. ---- */
+function enPl(n, one, many){ return String(n)+' '+(Number(n)===1 ? one : many); }
+var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèfle':'Clubs', 'cœur':'hearts', 'carreau':'diamonds', 'pique':'spades', 'trèfle':'clubs' };
+var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
+var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
+var I18N_EN = { exact: {
+  // --- accueil ---
+  "Salut, ton prénom ?":"Hi, what's your name?", "Ton prénom":"Your name", "Salut":"Hi", "Profil":"Profile",
+  "Créer ou connecter mon profil":"Create or sign in to my profile", "Mon profil":"My profile",
+  "Le jeu de plis à annonces":"The trick-taking bidding game", "Mode rapide":"Quick mode", "Partie rapide":"Quick game",
+  "5 manches · cartes au hasard":"5 rounds · random card counts", "Jouer":"Play", "Code":"Code", "CODE":"CODE", "Rejoindre":"Join",
+  "Créer une partie":"Create a game", "Un code à partager":"A code to share", "Vraies cartes":"Real cards", "Le téléphone compte":"The phone keeps score",
+  "Ligue":"League", "Classement de la saison":"Season ranking", "Règles":"Rules", "Tuto animé · 1 min":"Animated tutorial · 1 min",
+  "Amis en ligne":"Friends online", "Ajouter":"Add", "Ajoute":"Add", "un ami":"a friend", "tes amis":"your friends",
+  "Crée ou connecte ton profil pour ajouter des amis, les voir en ligne et les inviter.":"Create or sign in to your profile to add friends, see them online and invite them.",
+  "Mode local : synchronisé entre les onglets de ce navigateur":"Local mode: synced between this browser's tabs", "En ligne":"Online",
+  "Nouveau au Rikiki ?":"New to Rikiki?", "Les règles en 1 minute, en animation.":"The rules in 1 minute, animated.", "Voir le tuto":"Watch the tutorial", "Masquer":"Hide",
+  "hors ligne":"offline", "en salon":"in a lobby", "en partie":"in a game", "vraies cartes":"real cards", "en ligne":"online",
+  // --- profil ---
+  "Pseudo":"Username", "Ton pseudo":"Your username", "Code PIN (4 à 6 chiffres)":"PIN code (4 to 6 digits)", "Se connecter":"Sign in", "Créer mon profil":"Create my profile",
+  "Se déconnecter":"Sign out", "Code oublié ?":"Forgot your code?", "Code oublié":"Forgot code", "Envoyer la demande":"Send the request", "Annuler":"Cancel", "Fermer":"Close",
+  "Nouveau code (4 à 6 chiffres)":"New code (4 to 6 digits)", "Changer mon code":"Change my code", "Code actuel":"Current code", "Enregistrer":"Save",
+  "👤 Tu joues en":"👤 You're playing as a", "invité":"guest", "Crée un profil pour la ligue et pour te retrouver sur tous tes appareils.":"Create a profile for the league and to find yourself on all your devices.",
+  "👤 Connecté :":"👤 Signed in:", "Tes parties comptent pour ton profil, sur n'importe quel appareil.":"Your games count for your profile, on any device.",
+  "Code oublié ? Demande à l'organisateur de t'en générer un nouveau. Sécurité simple, entre amis : n'utilise pas le code de ta carte bancaire 😉":"Forgot your code? Ask the organiser to generate a new one. Simple security between friends: don't use your bank card PIN 😉",
+  "Ton code est vérifié par Google et n'est stocké nulle part dans le jeu. Sécurité simple, entre amis : n'utilise pas le code de ta carte bancaire 😉":"Your code is checked by Google and isn't stored anywhere in the game. Simple security between friends: don't use your bank card PIN 😉",
+  "Écris ton pseudo en haut, puis choisis un nouveau code : l'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).":"Type your username above, then choose a new code: the organiser will confirm you're taking your profile back (your rating and history are kept).",
+  "Tu ne retrouves plus ton code ?":"Can't remember your code?", "J'ai oublié mon code →":"I forgot my code →",
+  "Ne crée pas de nouveau profil : tu perdrais ta cote et ton historique. Choisis un nouveau code, l'organisateur le valide.":"Don't create a new profile: you'd lose your rating and history. Choose a new code and the organiser will approve it.",
+  "🔒 Sécurise ton profil":"🔒 Secure your profile", "Ton code":"Your code", "Confirmer":"Confirm", "Ce n'est pas moi":"That's not me",
+  "Le jeu passe aux comptes sécurisés : confirme ton code une seule fois.":"The game now uses secure accounts: confirm your code once.",
+  "⭐ Tu es l'organisateur.":"⭐ You're the organiser.", "🔑 Demandes « code oublié »":"🔑 “Forgot code” requests", "Valider":"Approve", "Refuser":"Decline",
+  "Ne valide que si tu es sûr que c'est bien ton ami (demande-lui par message).":"Only approve if you're sure it's really your friend (ask them by message).",
+  "Regrouper deux profils":"Merge two profiles", "Regrouper deux joueurs":"Merge two players", "Regrouper":"Merge", "Code oublié d'un ami":"A friend forgot their code",
+  "Pour un ami qui s'est recréé un profil. Ses parties, sa cote et ses deux pseudos mènent ensuite au profil principal.":"For a friend who made a second profile. Their games, rating and both usernames then lead to the main profile.",
+  "Doublon (le profil en trop)":"Duplicate (the extra profile)", "Profil principal (celui à garder)":"Main profile (the one to keep)", "Code pour se connecter":"Code to sign in with",
+  "celui du doublon (le code dont il se souvient)":"the duplicate's (the code they remember)", "celui du profil principal":"the main profile's",
+  "Regrouper deux joueurs du classement":"Merge two players in the ranking", "Doublon":"Duplicate", "Compte pour":"Counts for", "Chargement du classement…":"Loading the ranking…",
+  "Pour les noms tapés deux fois en vraies cartes (« Tom » et « Thomas »). Ne touche pas aux profils.":"For names typed twice in real-card games (“Tom” and “Thomas”). Doesn't touch profiles.",
+  "Code PIN incorrect.":"Wrong PIN code.", "Code actuel incorrect.":"Current code is wrong.", "Code changé ✓":"Code changed ✓", "Entre ton pseudo.":"Enter your username.",
+  "Le code PIN doit faire 4 à 6 chiffres.":"The PIN code must be 4 to 6 digits.", "Le nouveau code doit faire 4 à 6 chiffres.":"The new code must be 4 to 6 digits.",
+  "Entre ton pseudo et ton code PIN (4 à 6 chiffres).":"Enter your username and PIN code (4 to 6 digits).", "Choisis un pseudo d'au moins 2 lettres ou chiffres.":"Choose a username of at least 2 letters or digits.",
+  "Pseudo inconnu. Pour le créer, clique « Créer mon profil ».":"Unknown username. To create it, click “Create my profile”.", "Pseudo inconnu.":"Unknown username.",
+  "Ce pseudo est déjà pris. Si c'est le tien, clique « Se connecter ».":"This username is taken. If it's yours, click “Sign in”.", "Ce pseudo est déjà pris.":"This username is taken.",
+  "Entre le pseudo de ton ami.":"Enter your friend's username.", "Demande refusée.":"Request declined.", "Validé ✓ Ton ami peut se connecter avec son nouveau code.":"Approved ✓ Your friend can sign in with their new code.",
+  "Demande envoyée ✓ L'organisateur la voit sur son accueil. Dès qu'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.":"Request sent ✓ The organiser sees it on their home screen. As soon as they approve, sign in with your username and your NEW code.",
+  "Réservé à l'organisateur.":"Organiser only.", "Entre les deux pseudos.":"Enter both usernames.", "C'est deux fois le même pseudo.":"That's the same username twice.",
+  "Choisis deux joueurs différents.":"Choose two different players.", "Ces deux joueurs sont déjà regroupés dans l'autre sens.":"These two players are already merged the other way round.",
+  "C'est toi 😄":"That's you 😄", "Pseudo de l'ami qui a oublié son code":"Username of the friend who forgot their code", "Générer un nouveau code":"Generate a new code",
+  // --- salon ---
+  "Salon":"Lobby", "Hôte":"Host", "(toi)":"(you)", "Toi":"You", "Je suis prêt":"I'm ready", "Prêt ✓":"Ready ✓", "Retirer":"Remove", "+ Ajouter un bot":"+ Add a bot",
+  "Il faut au moins 2 joueurs":"At least 2 players needed", "Tout le monde doit être prêt":"Everyone must be ready", "Lancer la partie":"Start the game",
+  "Partie":"Game", "Modifier":"Edit", "Inviter":"Invite", "Invité ✓":"Invited ✓", "📤 Partager le lien":"📤 Share the link",
+  "Envoie le lien : tes amis arrivent directement dans ce salon.":"Send the link: your friends land straight in this lobby.",
+  "Code de la partie : tes amis l'entrent dans « Rejoindre »":"Game code: your friends enter it in “Join”", "Donne le code":"Give the code", "à tes amis.":"to your friends.",
+  "Pas plus de 3 zéros d'affilée":"No more than 3 zeros in a row", "Manche à 1 carte à l'aveugle":"Blind 1-card round", "Partie d'entraînement (hors ligue)":"Practice game (not league)",
+  "Partie de ligue (compte pour le classement)":"League game (counts for the ranking)", "Partie de ligue":"League game",
+  "Niveau des robots":"Bot level", "Facile":"Easy", "Humain":"Human", "Fort":"Strong", "Humain (calé sur vos parties)":"Human (tuned on your games)",
+  "Format":"Format", "Format des manches":"Round format", "Montant puis descendant":"Up then down", "Pyramide (max → 1 → max)":"Pyramid (max → 1 → max)",
+  "Montant (1 → max)":"Up (1 → max)", "Descendant (max → 1)":"Down (max → 1)", "⚡ Partie rapide (5 manches, cartes au hasard)":"⚡ Quick game (5 rounds, random cards)",
+  "⚡ Partie rapide":"⚡ Quick game", "Barème des points":"Scoring", "Bonus contrat réussi":"Bonus for a made bid", "+ par pli (si réussi)":"+ per trick (if made)",
+  "Pénalité fixe si raté":"Fixed penalty if missed", "Pénalité par pli d'écart":"Penalty per trick off", "Par défaut":"Default",
+  "Temps par tour (ensuite une annonce / carte est jouée au hasard)":"Time per turn (then a random bid / card is played)", "Pas de limite":"No limit",
+  "Qui distribue la première manche ?":"Who deals the first round?", "Tiré au sort":"Random", "Il faut au moins 2 joueurs.":"At least 2 players needed.",
+  "Cette partie a déjà commencé.":"This game has already started.", "Cette partie a été fermée.":"This game was closed.", "Cette partie est complète.":"This game is full.",
+  "Entre un code de partie.":"Enter a game code.", "Entre ton prénom ci-dessus, puis relance la partie rapide.":"Enter your name above, then start the quick game again.",
+  "⚠ ancienne version : doit recharger la page":"⚠ old version: must reload the page",
+  // --- partie ---
+  "Quitter":"Leave", "Scores":"Scores", "Chat":"Chat", "Atout":"Trump", "Atout :":"Trump:", "Sans atout":"No trump", "Sans":"No", "atout":"trump",
+  "Ta main":"Your hand", "annonce":"bidding", "joue":"playing", "annonce ?":"bid ?", "Annonces en cours":"Bidding in progress", "À toi d'annoncer":"Your turn to bid",
+  "À toi de jouer":"Your turn to play", "À toi de jouer !":"Your turn!", "Combien de plis ?":"How many tricks?", "En attente de la première carte":"Waiting for the first card",
+  "Ouvre le pli : choisis une carte":"Lead the trick: pick a card", "Dernier pli":"Last trick", "Donneur":"Dealer", "Score":"Score", "Distribution…":"Dealing…",
+  "Calcul des scores…":"Calculating scores…", "Classement":"Standings", "réussi":"made", "raté":"missed", "pli":"trick", "plis":"tricks", "Plis":"Tricks",
+  "Interdit : le total tomberait juste":"Not allowed: the total would match exactly", "Jouer ta carte cachée":"Play your hidden card",
+  "À l'aveugle : tu vois les cartes des autres, pas la tienne.":"Blind round: you see the others' cards, not yours.",
+  "Manche à l'aveugle : la carte de chacun (dont la tienne)":"Blind round: everyone's card (including yours)", "Manche à l'aveugle : seule l'annonce comptait.":"Blind round: only the bid mattered.",
+  "Tu remportes le dernier pli":"You win the last trick", "Tu remportes le pli":"You win the trick",
+  "remporte le pli":"wins the trick", "Fin de la manche":"End of the round", "remporte le dernier pli":"wins the last trick", "annonce…":"is bidding…", "joue…":"is playing…", "Passer":"Skip", "Passer →":"Skip →", "La partie commence":"The game begins",
+  "Temps écoulé : annonce jouée au hasard":"Time's up: a random bid was played", "Temps écoulé : carte jouée au hasard":"Time's up: a random card was played",
+  "🔒 Donne vérifiée : personne ne connaissait vos cartes, et la distribution n'a pas été modifiée.":"🔒 Deal verified: nobody knew your cards, and the deal wasn't tampered with.",
+  "✓ Scores vérifiés par ton téléphone : chaque carte et chaque point ont été recontrôlés.":"✓ Scores verified by your phone: every card and every point was re-checked.",
+  "⚠️ La distribution de cette manche ne correspond pas à son empreinte.":"⚠️ This round's deal doesn't match its fingerprint.",
+  "Les points ont peut-être été trafiqués. Cette partie ne comptera pas pour la ligue.":"The points may have been tampered with. This game won't count for the league.",
+  "L'hôte est parti : tu reprends la main":"The host left: you're taking over", "L'hôte est parti : tu reprends la main, la manche est redistribuée":"The host left: you're taking over, the round is redealt",
+  "Chat de la partie":"Game chat", "Aucun message pour l'instant.":"No messages yet.", "Dis bonjour à la table 👋":"Say hi to the table 👋", "Message…":"Message…", "Envoyer":"Send",
+  "Ouvrir le chat":"Open chat", "Fermer le chat":"Close chat", "Colle le lien d'un GIF (https://…)":"Paste a GIF link (https://…)", "Colle un lien de GIF puis Entrée.":"Paste a GIF link, then press Enter.",
+  "Message non envoyé":"Message not sent", "Invitation envoyée ✓":"Invite sent ✓", "Invitation impossible":"Couldn't send the invite", "Lien copié ✓ Colle-le dans ta conversation":"Link copied ✓ Paste it into your chat",
+  // --- fin de partie ---
+  "Partie terminée":"Game over", "Récap de la partie":"Game recap", "Joueur":"Player", "Contrats":"Bids made", "Points":"Points", "Manche par manche":"Round by round", "Manche":"Round",
+  "Dans chaque case : annoncé / réalisé, les points de la manche, et le total cumulé en dessous.":"In each cell: bid / made, the round's points, and the running total below.",
+  "↻ Rejouer (mêmes joueurs, mêmes règles)":"↻ Play again (same players, same rules)", "L'hôte peut relancer une partie avec les mêmes joueurs.":"The host can start another game with the same players.",
+  "Retour à l'accueil":"Back to home", "Accueil":"Home", "Partie de ligue enregistrée ✓":"League game saved ✓", "Voir le classement en ligne":"See the online ranking", "Enregistrement dans la ligue…":"Saving to the league…",
+  "Ne compte pas pour la ligue : il y avait des bots.":"Doesn't count for the league: there were bots.", "Ne compte pas pour la ligue : il faut au moins 3 joueurs.":"Doesn't count for the league: at least 3 players needed.",
+  "🔒 Ton téléphone a confirmé le résultat.":"🔒 Your phone confirmed the result.", "⚠️ Ton téléphone ne confirme pas ce résultat.":"⚠️ Your phone doesn't confirm this result.", "🔒 Confirmation du résultat en cours…":"🔒 Confirming the result…",
+  "🧠 Le coach revoit ta manche…":"🧠 The coach is reviewing your round…", "🧠 Tes manches revues par le coach":"🧠 Your rounds reviewed by the coach", "Tu as annoncé":"You bid", "et fait":"and made",
+  "). Le coach aurait annoncé":"). The coach would have bid", "). Le coach aurait annoncé pareil 👍":"). The coach would have bid the same 👍", "Voir le coup différent":"See the different move", "Masquer le détail":"Hide details",
+  "tu as joué":"you played", "le coach :":"the coach:", "→ tu avais ton compte : laisser passer le pli en lâchant ta carte la plus dangereuse.":"→ you already had your tricks: let the trick go by dumping your most dangerous card.",
+  // --- vraies cartes ---
+  "Feuille de score":"Score sheet", "Vous jouez avec un vrai paquet. À chaque manche, tape les annonces puis les plis : les points sont calculés.":"You're playing with a real deck. Each round, enter the bids then the tricks: points are calculated for you.",
+  "Joueurs (dans l'ordre autour de la table)":"Players (in order around the table)", "+ Ajouter un joueur":"+ Add a player", "Commencer la partie":"Start the game", "Manches":"Rounds", "Max":"Max",
+  "Règle : pas plus de 3 zéros d'affilée.":"Rule: no more than 3 zeros in a row.", "Partie rapide : pas de limite de zéros.":"Quick game: no limit on zeros.",
+  "1. Annonces":"1. Bids", "Combien de plis chacun pense remporter.":"How many tricks each player thinks they'll win.", "Valider les annonces — on joue !":"Confirm the bids — let's play!",
+  "Abandonner et recommencer":"Give up and start over", "annonce en premier et ouvre le 1":"bids first and leads the 1", "er":"st", "distribue · 📦 il reste":"deals · 📦", "cartes dans le paquet":"cards left in the deck",
+  "Toi · donneur":"You · dealer", "2. Plis remportés":"2. Tricks won", "Combien de plis chacun a vraiment faits.":"How many tricks each player actually took.",
+  "← Annonces":"← Bids", "Valider les plis":"Confirm the tricks", "Annoncé":"Bid", "Réalisé":"Made", "Voir le résultat final":"See the final result", "Nouvelle partie":"New game",
+  "Préparation…":"Getting ready…", "profil ✓":"profile ✓", "membre":"member", "nouveau":"new", "Voir le classement IRL":"See the real-cards ranking",
+  "Sûr ? La partie en cours sera effacée — confirmer":"Sure? The current game will be erased — confirm",
+  "Tape le prénom d'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum 3 joueurs.":"Type a member's name (suggested automatically); an unknown name creates a new member. Minimum 3 players.", "· donneur":"· dealer", "· annonce en 1er":"· bids 1st", "Joueur 1":"Player 1", "Joueur 2":"Player 2", "Joueur 3":"Player 3",
+  // --- ligue ---
+  "Classement en ligne":"Online ranking", "Classement IRL":"Real-cards ranking", "Vraies cartes (IRL)":"Real cards (IRL)", "Saison":"Season", "Général (depuis le début)":"All-time",
+  "Analyse":"Analysis", "Comment ça marche":"How it works", "Comment marche le classement":"How the ranking works", "Chargement de la ligue…":"Loading the league…", "Chargement…":"Loading…",
+  "Aucune partie de ligue pour l'instant":"No league games yet", "💾 Sauvegarde":"💾 Backup", "Télécharger la sauvegarde":"Download the backup", "Restaurer…":"Restore…",
+  "Coche « Partie de ligue » dans la feuille de score (Jouer avec de vraies cartes). Il faut au moins 3 joueurs humains et aller jusqu'au bout.":"Tick “League game” on the score sheet (Real cards). You need at least 3 human players and to finish the game.",
+  "Coche « Partie de ligue » dans les réglages du salon avant de lancer. Il faut au moins 3 joueurs humains et aller jusqu'au bout.":"Tick “League game” in the lobby settings before starting. You need at least 3 human players and to finish the game.",
+  "Chaque joueur commence à 1000. Une partie compte comme des duels entre tous les joueurs selon le classement final : finir devant quelqu'un, c'est gagner le duel.":"Everyone starts at 1000. A game counts as duels between all players based on the final standings: finishing ahead of someone means winning that duel.",
+  "Battre un joueur mieux coté rapporte plus que battre un joueur moins bien coté ; perdre contre un joueur moins bien coté coûte plus. Le gain est divisé par le nombre d'adversaires, donc une partie à 6 ne compte pas plus qu'une partie à 3.":"Beating a higher-rated player earns more than beating a lower-rated one; losing to a lower-rated player costs more. The gain is divided by the number of opponents, so a 6-player game doesn't count more than a 3-player one.",
+  "Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.":"There are two separate rankings: online games and real-card (IRL) games. Each has its own rating.",
+  "Chaque saison (un trimestre) repart de 1000. Le classement « Général » cumule toutes les parties.":"Each season (a quarter) restarts from 1000. The “All-time” ranking adds up every game.",
+  "Seules les parties cochées « Partie de ligue », avec au moins 3 joueurs humains, sans bot et jouées jusqu'au bout, comptent. Il faut 3 parties pour apparaître dans le classement.":"Only games ticked “League game”, with at least 3 human players, no bots and played to the end, count. You need 3 games to appear in the ranking.",
+  "Contrats réussis = manches où l'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).":"Bids made = rounds where the bid was exact. Average gap = average difference between bid and tricks won (0 = perfect).",
+  "Anti-triche (en ligne) : à la fin d'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.":"Anti-cheat (online): at the end of a game, every phone re-checks all the cards and points, then confirms the result on its own. The game counts once most players have confirmed it; a player who left early confirms the next time they open the game.",
+  "⏳ En attente de confirmation":"⏳ Awaiting confirmation", "Une partie compte dès que la majorité des joueurs l'a confirmée. C'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.":"A game counts as soon as most players have confirmed it. It's automatic: at the end of the game, or the next time the player opens the game.",
+  "Organisateur : valide à la main seulement si tu es sûr du résultat (tu as joué, ou tu as vu la partie).":"Organiser: only approve by hand if you're sure of the result (you played or watched the game).",
+  "Pas encore classés (moins de 3 parties)":"Not ranked yet (fewer than 3 games)",
+  // --- analyse ---
+  "Comment vous jouez":"How you play", "Tendance":"Tendency", "Comme le robot Fort":"Like the Strong bot", "Plis pris évitables":"Avoidable tricks taken", "Plis ratés":"Missed tricks",
+  "Écart moyen":"Average gap", "Tous les humains":"All humans", "Robots niveau Humain":"Human-level bots", "Analyse des parties…":"Analysing games…", "Profil mesuré sur vous : joue comme le robot Fort":"Profile measured on you: plays like the Strong bot",
+  "du temps, annonce en moyenne":"of the time, bids on average", "Actuellement appliqué : profil par défaut (70 %, ± 0,8).":"Currently applied: default profile (70%, ± 0.8).",
+  "Il faut au moins 10 manches humaines":"At least 10 human rounds needed", "Appliquer ce profil aux robots « Humain »":"Apply this profile to “Human” bots", "juste":"accurate",
+  "Seul l'organisateur (K.vroom) peut appliquer le profil.":"Only the organiser (K.vroom) can apply the profile.",
+  "Appliqué ✓ : les robots de niveau Humain suivront ce profil dans les prochaines parties.":"Applied ✓: Human-level bots will follow this profile in upcoming games.",
+  "« Comme le robot Fort » : part des coups (avec au moins 2 cartes possibles) où le joueur a joué la même carte que le robot le plus fort. « Plis pris évitables » : en dernier à jouer, déjà à son contrat, il a pris le pli alors qu'il pouvait le perdre. « Plis ratés » : en dernier, il lui fallait un pli et il pouvait le prendre, mais ne l'a pas pris (en % des coups joués en dernier).":"“Like the Strong bot”: share of moves (with at least 2 possible cards) where the player played the same card as the strongest bot. “Avoidable tricks taken”: playing last, already at their bid, they took the trick when they could have lost it. “Missed tricks”: playing last, they needed a trick and could take it, but didn't (as a % of moves played last).",
+  // --- tuto & règles ---
+  "Tuto des règles":"Rules tutorial", "▶ Voir le tuto animé":"▶ Watch the animated tutorial", "Voir les règles détaillées":"See the detailed rules", "Règles de cette version":"Rules of this version",
+  "← Précédent":"← Previous", "Suivant →":"Next →", "Le but du jeu":"The goal", "À chaque manche, annonce":"Each round, predict", "exactement":"exactly", "combien de plis tu vas gagner. Ni plus, ni moins.":"how many tricks you'll win. No more, no less.",
+  "La donne":"The deal", "Chaque manche, on distribue un nombre de cartes différent : 1 carte, puis 2, puis 3… Ici, c'est la manche à":"Each round, a different number of cards is dealt: 1 card, then 2, then 3… Here it's the round with",
+  "3 cartes":"3 cards", "Le donneur parle en dernier.":"The dealer speaks last.", "L'atout":"Trump", "l'atout":"trump",
+  "Après la donne, on retourne la carte suivante du paquet : sa couleur devient":"After the deal, the next card of the deck is turned over: its suit becomes",
+  ". Quand toutes les cartes sont distribuées, il n'y a pas d'atout.":". When all the cards are dealt, there's no trump.", "♥︎ cœur":"♥︎ hearts",
+  "Les annonces":"Bidding", "« Je fais":"“I'll take", "plis »":"tricks”", "Le total ne tombe jamais juste":"The total never matches",
+  "Le dernier à annoncer ne peut pas choisir le nombre qui rendrait le total égal au nombre de cartes. Résultat :":"The last to bid can't pick the number that would make the total equal the number of cards. Result:",
+  "au moins un joueur ratera":"at least one player will miss", "forcément !":"for sure!", "Fournir la couleur":"Follow suit", "Le premier joueur pose une carte. Les autres":"The first player lays a card. The others",
+  "doivent jouer la même couleur":"must play the same suit", "s'ils en ont.":"if they have it.", "Tu as du pique ? Tu dois jouer ton":"Got a spade? You must play your",
+  "Pas la couleur ? Coupe !":"Can't follow? Trump!", "Si tu n'as pas la couleur demandée, tu joues":"If you don't have the suit led, you play", "ce que tu veux":"whatever you want",
+  ": un atout pour couper, ou n'importe quelle autre carte pour te défausser.":": a trump to cut, or any other card to discard.", "couper":"trump", "se défausser":"discard",
+  "Qui gagne le pli ?":"Who wins the trick?", "Le plus fort atout gagne. S'il n'y a pas d'atout dans le pli, c'est la plus forte carte de la couleur demandée.":"The highest trump wins. If there's no trump in the trick, the highest card of the suit led wins.",
+  "Le gagnant commence le pli suivant.":"The winner leads the next trick.", "bat l'As : c'est un atout !":"beats the Ace: it's a trump!", "Carte demandée":"Suit led",
+  "La manche à l'aveugle":"The blind round", "À 1 carte, tu":"With 1 card, you", "ne vois pas ta propre carte":"can't see your own card",
+  "… mais tu vois celles de tous les autres, comme si chacun la tenait sur son front. Annonce en fonction !":"… but you see everyone else's, as if they held it on their forehead. Bid accordingly!",
+  "Léa a l'As de pique… tu annonces 0 ou 1 ?":"Léa has the Ace of spades… do you bid 0 or 1?", "Ton petit":"Your low",
+  "Annoncer 0 est permis… mais":"Bidding 0 is allowed… but", "pas plus de 3 manches de suite":"not more than 3 rounds in a row",
+  ". Au 4e zéro, c'est interdit : il faudra tenter au moins un pli.":". On the 4th zero it's forbidden: you'll have to go for at least one trick.",
+  "ton annonce ? Contrat réussi ! Sinon, c'est raté. Puis on passe à la manche suivante.":"your bid? Bid made! Otherwise it's missed. Then on to the next round.", "Tu as fait":"Did you take",
+  "Tu connais l'essentiel. Pour commencer en douceur : une":"You know the essentials. To start gently: a", "partie rapide":"quick game", ", 5 manches avec un nombre de cartes au hasard.":", 5 rounds with a random number of cards.",
+  "Plus de cartes.":"No more cards.", "Offrir une bière au créateur":"Buy the creator a beer", "Non merci":"No thanks", "🍺 Choisir combien de bières":"🍺 Choose how many beers",
+  "Rikiki est gratuit et sans pub. Si le jeu vous fait passer de bonnes soirées, une bière fait toujours plaisir. Merci !":"Rikiki is free and ad-free. If it gives you good evenings, a beer is always appreciated. Thanks!", "Chargement de ta main…":"Loading your hand…",
+  // --- amis, invitations, divers ---
+  "Amis":"Friends", "Voir":"Show", "aucun pour l'instant":"none yet", "t'a ajouté":"added you", "Ajouter aussi":"Add back", "Pseudo de ton ami":"Your friend's username",
+  "Ajoute des amis depuis l'accueil pour les inviter en un clic.":"Add friends from the home screen to invite them in one tap.", "joue aux vraies cartes":"playing with real cards",
+  "t'invite à une partie":"invites you to a game", "Un ami":"A friend", "Un joueur":"A player", "C'est parti !":"Let's go!", "Réessayer":"Try again", "Ça coince…":"Something's stuck…",
+  "Copie ce lien :":"Copy this link:", "Chercher un GIF…":"Search for a GIF…", "Touche un GIF pour l'envoyer":"Tap a GIF to send it", "Aucun résultat":"No results",
+  "L'hôte va lancer la partie…":"The host will start the game…", "Clique sur « Je suis prêt » pour continuer.":"Click “I'm ready” to continue.", "Pas prêt":"Not ready", "Prêt":"Ready",
+  "Pas de limite de temps par tour":"No time limit per turn", "Pas de connexion internet.":"No internet connection.", "Trop d'essais : réessaie dans quelques minutes.":"Too many attempts: try again in a few minutes.",
+  "⚠ Une nouvelle version du jeu est en ligne : recharge la page avant de jouer.":"⚠ A new version of the game is online: reload the page before playing.",
+  "🧠 Coach":"🧠 Coach", "🧠 Le coach réfléchit…":"🧠 The coach is thinking…", "Tu as joué exactement comme le coach 🎯":"You played exactly like the coach 🎯", "activé":"on", "désactivé":"off",
+  "Toutes tes cartes gagnent : joue la plus forte pour t'en débarrasser.":"All your cards win: play the highest to get rid of it.",
+  "Toutes tes cartes gagnent : joue la plus petite, quelqu'un peut encore passer au-dessus.":"All your cards win: play the lowest, someone may still go over it.",
+  "Tu as ton compte : laisse passer ce pli en te débarrassant de ta carte la plus dangereuse.":"You have your tricks: let this trick go by dumping your most dangerous card.",
+  "Tu as ton compte : ouvre avec une carte qui a peu de chances de gagner.":"You have your tricks: lead with a card that's unlikely to win.",
+  "Tu ne peux pas prendre ce pli : débarrasse-toi d'une petite carte.":"You can't take this trick: get rid of a low card.",
+  "toutes tes cartes gagnaient : jouer la plus forte pour t'en débarrasser.":"all your cards were winners: play the highest to get rid of it.",
+  "toutes tes cartes gagnaient : jouer la plus petite, quelqu'un pouvait encore passer au-dessus.":"all your cards were winners: play the lowest, someone could still go over it.",
+  "tu avais ton compte : ouvrir avec une carte qui a peu de chances de gagner.":"you had your tricks: lead with a card that's unlikely to win.",
+  "tu ne pouvais pas prendre ce pli : se débarrasser d'une petite carte.":"you couldn't take this trick: get rid of a low card.",
+  // --- ligue (détails) ---
+  "victoires":"wins", "contrats réussis":"bids made", "écart moyen / manche":"average gap / round", "meilleure série":"best streak", "Dernières parties":"Recent games",
+  "Évolution de la cote (pointillés = 1000)":"Rating over time (dotted line = 1000)", "C'est moi : relier à mon compte":"That's me: link to my account",
+  "Retirer cet ami ?":"Remove this friend?", "Restaurer cette sauvegarde ? Seuls les éléments manquants seront recréés, rien ne sera écrasé.":"Restore this backup? Only missing items will be recreated; nothing will be overwritten.",
+  "Compter cette partie dans le classement, même sans la majorité des confirmations ?":"Count this game in the ranking, even without most players' confirmations?",
+  "Chacun annonce à son tour combien de plis il pense faire, en commençant par le joueur à gauche du donneur.":"Each player in turn bids how many tricks they think they'll take, starting with the player to the dealer's left.",
+  "Chacun annonce, à tour de rôle, le nombre de plis qu'il pense remporter. Le dernier à annoncer (le donneur) ne peut pas choisir le nombre qui ferait tomber le total exactement sur le nombre de plis de la manche.":"Each player in turn bids the number of tricks they think they'll win. The last to bid (the dealer) can't pick the number that would make the total exactly equal the round's number of tricks.",
+  "Dans le salon, chaque joueur doit se déclarer prêt avant que l'hôte puisse lancer la partie.":"In the lobby, every player must mark themselves ready before the host can start the game.",
+  "Ensuite ça tourne tout seul, dans l'ordre de la liste (sens des aiguilles d'une montre).":"Then it rotates automatically, in list order (clockwise).",
+  "Le nombre de cartes distribuées change à chaque manche : par défaut on commence à 1 carte et on monte d'une carte par manche (l'hôte peut aussi choisir montant puis descendant, descendant, ou pyramide).":"The number of cards dealt changes every round: by default you start at 1 card and go up one card per round (the host can also choose up then down, down, or pyramid).",
+  "Manche à 1 carte (si l'option est cochée) : on joue à l'aveugle. Tu ne vois pas ta propre carte, mais tu vois celles de tous les autres joueurs, et tu annonces en fonction.":"1-card round (if the option is ticked): it's played blind. You can't see your own card, but you see every other player's card, and you bid accordingly.",
+  "On doit fournir la couleur demandée si possible ; sinon on peut couper ou défausser librement.":"You must follow the suit led if you can; otherwise you may trump or discard freely.",
+  "À chaque manche, une carte est retournée pour indiquer l'atout — sauf quand toutes les cartes du paquet sont distribuées.":"Each round, a card is turned over to show trump — except when every card in the deck is dealt."
+}, patterns: [
+  [/^Manche suivante dans (\d+) s$/, "Next round in $1 s"],
+  // notes de la feuille de score : « Ann · donneur · ne peut pas dire 0 », « annonce en 1er · a annoncé 2 »…
+  [/^(.*(?:annonce en 1er|donneur|a annoncé \d+|0 interdit \(3 zéros d'affilée\)).*)$/, function(all){
+    return all.split(' · ').map(function(seg){
+      var t = seg.trim(), m;
+      if(t==='annonce en 1er') return seg.replace(t, 'bids 1st');
+      if(t==='donneur') return seg.replace(t, 'dealer');
+      if((m = t.match(/^ne peut pas dire (\d+)$/))) return seg.replace(t, "can't say "+m[1]);
+      if((m = t.match(/^a annoncé (\d+)$/))) return seg.replace(t, 'bid '+m[1]);
+      if(t==="0 interdit (3 zéros d'affilée)") return seg.replace(t, '0 not allowed (3 zeros in a row)');
+      if(t==='Toi') return seg.replace(t, 'You');
+      return seg; }).join(' · '); }],
+  [/^Manche (\d+) \/ (\d+) · tour rejoué$/, "Round $1 / $2 · replayed round"],
+  [/^Total annoncé : (\d+) pour (\d+) plis? \((ça va se battre|il y aura des plis en trop)\)$/, function(_, a, h, w){ return 'Total bid: '+a+' for '+enPl(h,'trick','tricks')+' ('+(w==='ça va se battre' ? "it'll be a fight" : 'some tricks will be left over')+')'; }],
+  [/^Total annoncé = (\d+) : interdit ! Le dernier à annoncer doit changer son annonce\.$/, "Total bid = $1: not allowed! The last bidder must change their bid."],
+  [/^Total : (\d+) \/ (\d+) \(il manque des joueurs\)$/, "Total: $1 / $2 (players missing)"],
+  [/^Total : (\d+) \/ (\d+) — le total des plis doit faire (\d+)\.$/, "Total: $1 / $2 — the tricks must add up to $3."],
+  [/^Total : (\d+) \/ (\d+) ✓$/, "Total: $1 / $2 ✓"],
+  [/^Résultat de la manche (\d+)$/, "Round $1 result"],
+  [/^Manche suivante \((\d+) cartes?\)$/, function(_, n){ return 'Next round ('+enPl(n,'card','cards')+')'; }],
+  [/^↻ Refaire un tour à (\d+) cartes?$/, function(_, n){ return '↻ Replay a round with '+enPl(n,'card','cards'); }],
+  [/^Ajoute une manche de plus à (\d+) cartes? juste après celle-ci ; la suite ne change pas\.$/, function(_, n){ return 'Adds one more round with '+enPl(n,'card','cards')+' right after this one; the rest stays the same.'; }],
+  [/^Fin de la manche (\d+) \/ (\d+)$/, "End of round $1 / $2"],
+  [/^(⚡ )?Manche (\d+) \/ (\d+)(?: · (\d+) cartes?)?( ·)?(?: paquet : (\d+) cartes?)?$/, function(_, q, r, n, h, dot, deck){
+    return (q||'')+'Round '+r+' / '+n+(h!=null ? ' · '+enPl(h,'card','cards') : '')+(dot||'')+(deck!=null ? ' deck: '+enPl(deck,'card','cards') : ''); }],
+  [/^· paquet : (\d+) cartes?$/, function(_, d){ return '· deck: '+enPl(d,'card','cards'); }],
+  [/^(\d+) plis? restants?$/, function(_, n){ return enPl(n,'trick','tricks')+' left'; }],
+  [/^(\d+) cartes?( ·)?$/, function(_, n, d){ return enPl(n,'card','cards')+(d||''); }],
+  [/^(\d+) manches jouées$/, "$1 rounds played"],
+  [/^(\d+) manches · (.+) cartes?$/, "$1 rounds · $2 cards"],
+  [/^Donne (\d+) cartes? à chacun$/, function(_, n){ return 'Deal '+enPl(n,'card','cards')+' to each player'; }],
+  [/^annonce (\d+) · (\d+) plis?$/, function(_, b, w){ return 'bid '+b+' · '+enPl(w,'trick','tricks'); }],
+  [/^annonce (\d+) · fait (\d+)( ·)?$/, function(_, b, w, d){ return 'bid '+b+' · made '+w+(d||''); }],
+  [/^(plis?) annoncés? sur (\d+)$/, function(_, p, n){ return (p==='pli'?'trick':'tricks')+' bid out of '+n; }],
+  [/^Total annoncé : (\d+) \(il manque des annonces\)$/, "Total bid: $1 (bids missing)"],
+  [/^Total annoncé : (\d+)$/, "Total bid: $1"],
+  [/^(\d+|As|Roi|Dame|Valet) de (Cœur|Carreau|Pique|Trèfle)$/, function(_, r, s){ return (EN_RANK[r]||r)+' of '+EN_SUIT[s]; }],
+  [/^Carte demandée : (\S+) · atout : (\S+)$/, function(_, a, b){ return 'Suit led: '+(EN_SUIT[a]||a)+' · trump: '+(EN_SUIT[b]||b); }],
+  [/^Lancer tout de suite la manche (\d+) \((\d+) cartes?\)$/, function(_, r, n){ return 'Start round '+r+' now ('+enPl(n,'card','cards')+')'; }],
+  [/^(.+) annonce…$/, "$1 is bidding…"], [/^(.+) joue…$/, "$1 is playing…"],
+  [/^(.+) remporte le dernier pli$/, "$1 wins the last trick"], [/^(.+) remporte le pli$/, "$1 wins the trick"],
+  [/^(.+) reprend la main \(l'hôte est parti\)( : la manche est redistribuée)?$/, function(_, n, r){ return n+' is taking over (the host left)'+(r ? ': the round is redealt' : ''); }],
+  [/^Saison T(\d) (\d{4}) · (.+)$/, function(_, q, y, m){ return 'Season Q'+q+' '+y+' · '+(EN_MONTHS[m]||m); }],
+  [/^🧠 Le coach · ta manche (\d+)$/, "🧠 The coach · your round $1"], [/^manche (\d+)$/, "round $1"], [/^Pli (\d+)$/, "Trick $1"],
+  [/^Sur (\d+) coups? où tu avais le choix, (\d+) comme le coach\.$/, function(_, a, b){ return 'Out of '+enPl(a,'move','moves')+' where you had a choice, '+b+' matched the coach.'; }],
+  [/^Voir les (\d+) coups différents$/, "See the $1 different moves"],
+  [/^\((\d+) % de réussite, contre (\d+) % pour ton (\d+)\), ta main valait environ ([\d.]+) plis?\.$/, "($1% success, versus $2% for your $3), your hand was worth about $4 tricks."],
+  [/^\((\d+) % de réussite\), ta main valait environ ([\d.]+) plis?\.$/, "($1% success), your hand was worth about $2 tricks."],
+  [/^(\d+) interdit \(tu annonces en dernier\)$/, "$1 not allowed (you bid last)"],
+  [/^(\d+) est interdit : (.*)$/, "$1 is not allowed: $2"],
+  [/^(\d+) cartes · les autres ont annoncé (.+)$/, "$1 cards · the others bid $2"],
+  [/^(\d+) parties? en ligne analysées?\. Chaque manche est rejouée coup par coup et comparée au robot Fort\.$/, function(_, n){ return enPl(n,'online game','online games')+' analysed. Each round is replayed move by move and compared to the Strong bot.'; }],
+  [/^Robots · (.+)$/, "Bots · $1"],
+  [/^🔒 Sécurise ton profil « (.+) »$/, "🔒 Secure your profile “$1”"],
+  [/^(\d+) en ligne sur (\d+)$/, "$1 online out of $2"], [/^dans un salon \((.+)\)$/, "in a lobby ($1)"], [/^Viens jouer au Rikiki avec moi ! Code (.+)$/, "Come play Rikiki with me! Code $1"],
+  [/^(\d+) parties? · (\d+) V · (.+) contrats$/, function(_, g, w, c){ return enPl(g,'game','games')+' · '+w+' W · '+c+' bids made'; }], [/^(\d+) pts$/, "$1 pts"],
+  [/^0 interdit : tu as déjà annoncé (\d+) zéros d'affilée$/, "0 not allowed: you've already bid $1 zeros in a row"], [/^Interdit : déjà (\d+) zéros d'affilée$/, "Not allowed: already $1 zeros in a row"],
+  [/^Pas plus de (\d+) zéros d'affilée$/, "No more than $1 zeros in a row"],
+  [/^Il te faut encore (\d+) : cette carte prend le pli(, au plus juste\.| et personne ne peut la battre\.|\.)$/, function(_, n, e){ return 'You still need '+n+': this card takes the trick'+(e===', au plus juste.' ? ', just barely.' : (e==='.' ? '.' : ' and nobody can beat it.')); }],
+  [/^il te fallait encore (\d+) : cette carte prenait le pli(, au plus juste\.| et personne ne pouvait la battre\.|\.)$/, function(_, n, e){ return 'you still needed '+n+': this card took the trick'+(e===', au plus juste.' ? ', just barely.' : (e==='.' ? '.' : ' and nobody could beat it.')); }],
+  [/^Carte maîtresse : elle devrait faire le pli \(il te faut encore (\d+)\)\.$/, "Master card: it should win the trick (you still need $1)."],
+  [/^carte maîtresse : elle devait faire le pli \(il te fallait encore (\d+)\)\.$/, "master card: it should have won the trick (you still needed $1)."],
+  [/^Il te faut encore (\d+) : ouvre avec une petite carte et garde tes grosses pour plus tard\.$/, "You still need $1: lead a low card and keep your high ones for later."],
+  [/^il te fallait encore (\d+) : ouvrir petit et garder les grosses cartes pour plus tard\.$/, "you still needed $1: lead low and keep the high cards for later."],
+  [/^(\d+) → (\d+) % de réussite, ([+-]?[\d.]+) pts en moyenne$/, "$1 → $2% success, $3 pts on average"],
+  [/^, ta carte cachée gagnait environ (\d+) % du temps\.$/, ", your hidden card won about $1% of the time."],
+  [/^Manche (\d+) : (.+)$/, function(_, n, rest){
+    var m = { "historique incomplet":"incomplete history", "l'atout ne correspond pas à la donne":"the trump doesn't match the deal", "les annonces ont été modifiées après coup":"the bids were changed afterwards",
+              "les plis ne correspondent pas à ce qui a été joué":"the tricks don't match what was played", "la graine révélée ne correspond pas à l'empreinte":"the revealed seed doesn't match the fingerprint" };
+    return 'Round '+n+': '+(m[rest] || rest.replace(/ a joué une carte qu'il n'avait pas$/, " played a card they didn't have").replace(/ n'a pas suivi la couleur$/, " didn't follow suit")
+      .replace(/^plis de (.+) faux \((\d+) au lieu de (\d+)\)$/, "$1's tricks wrong ($2 instead of $3)").replace(/^points de (.+) faux$/, "$1's points wrong")); }], [/^Robots : niveau (.+)$/, "Bots: $1 level"],
+  [/^sous-annonce \(([-+][\d.]+) pli\/manche\)$/, "under-bids ($1 trick/round)"], [/^sur-annonce \(([-+][\d.]+) pli\/manche\)$/, "over-bids ($1 trick/round)"],
+  [/^⚡ Partie rapide · 5 manches, de 1 à (\d+) cartes au hasard$/, "⚡ Quick game · 5 rounds, 1 to $1 random cards"],
+  [/^Cartes max \(jusqu'à (\d+)\)$/, "Max cards (up to $1)"], [/^Montant \(1 → (.+)\)$/, "Up (1 → $1)"], [/^Descendant \((.+) → 1\)$/, "Down ($1 → 1)"],
+  [/^(Points : )?Réussi : (\d+) \+ (\d+) × plis · Raté : −(.+) × écart$/, function(_, p, b, t, m){ return (p ? 'Points: ' : '')+'Made: '+b+' + '+t+' × tricks · Missed: −'+m+' × gap'; }],
+  [/^Ex\. : annonce (\d+), fait (\d+) → (\S+) · annonce (\d+), fait (\d+) → (\S+)$/, "E.g.: bid $1, made $2 → $3 · bid $4, made $5 → $6"],
+  [/^Temps par tour : (\d+) s, puis coup au hasard$/, "Time per turn: $1 s, then a random move"], [/^(\d+) secondes$/, "$1 seconds"],
+  [/^Points \(réglables par l'hôte dans le salon\) — contrat réalisé exactement : (\d+) points \+ (\d+) par pli remporté\. Contrat manqué : −(\d+) par pli d'écart entre l'annonce et le résultat\.$/,
+    "Points (set by the host in the lobby) — bid made exactly: $1 points + $2 per trick won. Bid missed: −$3 per trick of difference between bid and result."],
+  [/^pli par rapport à l'estimation du robot \(dispersion ± ([\d.]+)\), sur (\d+) manches\. (.*)$/, "trick compared to the bot's estimate (spread ± $1), over $2 rounds. $3"],
+  [/^Pas encore assez d'occasions de coupe mesurées \(il en faut 5\)\.$/, "Not enough trumping chances measured yet (5 needed)."],
+  [/^Quand vous pouvez couper, vous coupez$/, "When you can trump, you trump"],
+  [/^Actuellement appliqué : comme le Fort (\d+) %, annonces (.+) ± (.+) \((\d+) manches\)\.$/, "Currently applied: like Strong $1%, bids $2 ± $3 ($4 rounds)."],
+  [/^Télécharge une copie de la ligue \(membres, parties, analyses\)\. Dernière sauvegarde : (.+)\.$/, function(_, w){ return 'Download a copy of the league (members, games, analyses). Last backup: '+(w==='jamais sur cet appareil' ? 'never on this device' : w)+'.'; }],
+  [/^(.+) \((\d+)\/(\d+) confirmations\)$/, "$1 ($2/$3 confirmations)"],
+  [/^Nouveau code de (.+) : (\d+) — envoie-le lui, il pourra le changer ensuite\.$/, "New code for $1: $2 — send it to them, they can change it later."],
+  [/^Trop d'essais : réessaie dans (\d+) s\.$/, "Too many attempts: try again in $1 s."],
+  [/^Aucun profil « (.+) »\.$/, "No profile “$1”."], [/^Aucun joueur « (.+) »\. Il doit d'abord créer son profil\.$/, "No player “$1”. They need to create a profile first."],
+  [/^Ce profil a été regroupé avec « (.+) » : connecte-toi avec ce pseudo\.$/, "This profile was merged into “$1”: sign in with that username."],
+  [/^Ton profil a été regroupé avec « (.+) » : déconnecte-toi puis connecte-toi avec ce pseudo\.$/, "Your profile was merged into “$1”: sign out, then sign in with that username."],
+  [/^Il y a déjà « (.+) » dans la ligue\. Si c'est toi, .*$/, "“$1” already exists in the league. If that's you, don't create a new profile: sign in with that username (or “I forgot my code”). If it's someone else, click “Create my profile” again."],
+  [/^Regroupé ✓ « (.+) » → « (.+) »( \(parties de ligue reprises\))?\. Ton ami se connecte avec « (.+) » et le code de « (.+) »\.$/, function(_, a, b, g, c, d){ return 'Merged ✓ “'+a+'” → “'+b+'”'+(g ? ' (league games carried over)' : '')+'. Your friend signs in with “'+c+'” and the code of “'+d+'”.'; }],
+  [/^Regroupé ✓ « (.+) » compte maintenant pour « (.+) »\.$/, "Merged ✓ “$1” now counts for “$2”."],
+  [/^Deux joueurs ont le même prénom : (.+)\.$/, "Two players have the same name: $1."], [/^Maximum (\d+) joueurs\.$/, "Maximum $1 players."],
+  [/^Une partie de ligue demande au moins (\d+) joueurs\.$/, "A league game needs at least $1 players."],
+  [/^⚠️ Scores suspects : (.+)$/, "⚠️ Suspicious scores: $1"],
+  [/^Regrouper « (.+) » dans « (.+) » \? On ne peut pas l'annuler depuis le jeu\.$/, "Merge “$1” into “$2”? This can't be undone from the game."],
+  [/^Les parties de « (.+) » compteront pour « (.+) »\. Continuer \?$/, "“$1”'s games will count for “$2”. Continue?"],
+  [/^Restauration terminée ✓ : (.+)$/, "Restore finished ✓: $1"],
+  [/^(Restauration impossible|Sauvegarde impossible|Analyse impossible|Connexion impossible|Impossible de créer le profil|Impossible de changer le code|Réinitialisation impossible|Regroupement impossible|Demande impossible|Validation impossible|Impossible|Ligue) : (.+)$/, function(_, a, b){
+    var m = { 'Restauration impossible':"Can't restore", 'Sauvegarde impossible':"Can't back up", 'Analyse impossible':"Can't analyse", 'Connexion impossible':"Can't sign in", 'Impossible de créer le profil':"Can't create the profile", 'Impossible de changer le code':"Can't change the code", 'Réinitialisation impossible':"Can't reset",
+              'Regroupement impossible':"Can't merge", 'Demande impossible':"Can't send the request", 'Validation impossible':"Can't approve", 'Impossible':"Couldn't do it", 'Ligue':'League' };
+    return m[a]+': '+b; }]
+] };
+Object.keys(I18N_EN.exact).forEach(function(k){ i18nDone[I18N_EN.exact[k]] = 1; });
+["Rikiki","K7QT"].forEach(function(k){ i18nDone[k] = 1; });
+if(document.body) i18nStart(); else document.addEventListener('DOMContentLoaded', i18nStart);
 // Petits portraits dessinés (couleur de la carte) : couronne et barbe pour le Roi, diadème et cheveux longs pour la Dame, chapeau à plume pour le Valet
 function faceSvg(rank, sym){
   var robe = '<path d="M5 60 Q6 41 20 39 Q34 41 35 60 Z" fill="currentColor"/>'
@@ -1198,6 +1704,15 @@ function mockDocRef(path){
       if(mockGetRaw(path)==null){ var err = new Error('document absent'); err.code='invalid_argument'; throw err; }
       mockPatch(path, JSON.parse(JSON.stringify(patch))); mockNotify(path);
     },
+    // v45 : réservation « un seul gagnant » (voir firebaseDocRef.claim). En local : on écrit, on attend, on relit.
+    claim: async function(fn){
+      var cur = mockGetRaw(path); if(cur==null) return false;
+      var tok = Math.random().toString(36).slice(2), p = fn(JSON.parse(JSON.stringify(cur)), tok); if(!p) return false;
+      mockPatch(path, JSON.parse(JSON.stringify(p))); mockNotify(path);
+      await new Promise(function(r){ setTimeout(r, 80); });
+      var after = mockGetRaw(path);
+      return !!(after && after.claimTok === tok);
+    },
     delete: async function(){ try{ localStorage.removeItem(MOCK_PREFIX+path); localStorage.removeItem(MOCK_PREFIX+path+'#t'); mockPatchKeys(path).forEach(function(k){ localStorage.removeItem(k); }); }catch(e){} mockNotify(path); },
     onSnapshot: function(next, err){
       mockListeners[path] = mockListeners[path] || [];
@@ -1283,6 +1798,7 @@ function fbDecode(v){
     var plain = null;
     Object.keys(v).forEach(function(k){ if(k!=='__json' && k!=='__at'){ plain = plain || {}; plain[k] = v[k]; } });
     if(plain && o && typeof o==='object') o.__plain = plain; // champs en clair (propriétaire, e-mail caché…) lus par les règles
+    if(o && typeof o==='object' && typeof v.__at==='number') o.__serverAt = v.__at; // v43 : date contrôlée par les règles (ligue)
     return o;
   }
   return v; // ancien format brut (parties créées avant ce correctif)
@@ -1319,6 +1835,21 @@ function firebaseDocRef(path){
           return fbEncode(mockDeepMerge(obj, clean));
         });
         if(!res.committed || fbDecode(res.snapshot.val())==null){ var err = new Error('document absent'); err.code='invalid_argument'; throw err; }
+      } finally { ref.off('value', holder); }
+    },
+    // v45 : réservation atomique. fn(doc, jeton) renvoie le patch à appliquer, ou null pour renoncer.
+    // Une seule transaction gagne : sert à ce qu'UN SEUL appareil distribue une manche (avant : deux donnes mélangées).
+    claim: async function(fn){
+      var tok = Math.random().toString(36).slice(2), holder = null;
+      await new Promise(function(resolve, reject){ var first = true; holder = function(){ if(first){ first = false; resolve(); } }; ref.on('value', holder, reject); });
+      try{
+        var res = await ref.transaction(function(cur){
+          var obj = fbDecode(cur); if(obj==null) return;
+          var p = fn(JSON.parse(JSON.stringify(obj)), tok); if(!p) return; // abandon : rien n'est écrit
+          return fbEncode(mockDeepMerge(obj, JSON.parse(JSON.stringify(p))));
+        });
+        var after = res.committed ? fbDecode(res.snapshot.val()) : null;
+        return !!(after && after.claimTok === tok);
       } finally { ref.off('value', holder); }
     },
     delete: async function(){ await ref.remove(); },
@@ -1442,7 +1973,9 @@ async function init(){
   await initAuth();
   applyProfileIdentity();
   if(authOn() && !adminUid){ try{ await claimAdmin(); }catch(e){ console.error(e); } }
-  if(isAdmin()) loadClaims().then(render);
+  if(isAdmin()){ loadClaims().then(render); setInterval(function(){ if(screen==='entry') loadClaims().then(render); }, 60000); }
+  checkMergedProfile(); // v42 : si mon profil a été regroupé avec un autre, on bascule dessus
+  setTimeout(function(){ processAttestTodos().catch(function(e){ console.warn(e); }); }, 3000); // v43 : confirmations en retard
   socialStart();
   if(!claudeDb || !myId){
     clearTimeout(loadWatchdog);
@@ -1477,6 +2010,7 @@ async function init(){
     botDriverTick();
     updateCountdown();
     turnTick();
+    try{ handWatchTick(); }catch(e){ console.warn(e); } // v45 : mes cartes n'arrivent pas → on va les chercher
   }, 400);
 }
 function armWatchdog(){
@@ -1599,6 +2133,7 @@ function subscribeGame(code){
   subscribeChat(code);
   gameUnsub = ref.onSnapshot(function(snap){
     clearTimeout(loadWatchdog);
+    subscribeGame.retries = 0;
     try{
       if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
@@ -1623,6 +2158,12 @@ function subscribeGame(code){
   }, function(err){
     console.error(err);
     clearTimeout(loadWatchdog);
+    // v45 : écoute coupée (souvent jeton expiré pendant la veille) → on renouvelle le jeton et on se réabonne (2 essais)
+    if((subscribeGame.retries = (subscribeGame.retries||0) + 1) <= 2){
+      var renew = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.getIdToken(true).catch(function(){}) : Promise.resolve();
+      renew.then(function(){ setTimeout(function(){ if(gameCode===code) subscribeGame(code); }, 1500); });
+      return;
+    }
     fatalError = "Impossible de synchroniser la partie (" + (err&&err.code||'erreur') + "). Vérifie ta connexion et réessaie.";
     render();
   });
@@ -1648,6 +2189,9 @@ function syncHand(){
 }
 function onGameUpdate(){
   if(!gameDoc) return;
+  witnessGame(gameDoc);
+  try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
+  try{ serveHandRequests(gameDoc); }catch(e){ console.warn(e); } // v45 : l'hôte renvoie une main demandée
   if(gameDoc.status === 'dealing'){
     handleDealing();
     // filet de sécurité : dès que quelqu'un voit que tout le monde est servi, on passe aux annonces
@@ -1744,12 +2288,21 @@ async function writeHandCards(actorId, round, cards, seed){
 
 function botDriverTick(){
   var g = gameDoc;
-  if(g && g.hostId !== myId && g.status==='round_end'){
-    // secours si l'hôte est parti : le prochain donneur relance 3 s plus tard
-    var nd = g.playerOrder[(g.playerOrder.indexOf(g.dealerId)+1)%g.playerOrder.length];
-    if(nd===myId && roundBreakLeft(g) < -3000 && !botActing){ botActing=true; dealNextRoundAs(myId).catch(function(e){ console.error(e); }).then(function(){ botActing=false; }); }
-  }
+  hostWatchTick(); // v41 : si l'hôte est parti, un autre joueur reprend la main
   if(!g || g.hostId !== myId){ lastBotTurnKey=null; return; }
+  if(g.status==='dealing'){
+    // v41 : un joueur absent ne confirme jamais « servi » → au bout de 10 s l'hôte passe aux annonces
+    // (l'absent a quand même sa main ; l'hôte jouera pour lui à la fin de son temps)
+    if(dealingSeen.seed !== g.dealSeed){ dealingSeen = { seed:g.dealSeed, at:nowMs() }; return; }
+    if(nowMs() - dealingSeen.at < 10000 || botActing) return;
+    botActing = true;
+    var dr = {}; g.playerOrder.forEach(function(id){ dr[id] = g.round; });
+    claudeDb.doc('games/'+g.code).get().then(function(s){
+      var f = s.data(); if(!f || f.status!=='dealing' || f.dealSeed!==g.dealSeed) return;
+      return claudeDb.doc('games/'+g.code).update({ dealtRound: dr, status:'bidding' });
+    }).catch(function(e){ console.error(e); }).then(function(){ botActing = false; });
+    return;
+  }
   if(g.status==='round_end'){
     // entracte : l'hôte relance automatiquement la manche suivante après 15 s
     if(roundBreakLeft(g) > 0 || botActing) return;
@@ -1766,6 +2319,92 @@ function botDriverTick(){
   if(nowMs()-lastBotTurnAt < 1150) return; // laisse le temps de voir chaque carte arriver
   botActing = true;
   performBotAction(turnId).catch(function(e){ console.error(e); }).then(function(){ botActing = false; });
+}
+
+/* ===================== v41 : relais automatique de l'hôte =====================
+   L'hôte fait jouer les robots, joue pour les absents et lance les manches. S'il quitte (onglet fermé, téléphone en veille),
+   la partie se bloque. Chaque joueur surveille donc la partie : si elle n'avance plus alors que c'est à l'hôte d'agir
+   (tour d'un robot, entracte terminé, distribution en attente, joueur absent), un autre joueur devient l'hôte.
+   Pas besoin d'écriture supplémentaire (ni de nouvelle règle Firebase) : on regarde seulement si la partie avance.
+   Seul l'hôte connaît les cartes des robots et la graine de la manche en cours : le nouvel hôte redistribue donc
+   la manche en cours (les scores des manches déjà jouées ne changent pas). */
+var hostWatch = { key:null, since:0, busy:false, seenChange:null }, dealingSeen = { seed:null, at:0 };
+function hostStallKey(g){
+  var nb = 0; Object.keys(g.bids||{}).forEach(function(k){ if(g.bids[k]!=null) nb++; });
+  var nd = 0; Object.keys(g.dealtRound||{}).forEach(function(k){ if(g.dealtRound[k]===g.round) nd++; });
+  return [g.code, g.hostId, g.status, g.round, g.dealSeed, g.turnPlayerId, g.trickNumber||0, (g.currentTrick||[]).length, nb, nd, g.leagueRecorded?1:0].join('|');
+}
+// combien de temps (ms) la partie peut rester immobile avant qu'on considère l'hôte comme parti (null = normal d'attendre)
+function hostStallLimit(g){
+  if(g.status==='round_end') return ROUND_BREAK_MS + 8000;             // l'entracte dure 15 s, puis l'hôte distribue
+  if(g.status==='dealing') return (g.dealtRound && g.dealtRound[g.hostId]===g.round) ? null : 20000; // bloqué par l'hôte lui-même seulement
+  if(g.status==='bidding' || g.status==='playing'){
+    var p = g.players[g.turnPlayerId];
+    if(p && p.isBot) return 15000;                                        // un robot joue en ~1 s quand l'hôte est là
+    var lim = turnLimitSec(g)*1000;
+    if(lim && g.turnPlayerId!==myId && g.turnPlayerId!==g.hostId) return lim + 20000; // l'hôte aurait joué pour l'absent
+    if(lim && g.turnPlayerId===g.hostId) return lim + 20000;                // c'est l'hôte lui-même qui ne joue plus
+    return null;
+  }
+  if(g.status==='game_over' && g.settings && g.settings.league && !g.leagueRecorded && !onlineLeagueCheck(g)) return 25000; // partie de ligue à enregistrer
+  return null;
+}
+function hostWatchTick(){
+  var g = gameDoc;
+  if(!g || !g.players || !g.playerOrder || g.hostId===myId || !g.players[myId] || g.players[myId].isBot) { hostWatch.key = null; return; }
+  if(g.hostChange && g.hostChange.at && hostWatch.seenChange !== g.hostChange.at){
+    if(nowMs() - g.hostChange.at < 30000) showToast((g.players[g.hostChange.to]||{name:'Un joueur'}).name+' reprend la main (l\'hôte est parti)'+(g.hostChange.redealt ? ' : la manche est redistribuée' : ''));
+    hostWatch.seenChange = g.hostChange.at;
+  }
+  var key = hostStallKey(g);
+  if(key !== hostWatch.key){ hostWatch.key = key; hostWatch.since = nowMs(); return; }
+  var limit = hostStallLimit(g); if(limit==null || hostWatch.busy) return;
+  // qui reprend ? les humains dans l'ordre de la table après l'hôte ; chacun attend un peu plus que le précédent
+  var o = g.playerOrder, hi = o.indexOf(g.hostId), cands = [];
+  for(var i=1; i<=o.length; i++){ var id = o[(Math.max(0,hi)+i)%o.length]; if(id!==g.hostId && g.players[id] && !g.players[id].isBot) cands.push(id); }
+  var rank = cands.indexOf(myId); if(rank < 0) return;
+  if(nowMs() - hostWatch.since < limit + rank*8000) return;
+  hostWatch.busy = true;
+  takeOverHost(g, key).catch(function(e){ console.error(e); }).then(function(){ hostWatch.busy = false; hostWatch.key = null; });
+}
+async function takeOverHost(g, key){
+  var ref = claudeDb.doc('games/'+g.code);
+  var fresh = (await ref.get()).data();
+  if(!fresh || hostStallKey(fresh) !== key) return; // la partie a bougé entre-temps (l'hôte est revenu, ou un autre a repris)
+  var mid = fresh.status==='dealing' || fresh.status==='bidding' || fresh.status==='playing';
+  var hc = { hostId: myId, hostChange: { from: fresh.hostId, to: myId, at: nowMs(), redealt: mid } };
+  if(ref.claim){ // v45 : un seul joueur reprend la main, même si deux le tentent au même moment
+    if(!(await ref.claim(function(cur, tok){ return hostStallKey(cur)===key ? Object.assign({ claimTok:tok }, hc) : null; }))) return;
+  } else await ref.update(hc);
+  var g2 = Object.assign({}, fresh, { hostId: myId });
+  gameDoc = Object.assign({}, gameDoc, { hostId: myId });
+  hostWatch.seenChange = null;
+  showToast('L\'hôte est parti : tu reprends la main'+(mid ? ', la manche est redistribuée' : ''));
+  if(mid) await redealCurrentRound(g2);
+  else if(fresh.status==='round_end'){ await dealNextRoundAs(myId); }
+  // game_over : maybeRecordOnline s'en charge maintenant que je suis l'hôte
+  onGameUpdate(); render();
+}
+// même manche, même donneur, nouvelles cartes (seul le nouvel hôte les connaît, comme n'importe quel hôte)
+async function redealCurrentRound(g){
+  var rref = claudeDb.doc('games/'+g.code), rk = 'redeal:'+g.dealSeed;
+  if(rref.claim && !(await rref.claim(function(cur, tok){
+    if(cur.dealSeed!==g.dealSeed || cur.hostId!==myId) return null;
+    var c = cur.dealClaim; if(c && c.key===rk && nowMs() - c.at < 20000) return null;
+    return { dealClaim:{ key:rk, by:myId, at:nowMs() }, claimTok:tok };
+  }))) return;
+  var order = g.playerOrder, n = order.length, round = g.round, handSize = g.roundPlan[round];
+  var startIdx = (order.indexOf(g.dealerId)+1) % n;
+  var bidOrder = order.slice(startIdx).concat(order.slice(0,startIdx));
+  var dd = await dealSecretly(g, order, round, handSize, g.dealerId);
+  var bids = {}, tricks = {}, dealtRound = {};
+  order.forEach(function(id){ bids[id] = null; tricks[id] = 0; dealtRound[id] = g.players[id].isBot ? round : -1; });
+  await claudeDb.doc('games/'+g.code).update({
+    status:'dealing', dealSeed: dd.dealSeed, dealHash: dd.dealHash, blindCards: dd.blindCards,
+    bidOrder: bidOrder, leadPlayerId: bidOrder[0], turnPlayerId: bidOrder[0],
+    bids: bids, tricksWon: tricks, currentTrick: [], trickNumber:0, lastTrick:null,
+    trumpCard: dd.trumpCard, botHands: null, dealtRound: dealtRound, played: []
+  });
 }
 
 async function performBotAction(botId){
@@ -1811,7 +2450,7 @@ async function startGame(){
     try{ var ps = await claudeDb.doc('analysis/params').get(); if(ps.exists) botHuman = ps.data(); }catch(e){ console.error(e); }
   }
   await ref.update({
-    settings: { botHuman: botHuman },
+    settings: { botHuman: botHuman, scoring: getScoring(g) }, // v42 : barème figé au lancement (même calcul sur tous les appareils)
     status:'dealing', startedAt: nowMs(), playerOrder: ids, roundPlan: roundPlan, round:0, dealerId: dealerId, dealSeed: dd.dealSeed, dealHash: dd.dealHash, blindCards: dd.blindCards,
     bidOrder: bidOrder, leadPlayerId: bidOrder[0], turnPlayerId: bidOrder[0],
     bids: bids, tricksWon: tricksWon, currentTrick: [], trickNumber:0, lastTrick:null,
@@ -2161,11 +2800,35 @@ function readProfileForm(){
   return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '' };
 }
 function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); }
+// v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
+function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
+function editDistance(a, b){
+  var d = []; for(var i=0;i<=a.length;i++){ d[i] = [i]; } for(var j=0;j<=b.length;j++) d[0][j] = j;
+  for(i=1;i<=a.length;i++) for(j=1;j<=b.length;j++) d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1] + (a[i-1]===b[j-1]?0:1));
+  return d[a.length][b.length];
+}
+function similarProfiles(pseudo){
+  var a = looseName(pseudo); if(a.length < 2) return [];
+  return league.members.filter(function(m){
+    if(!m.userId) return false; // joueur « vraies cartes » sans profil : le relier est justement le but
+    var b = looseName(m.name); if(b.length < 2) return false;
+    return a===b || (Math.min(a.length,b.length) >= 3 && (a.indexOf(b)===0 || b.indexOf(a)===0)) || (Math.min(a.length,b.length) >= 4 && editDistance(a,b) <= 1);
+  }).map(function(m){ return m.name; });
+}
 async function profileCreate(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
   if(key.length < 2){ profileUi.err = 'Choisis un pseudo d\'au moins 2 lettres ou chiffres.'; render(); return; }
   if(!validPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 4 à 6 chiffres.'; render(); return; }
+  if(profileUi.similarOk !== key){
+    try{ await loadLeague(); }catch(e){}
+    var sim = similarProfiles(f.pseudo);
+    if(sim.length){
+      profileUi.similarOk = key; profileUi.suggestForgot = authOn();
+      profileUi.err = 'Il y a déjà « '+sim.slice(0,3).join(' », « ')+' » dans la ligue. Si c\'est toi, ne crée pas de nouveau profil : connecte-toi avec ce pseudo (ou « J\'ai oublié mon code »). Si c\'est quelqu\'un d\'autre, clique encore « Créer mon profil ».';
+      render(); return;
+    }
+  }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authProfileCreate(f, key); }
@@ -2179,7 +2842,7 @@ async function profileCreate(){
     var salt = Math.random().toString(36).slice(2,10);
     var doc = { pseudo:f.pseudo, key:key, playerId:myId, color:myProfile.color||'#C9A24B', salt:salt, pinHash: await pinHash(key, salt, f.pin), createdAt: nowMs() };
     await ref.set(doc);
-    try{ await ensureMember({ userId: myId, name: f.pseudo }); }catch(e){ console.error(e); } // relie un membre IRL du même prénom
+    try{ await ensureMember({ userId: myId, name: f.pseudo, pkey: key }); }catch(e){ console.error(e); } // relie un membre IRL du même prénom
     saveProfileLocal({ key:key, pseudo:f.pseudo, playerId:myId, color:doc.color });
     try{ localStorage.setItem('rikiki_fb_name', f.pseudo); }catch(e){}
     location.reload();
@@ -2193,7 +2856,7 @@ async function profileLogin(){
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authProfileLogin(f, key); }
-    catch(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Connexion impossible : '+authErrText(e)); render(); }
+    catch(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Connexion impossible : '+authErrText(e)); profileUi.suggestForgot = !!(e && e.forgot); render(); }
     return;
   }
   try{
@@ -2205,6 +2868,7 @@ async function profileLogin(){
       if(profileUi.fails >= 5){ profileUi.lockUntil = nowMs() + 30000; profileUi.fails = 0; }
       profileUi.err = 'Code PIN incorrect.'; render(); return;
     }
+    if(d.mergedInto){ var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(); if(ts.exists){ key = d.mergedInto; d = ts.data(); } } // doublon fusionné
     saveProfileLocal({ key:key, pseudo:d.pseudo, playerId:d.playerId, color:d.color });
     try{ localStorage.setItem('rikiki_fb_name', d.pseudo); localStorage.setItem('rikiki_fb_uid', d.playerId); localStorage.removeItem('rikiki_last'); }catch(e){}
     location.reload();
@@ -2243,9 +2907,13 @@ function renderProfileBox(){
       + '<button class="btn secondary" style="flex:1;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button></div>';
     if(authOn()){
       if(profileUi.mode==='forgot'){
-        html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
+        html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
           + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (4 à 6 chiffres)" style="margin-bottom:8px;">'
-          + '<button class="btn secondary small" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button></div>';
+          + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
+      } else if(profileUi.suggestForgot){ // v42 : après un mauvais code, on propose tout de suite la bonne porte (au lieu de recréer un profil)
+        html += '<div style="margin-top:12px; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px;"><strong style="font-size:14px;">Tu ne retrouves plus ton code ?</strong>'
+          + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Ne crée pas de nouveau profil : tu perdrais ta cote et ton historique. Choisis un nouveau code, l\'organisateur le valide.</p>'
+          + '<button class="btn secondary small" data-action="profile-mode" data-mode="forgot">J\'ai oublié mon code →</button></div>';
       } else html += '<button class="btn ghost" style="font-size:12.5px; margin-top:6px;" data-action="profile-mode" data-mode="forgot">Code oublié ?</button>';
       if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
     }
@@ -2346,6 +3014,14 @@ async function profileAdminReset(){
     profileUi.busy=false; profileUi.ok = 'Nouveau code de '+d.pseudo+' : '+pin+' — envoie-le lui, il pourra le changer ensuite.'; render();
   }catch(e){ console.error(e); profileUi.busy=false; profileUi.err = 'Réinitialisation impossible : '+dbErrorText(e); render(); }
 }
+// demandes « code oublié » en attente (profil de l'organisateur ET bandeau de son accueil)
+function renderClaimsList(){
+  if(!(isAdmin() && authOn() && profileClaimsList.length)) return '';
+  return '<div style="margin-top:8px;"><strong style="font-size:13.5px;">🔑 Demandes « code oublié »</strong>' + profileClaimsList.map(function(c){
+    return '<div class="row between" style="margin-top:6px; gap:6px;"><span style="flex:1; min-width:0;">'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span></span>'
+      + '<button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button><button class="btn ghost small" data-action="claim-refuse" data-key="'+esc(c.id)+'">Refuser</button></div>';
+  }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si tu es sûr que c\'est bien ton ami (demande-lui par message).</div></div>';
+}
 function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
@@ -2355,17 +3031,30 @@ function renderProfileExtras(){
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-admin-reset" '+(profileUi.busy?'disabled':'')+'>Générer un nouveau code</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div></div>';
+  } else if(profileUi.mode==='merge' && isAdmin()){
+    html += '<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Regrouper deux profils</strong>'
+      + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Pour un ami qui s\'est recréé un profil. Ses parties, sa cote et ses deux pseudos mènent ensuite au profil principal.</p>'
+      + '<label for="mergeDup">Doublon (le profil en trop)</label><input type="text" id="mergeDup" maxlength="24" placeholder="ex. Tom2" style="margin-bottom:8px;">'
+      + '<label for="mergeMain">Profil principal (celui à garder)</label><input type="text" id="mergeMain" maxlength="24" placeholder="ex. Tom" style="margin-bottom:8px;">'
+      + '<label for="mergeKeep">Code pour se connecter</label><select id="mergeKeep" style="margin-bottom:10px;"><option value="dup">celui du doublon (le code dont il se souvient)</option><option value="main">celui du profil principal</option></select>'
+      + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-merge" '+(profileUi.busy?'disabled':'')+'>Regrouper</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div></div>';
+  } else if(profileUi.mode==='mergeMembers' && isAdmin()){
+    var opts = league.members.slice().sort(function(a,b){ return normName(a.name) < normName(b.name) ? -1 : 1; })
+      .map(function(m){ return '<option value="'+esc(m.id)+'">'+esc(m.name)+(m.userId ? '' : ' (vraies cartes)')+'</option>'; }).join('');
+    html += '<div style="margin-top:10px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Regrouper deux joueurs du classement</strong>'
+      + '<p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Pour les noms tapés deux fois en vraies cartes (« Tom » et « Thomas »). Ne touche pas aux profils.</p>'
+      + (league.loaded ? '<label for="mmDup">Doublon</label><select id="mmDup" style="margin-bottom:8px;">'+opts+'</select><label for="mmMain">Compte pour</label><select id="mmMain" style="margin-bottom:10px;">'+opts+'</select>'
+         + '<div class="row"><button class="btn" style="flex:1;" data-action="member-merge" '+(profileUi.busy?'disabled':'')+'>Regrouper</button><button class="btn secondary" data-action="profile-mode" data-mode="">Fermer</button></div>'
+         : '<p class="muted">Chargement du classement…</p>')
+      + '</div>';
   } else {
     html += '<div class="row" style="margin-top:8px; gap:6px; flex-wrap:wrap;"><button class="btn ghost" data-action="profile-mode" data-mode="change">Changer mon code</button>'
-      + ((isAdmin() && !authOn()) ? '<button class="btn ghost" data-action="profile-mode" data-mode="reset">Code oublié d\'un ami</button>' : '') + '</div>';
+      + ((isAdmin() && !authOn()) ? '<button class="btn ghost" data-action="profile-mode" data-mode="reset">Code oublié d\'un ami</button>' : '')
+      + (isAdmin() ? '<button class="btn ghost" data-action="profile-mode" data-mode="merge">Regrouper deux profils</button><button class="btn ghost" data-action="profile-mode" data-mode="mergeMembers">Regrouper deux joueurs</button>' : '') + '</div>';
   }
   if(isAdmin()){
     html += '<div class="muted" style="font-size:12px; margin-top:8px;">⭐ Tu es l\'organisateur.</div>';
-    if(authOn() && profileClaimsList.length){
-      html += '<div style="margin-top:8px;"><strong style="font-size:13.5px;">Demandes « code oublié »</strong>' + profileClaimsList.map(function(c){
-        return '<div class="row between" style="margin-top:6px;"><span>'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span></span><button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button></div>';
-      }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si tu es sûr que c\'est bien ton ami (demande-lui par message).</div></div>';
-    }
+    html += renderClaimsList();
   }
   if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
@@ -2374,14 +3063,31 @@ function renderProfileExtras(){
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;
   var a = el.getAttribute('data-action');
-  if(a==='profile-mode'){ readProfileForm(); profileUi.mode = el.getAttribute('data-mode') || null; profileUi.err=''; profileUi.ok=''; render(); }
+  if(a==='profile-mode'){ readProfileForm(); profileUi.mode = el.getAttribute('data-mode') || null; profileUi.err=''; profileUi.ok=''; render();
+    if(profileUi.mode==='mergeMembers') loadLeague(true); }
+  else if(a==='profile-merge'){
+    var dup = ((document.getElementById('mergeDup')||{}).value||'').trim(), main = ((document.getElementById('mergeMain')||{}).value||'').trim(), keep = (document.getElementById('mergeKeep')||{}).value || 'dup';
+    if(!confirmT('Regrouper « '+dup+' » dans « '+main+' » ? On ne peut pas l\'annuler depuis le jeu.')) return;
+    profileUi.err=''; profileUi.ok=''; profileUi.busy = true; render();
+    mergeProfiles(dup, main, keep).then(function(msg){ profileUi.busy=false; profileUi.mode=null; profileUi.ok=msg; render(); })
+      .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Regroupement impossible : '+dbErrorText(e)); render(); });
+  }
+  else if(a==='member-merge'){
+    var d1 = (document.getElementById('mmDup')||{}).value, m1 = (document.getElementById('mmMain')||{}).value;
+    var n1 = memberById(d1), n2 = memberById(m1);
+    if(!confirmT('Les parties de « '+(n1?n1.name:'?')+' » compteront pour « '+(n2?n2.name:'?')+' ». Continuer ?')) return;
+    profileUi.err=''; profileUi.ok=''; profileUi.busy = true; render();
+    mergeMembers(d1, m1).then(function(msg){ profileUi.busy=false; profileUi.mode=null; profileUi.ok=msg; render(); })
+      .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Regroupement impossible : '+dbErrorText(e)); render(); });
+  }
+  else if(a==='claim-refuse'){ var kr = el.getAttribute('data-key'); refuseClaim(kr).then(function(){ profileUi.ok='Demande refusée.'; render(); }).catch(function(e){ console.error(e); profileUi.err='Impossible : '+authErrText(e); render(); }); }
   else if(a==='profile-forgot-send'){
     var f = readProfileForm(), key = profileKey(f.pseudo), np = ((document.getElementById('forgotPin')||{}).value||'').trim();
     profileUi.err=''; profileUi.ok='';
     if(key.length<2){ profileUi.err='Entre ton pseudo.'; render(); return; }
     if(!validPin(np)){ profileUi.err='Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
     profileUi.busy = true; render();
-    authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.ok='Demande envoyée ✓ Préviens l\'organisateur : dès qu\'il valide, connecte-toi avec ton nouveau code.'; render(); })
+    authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.suggestForgot=false; profileUi.ok='Demande envoyée ✓ L\'organisateur la voit sur son accueil. Dès qu\'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.'; render(); })
       .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Demande impossible : '+authErrText(e)); render(); });
   }
   else if(a==='claim-admin'){ claimAdmin().then(function(){ loadClaims().then(render); }).catch(function(e){ console.error(e); profileUi.err='Impossible : '+authErrText(e); render(); }); }
@@ -2396,7 +3102,7 @@ document.addEventListener('click', function(e){
    l'analyse peut ainsi rejouer la manche coup par coup.
    analysis/params : { agree, bidBias, bidSd, n } — le profil « humain » moyen, appliqué aux robots de niveau Humain. */
 var BOT_LEVEL_LABEL = { facile:'Facile', humain:'Humain', fort:'Fort' };
-var DEFAULT_HUMAN = { agree:0.7, mix:0.5, bidBias:0, bidSd:0.8, n:0 };
+var DEFAULT_HUMAN = { agree:0.7, mix:0.5, bidBias:0, bidSd:0.8, ruff:0.6, n:0 };
 function botLevelOf(g){ var l = g && g.settings && g.settings.botLevel; return BOT_LEVEL_LABEL[l] ? l : 'humain'; }
 function humanParams(g){ return Object.assign({}, DEFAULT_HUMAN, (g && g.settings && g.settings.botHuman) || {}); }
 function gaussian(){ var u = 1 - Math.random(), v = Math.random(); return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v); }
@@ -2431,14 +3137,32 @@ function blindWinProbability(botId, g){
 }
 function botLevelBid(botId, g, hand){
   var lvl = botLevelOf(g);
-  if(lvl==='fort') return botChooseBid(botId, g, hand);
+  if(lvl==='fort'){ var pj = botJitter; botJitter = false; try{ return botChooseBid(botId, g, hand); } finally { botJitter = pj; } }
   var hp = lvl==='humain' ? humanParams(g) : { bidBias:0, bidSd:1.2 };
   var est = isBlindRound(g) ? blindWinProbability(botId, g) : botHeuristicEstimate(botId, g, hand);
   return botBidFromEstimate(botId, g, est + (hp.bidBias||0) + gaussian()*(hp.bidSd||0));
 }
+// v41 : situation de coupe (il n'a plus la couleur demandée, il lui faut des plis, et un atout gagnerait)
+function ruffChoice(botId, g, hand){
+  var trick = g.currentTrick || [], trumpSuit = g.trumpCard ? g.trumpCard.suit : null;
+  if(!trick.length || !trumpSuit) return null;
+  var led = trick[0].card.suit;
+  if(led===trumpSuit || hand.some(function(c){ return c.suit===led; })) return null;
+  if((g.bids[botId]||0) - (g.tricksWon[botId]||0) <= 0) return null;
+  var ruffs = hand.filter(function(c){ return c.suit===trumpSuit && cardBeatsTrick(c, trick, led, trumpSuit); }).sort(function(a,b){ return a.value-b.value; });
+  var others = hand.filter(function(c){ return c.suit!==trumpSuit; }).sort(function(a,b){ return a.value-b.value; });
+  if(!ruffs.length || !others.length) return null;
+  return { ruff: ruffs[0], discard: others[0] };
+}
 function botLevelCard(botId, g, hand){
   var lvl = botLevelOf(g);
-  if(lvl==='fort' || legalCards(g, hand).length < 2) return botChooseCard(botId, g, hand);
+  if(lvl==='fort') return botSearchCard(botId, g, hand); // v42 : réfléchit carte par carte
+  if(legalCards(g, hand).length < 2) return botChooseCard(botId, g, hand);
+  var rc = ruffChoice(botId, g, hand);
+  if(rc){ // coupe aussi souvent que vous (taux mesuré par l'analyse) ; le Facile coupe presque toujours
+    var rate = lvl==='facile' ? 0.9 : humanParams(g).ruff;
+    return Math.random() < rate ? rc.ruff : rc.discard;
+  }
   if(lvl==='facile') return Math.random() < 0.35 ? botChooseCard(botId, g, hand) : botNaiveCard(botId, g, hand);
   var hp = humanParams(g), mix = (typeof hp.mix==='number') ? hp.mix : Math.max(0, (hp.agree-0.4)/0.6);
   return Math.random() < mix ? botChooseCard(botId, g, hand) : botNaiveCard(botId, g, hand);
@@ -2462,7 +3186,8 @@ async function maybeRecordAnalysis(g){
     if(!(await aref.get()).exists) await aref.set({
       at: nowMs(), code: g.code, playerOrder: ids, players: players,
       settings: { scoring: getScoring(g), blindOne: !(g.settings && g.settings.blindOne===false), botLevel: botLevelOf(g) },
-      rounds: rounds
+      rounds: rounds,
+      __plain: { code: g.code } // v49 : les règles Firebase vérifient que cette partie existe bien
     });
     await claudeDb.doc('games/'+g.code).update({ analysisRecorded: true });
   }catch(e){ console.error(e); }
@@ -2470,17 +3195,26 @@ async function maybeRecordAnalysis(g){
 }
 
 // --- l'analyse : rejoue chaque manche coup par coup ---
-function newStat(name, isBot, level){ return { name:name, isBot:isBot, level:level, rounds:0, ok:0, absErr:0, bias:0, bidN:0, bidDelta:0, bidDelta2:0, dec:0, agree:0, naiveSame:0, lastDec:0, avoidable:0, missed:0 }; }
+function newStat(name, isBot, level){ return { name:name, isBot:isBot, level:level, rounds:0, ok:0, absErr:0, bias:0, bidN:0, bidDelta:0, bidDelta2:0, dec:0, agree:0, naiveSame:0, lastDec:0, avoidable:0, missed:0, ruffOpp:0, ruffYes:0 }; }
 function analyzeRecords(recs){
+  botJitter = false; try{ return analyzeRecordsInner(recs); } finally { botJitter = true; }
+}
+function analyzeRecordsInner(recs){
   var by = {}, all = { humans: newStat('Tous les humains', false), bots:{} };
   function statFor(rec, id){
     var p = rec.players[id] || { name:'?', isBot:false };
     if(p.isBot){ var lv = (rec.settings && rec.settings.botLevel) || 'fort'; return all.bots[lv] || (all.bots[lv] = newStat('Robots · '+(BOT_LEVEL_LABEL[lv]||lv), true, lv)); }
     return by[id] || (by[id] = newStat(p.name, false));
   }
-  function add(s, f){ f(s); if(!s.isBot) f(all.humans); }
+  function addOuter(s, f){ f(s); if(!s.isBot) f(all.humans); }
+  var seenCode = {};
   recs.forEach(function(rec){
+    var ck = rec.code+'_'+(rec.playerOrder||[]).join(','); // une partie enregistrée deux fois ne compte qu'une fois
+    if(seenCode[ck]) return; seenCode[ck] = 1;
     (rec.rounds||[]).forEach(function(r){
+      // v49 : une manche ne compte que si elle se rejoue entièrement sans tricher (cartes distribuées par la graine,
+      // cartes autorisées, plis gagnés identiques) : les fausses parties envoyées à la main n'entraînent pas les robots.
+      var later = [], add = function(s, f){ later.push([s, f]); };
       try{
         var order = rec.playerOrder, H = r.handSize, hands = dealCards(r.dealSeed, order, H).hands;
         var blind = H===1 && rec.settings && rec.settings.blindOne!==false;
@@ -2511,6 +3245,7 @@ function analyzeRecords(recs){
             var idx = hand.findIndex(function(c){ return c.suit===card.suit && c.rank===card.rank; });
             if(idx<0) throw new Error('manche incohérente');
             var legal = legalCards(g, hand);
+            if(!legal.some(function(c){ return c.suit===card.suit && c.rank===card.rank; })) throw new Error('carte interdite');
             if(legal.length >= 2 && !blind && assisted.indexOf(id) < 0){
               var s2 = statFor(rec, id), strong = botChooseCard(id, g, hand), same = strong && strong.suit===card.suit && strong.rank===card.rank;
               var nv = botNaiveCard(id, g, hand), naiveSame = nv && strong && nv.suit===strong.suit && nv.rank===strong.rank;
@@ -2519,7 +3254,8 @@ function analyzeRecords(recs){
               var wins = isLast && cardBeatsTrick(card, g.currentTrick, led, trumpSuit);
               var canLose = isLast && legal.some(function(c){ return !cardBeatsTrick(c, g.currentTrick, led, trumpSuit); });
               var canWin = isLast && legal.some(function(c){ return cardBeatsTrick(c, g.currentTrick, led, trumpSuit); });
-              add(s2, function(x){ x.dec++; if(same) x.agree++; if(naiveSame) x.naiveSame++;
+              var rc = ruffChoice(id, g, hand), ruffed = !!rc && card.suit===trumpSuit;
+              add(s2, function(x){ x.dec++; if(same) x.agree++; if(naiveSame) x.naiveSame++; if(rc){ x.ruffOpp++; if(ruffed) x.ruffYes++; }
                 if(isLast){ x.lastDec++; if(need<=0 && wins && canLose) x.avoidable++; if(need>0 && !wins && canWin) x.missed++; } });
             }
             hand.splice(idx, 1);
@@ -2528,10 +3264,12 @@ function analyzeRecords(recs){
           var w2 = trickWinner(g.currentTrick, g.currentTrick[0].card.suit, trumpSuit);
           g.tricksWon[w2]++; lead = w2;
         }
+        if(order.some(function(id){ var b = r.bids[id]; return g.tricksWon[id]!==r.tricksWon[id] || !(b>=0 && b<=H && b===Math.floor(b)); })) throw new Error('plis incohérents');
+        later.forEach(function(x){ addOuter(x[0], x[1]); });
       }catch(e){ console.warn('analyse : manche ignorée', e); }
     });
   });
-  var rows = Object.keys(by).map(function(k){ return by[k]; }).sort(function(a,b){ return b.rounds-a.rounds; });
+  var rows = Object.keys(by).map(function(k){ return by[k]; }).filter(function(x){ return x.rounds > 0; }).sort(function(a,b){ return b.rounds-a.rounds; });
   return { humans: rows, all: all.humans, bots: Object.keys(all.bots).map(function(k){ return all.bots[k]; }), games: recs.length };
 }
 function paramsFromStat(s){
@@ -2540,7 +3278,8 @@ function paramsFromStat(s){
   var A = s.dec ? s.agree/s.dec : DEFAULT_HUMAN.agree, q = s.dec ? s.naiveSame/s.dec : 0.4;
   // le coup « humain » du robot coïncide parfois avec celui du Fort : on corrige pour viser exactement le taux mesuré
   var mix = q < 0.99 ? Math.max(0, Math.min(1, (A - q)/(1 - q))) : A;
-  return { agree: Math.round(1000*A)/1000, mix: Math.round(1000*mix)/1000, bidBias: Math.round(mean*100)/100, bidSd: Math.round(sd*100)/100, n: s.rounds };
+  var ruff = s.ruffOpp >= 5 ? s.ruffYes/s.ruffOpp : DEFAULT_HUMAN.ruff; // v41 : à quel point vous coupez quand vous pouvez
+  return { agree: Math.round(1000*A)/1000, mix: Math.round(1000*mix)/1000, bidBias: Math.round(mean*100)/100, bidSd: Math.round(sd*100)/100, ruff: Math.round(100*ruff)/100, ruffN: s.ruffOpp, n: s.rounds };
 }
 
 // --- écran Analyse ---
@@ -2548,7 +3287,7 @@ var analysis = { loading:false, loaded:false, error:'', res:null, params:null, m
 async function loadAnalysis(){
   analysis.loading = true; analysis.error=''; render();
   try{
-    var snap = await claudeDb.collection('analysisGames').orderBy('at').limit(400).get();
+    var snap = await claudeDb.collection('analysisGames').orderBy('at', 'desc').limit(400).get(); // v42 : les 400 plus RÉCENTES (avant : les 400 plus anciennes)
     var recs = snap.docs.map(function(d){ return d.data(); });
     analysis.res = analyzeRecords(recs);
     try{ var ps = await claudeDb.doc('analysis/params').get(); analysis.params = ps.exists ? ps.data() : null; }catch(e){ analysis.params = null; }
@@ -2594,7 +3333,8 @@ function renderAnalysis(){
     + '« Plis pris évitables » : en dernier à jouer, déjà à son contrat, il a pris le pli alors qu\'il pouvait le perdre. « Plis ratés » : en dernier, il lui fallait un pli et il pouvait le prendre, mais ne l\'a pas pris (en % des coups joués en dernier).</p></div>';
   var p = paramsFromStat(r.all);
   html += '<div class="card-panel"><h3 style="margin:0 0 6px;">Robots niveau Humain</h3>'
-    + '<p style="font-size:14px; margin:0 0 6px;">Profil mesuré sur vous : joue comme le robot Fort <strong>'+Math.round(p.agree*100)+' %</strong> du temps, annonce en moyenne <strong>'+signedNum(p.bidBias,2)+'</strong> pli par rapport à l\'estimation du robot (dispersion ± '+p.bidSd+'), sur '+p.n+' manches.</p>'
+    + '<p style="font-size:14px; margin:0 0 6px;">Profil mesuré sur vous : joue comme le robot Fort <strong>'+Math.round(p.agree*100)+' %</strong> du temps, annonce en moyenne <strong>'+signedNum(p.bidBias,2)+'</strong> pli par rapport à l\'estimation du robot (dispersion ± '+p.bidSd+'), sur '+p.n+' manches. '
+    + (p.ruffN >= 5 ? 'Quand vous pouvez couper, vous coupez <strong>'+Math.round(p.ruff*100)+' %</strong> du temps ('+p.ruffN+' occasions).' : 'Pas encore assez d\'occasions de coupe mesurées (il en faut 5).')+'</p>'
     + '<p class="muted" style="font-size:13px; margin:0 0 10px;">Actuellement appliqué : '+(analysis.params ? ('comme le Fort '+Math.round(analysis.params.agree*100)+' %, annonces '+signedNum(analysis.params.bidBias,2)+' ± '+analysis.params.bidSd+' ('+analysis.params.n+' manches)') : 'profil par défaut (70 %, ± 0,8)')+'.</p>';
   if(isAdmin()) html += '<button class="btn" data-action="analysis-apply" '+(r.all.rounds < 10 ? 'disabled' : '')+'>'+(r.all.rounds < 10 ? 'Il faut au moins 10 manches humaines' : 'Appliquer ce profil aux robots « Humain »')+'</button>';
   else html += '<p class="muted" style="font-size:13px; margin:0;">Seul l\'organisateur ('+esc(ADMIN_PSEUDOS[0]||'')+') peut appliquer le profil.</p>';
@@ -2823,7 +3563,7 @@ function lastBackupText(){
 }
 async function collectBackup(){
   var out = { app:'rikiki', version: APP_VERSION, at: nowMs(), collections:{}, docs:{} };
-  var cols = ['leagueMembers','leagueGames','analysisGames'];
+  var cols = ['leagueMembers','leagueLinks','leagueGames','analysisGames'];
   for(var i=0;i<cols.length;i++){
     var snap = await claudeDb.collection(cols[i]).limit(5000).get();
     out.collections[cols[i]] = {};
@@ -2853,7 +3593,7 @@ async function restoreBackup(file){
     var data = JSON.parse(await file.text());
     if(!data || data.app!=='rikiki' || !data.collections) throw new Error('ce fichier n\'est pas une sauvegarde Rikiki');
     var created = 0, kept = 0;
-    var cols = Object.keys(data.collections).filter(function(k){ return ['leagueMembers','leagueGames','analysisGames'].indexOf(k)>=0; });
+    var cols = Object.keys(data.collections).filter(function(k){ return ['leagueMembers','leagueLinks','leagueGames','analysisGames'].indexOf(k)>=0; });
     for(var i=0;i<cols.length;i++){
       var ids = Object.keys(data.collections[cols[i]]);
       for(var j=0;j<ids.length;j++){
@@ -2888,7 +3628,7 @@ document.addEventListener('click', function(e){
 });
 document.addEventListener('change', function(e){
   if(e.target && e.target.id==='backupFile' && e.target.files && e.target.files[0]){
-    if(confirm('Restaurer cette sauvegarde ? Seuls les éléments manquants seront recréés, rien ne sera écrasé.')) restoreBackup(e.target.files[0]);
+    if(confirmT('Restaurer cette sauvegarde ? Seuls les éléments manquants seront recréés, rien ne sera écrasé.')) restoreBackup(e.target.files[0]);
     e.target.value = '';
   }
 });
@@ -2951,7 +3691,7 @@ async function authProfileCreate(f, key){
   }
   var doc = { pseudo:f.pseudo, key:key, playerId:myId, color:myProfile.color||'#C9A24B', createdAt: nowMs(), __plain:{ owner:u.uid, email:email } };
   await ref.set(doc);
-  try{ await ensureMember({ userId: myId, name: f.pseudo }); }catch(e){ console.error(e); }
+  try{ await ensureMember({ userId: myId, name: f.pseudo, pkey: key }); }catch(e){ console.error(e); }
   finishLogin(key, doc);
 }
 async function authProfileLogin(f, key){
@@ -2972,7 +3712,12 @@ async function authProfileLogin(f, key){
       var u = await authCreateOrLink(email, authPw(f.pin));
       d = Object.assign(stripLegacy(d), { __plain:{ owner:u.uid, email:email } });
       await claudeDb.doc('profiles/'+key).set(d);
-    } else throw { ui:'Code PIN incorrect.' };
+    } else throw { ui:'Code PIN incorrect.', forgot:true };
+  }
+  if(d.mergedInto){ // v42 : doublon fusionné par l'organisateur → on arrive sur le profil principal
+    var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(), t = ts.exists ? ts.data() : null;
+    if(t && t.__plain && t.__plain.owner === authUid()) return finishLogin(d.mergedInto, t);
+    throw { ui:'Ce profil a été regroupé avec « '+(t ? t.pseudo : d.mergedInto)+' » : connecte-toi avec ce pseudo.' };
   }
   finishLogin(key, d);
 }
@@ -3006,6 +3751,71 @@ async function approveClaim(key){
   await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:c.__plain }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
 }
+async function refuseClaim(key){
+  var c = profileClaimsList.filter(function(x){ return x.id===key; })[0]; if(!c) return;
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:c.__plain }));
+  profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
+}
+
+/* ===================== v42 : regrouper des doublons =====================
+   Un ami a oublié son code et s'est recréé un profil ? L'organisateur regroupe le doublon avec le profil principal :
+   - le doublon garde une étiquette mergedInto → se connecter avec l'un ou l'autre pseudo mène au profil principal ;
+   - on choisit quel code garder (celui du doublon = celui dont l'ami se souvient, en général) ;
+   - dans la ligue, le membre du doublon est marqué « fusionné » : ses parties comptent pour le principal
+     (les parties enregistrées ne sont jamais réécrites, la redirection se fait au chargement du classement). */
+async function mergeProfiles(dupName, mainName, keep){
+  if(!isAdmin()) throw { ui:'Réservé à l\'organisateur.' };
+  var dk = profileKey(dupName), mk = profileKey(mainName);
+  if(dk.length < 2 || mk.length < 2) throw { ui:'Entre les deux pseudos.' };
+  if(dk === mk) throw { ui:'C\'est deux fois le même pseudo.' };
+  var dref = claudeDb.doc('profiles/'+dk), mref = claudeDb.doc('profiles/'+mk);
+  var ds = await dref.get(), ms = await mref.get();
+  if(!ds.exists) throw { ui:'Aucun profil « '+dupName+' ».' };
+  if(!ms.exists) throw { ui:'Aucun profil « '+mainName+' ».' };
+  var d = ds.data(), m = ms.data();
+  if(d.mergedInto) throw { ui:'« '+d.pseudo+' » est déjà regroupé avec un autre profil.' };
+  if(m.mergedInto) throw { ui:'« '+m.pseudo+' » est lui-même un doublon : choisis le profil principal.' };
+  // 1. le code de connexion à garder
+  if(keep === 'dup'){
+    if(authOn()){
+      if(!(d.__plain && d.__plain.owner)) throw { ui:'« '+d.pseudo+' » n\'a pas encore de compte sécurisé : garde plutôt le code de « '+m.pseudo+' ».' };
+      await mref.set(Object.assign(stripLegacy(m), { __plain:{ owner:d.__plain.owner, email:d.__plain.email } }));
+    } else await mref.set(Object.assign({}, m, { salt:d.salt, pinHash:d.pinHash }));
+  }
+  // 2. le doublon renvoie vers le principal
+  var mark = { mergedInto: mk, mergedAt: nowMs(), mergedBy: currentProfile ? currentProfile.pseudo : '' };
+  if(authOn()) await dref.set(Object.assign(stripLegacy(d), mark, { __plain: (d.__plain && d.__plain.owner != null) ? d.__plain : { owner:'', email:authEmail(dk) } }));
+  else await dref.set(Object.assign({}, d, mark));
+  // 3. la ligue
+  await loadLeague(true);
+  var mainMid = await ensureMember({ userId: m.playerId, name: m.pseudo });
+  var dups = (league.allMembers || league.members).filter(function(x){ return x.userId===d.playerId && x.id!==mainMid && !x.mergedInto; });
+  for(var i=0; i<dups.length; i++) await claudeDb.collection('leagueMembers').doc(dups[i].id).update({ mergedInto: mainMid });
+  league.loaded = false;
+  return 'Regroupé ✓ « '+d.pseudo+' » → « '+m.pseudo+' »'+(dups.length ? ' (parties de ligue reprises)' : '')+'. Ton ami se connecte avec « '+m.pseudo+' » et le code '+(keep==='dup' ? 'de « '+d.pseudo+' »' : 'de « '+m.pseudo+' »')+'.';
+}
+// joueurs du classement seulement (utile pour les « vraies cartes » : Tom / Thomas)
+async function mergeMembers(dupId, mainId){
+  if(!isAdmin()) throw { ui:'Réservé à l\'organisateur.' };
+  if(!dupId || !mainId || dupId===mainId) throw { ui:'Choisis deux joueurs différents.' };
+  if(canonMember(mainId) === dupId) throw { ui:'Ces deux joueurs sont déjà regroupés dans l\'autre sens.' };
+  await claudeDb.collection('leagueMembers').doc(dupId).update({ mergedInto: mainId });
+  var a = memberById(dupId), b = memberById(mainId);
+  league.loaded = false; await loadLeague(true);
+  return 'Regroupé ✓ « '+(a ? a.name : '?')+' » compte maintenant pour « '+(b ? b.name : '?')+' ».';
+}
+// au démarrage : si mon profil a été regroupé, je passe sur le profil principal
+async function checkMergedProfile(){
+  if(!currentProfile || !claudeDb) return;
+  try{
+    var s = await claudeDb.doc('profiles/'+currentProfile.key).get(); if(!s.exists) return;
+    var d = s.data(); if(!d.mergedInto) return;
+    var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(); if(!ts.exists) return;
+    var t = ts.data();
+    if(!authOn() || (t.__plain && t.__plain.owner === authUid())) finishLogin(d.mergedInto, t);
+    else { profileUi.err = 'Ton profil a été regroupé avec « '+t.pseudo+' » : déconnecte-toi puis connecte-toi avec ce pseudo.'; homeProfileOpen = true; render(); }
+  }catch(e){ console.warn('profil regroupé ?', e); }
+}
 async function claimAdmin(){
   // réservé au profil de l'organisateur (K.vroom) ; les règles de sécurité le vérifient aussi
   if(!authOn() || authAnon() || !currentProfile || adminUid) return;
@@ -3033,7 +3843,7 @@ function presenceStatus(){
 async function presenceBeat(){
   if(!socialOn()) return;
   var st = presenceStatus();
-  try{ await claudeDb.doc('presence/'+myId).set({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status }); }catch(e){ console.warn('présence', e); }
+  try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status })); }catch(e){ console.warn('présence', e); }
 }
 var presenceTimer = null, lastPresenceKey = null;
 function presenceTick(){
@@ -3068,9 +3878,17 @@ function friendStatusText(fid){
   if(p.status==='cards') return 'joue aux vraies cartes';
   return 'en ligne';
 }
+// v48 : ma présence et ma liste d'amis portent le pseudo du profil propriétaire (pkey) ; les règles Firebase
+// n'autorisent que le propriétaire de ce profil à les modifier. Les « boîtes aux lettres » (friendReq, invites)
+// restent ouvertes aux autres joueurs connectés, puisque c'est eux qui y déposent les demandes.
+function withOwner(o){ if(currentProfile && currentProfile.key) o.__plain = { pkey: currentProfile.key }; return o; }
 async function mergeDoc(path, patch){
   var ref = claudeDb.doc(path);
-  try{ await ref.update(patch); }catch(e){ await ref.set(patch); }
+  try{ await ref.update(patch); }
+  catch(e){
+    if(!e || e.code!=='invalid_argument') throw e; // refus des règles, réseau… : surtout ne pas écraser le document
+    await ref.set(patch);
+  }
 }
 async function addFriend(pseudo){
   social.addErr = ''; social.addOk = '';
@@ -3082,7 +3900,7 @@ async function addFriend(pseudo){
     if(!snap.exists){ social.addErr = 'Aucun joueur « '+pseudo+' ». Il doit d\'abord créer son profil.'; render(); return; }
     var d = snap.data();
     var p1 = { list:{} }; p1.list[d.playerId] = { name:d.pseudo, since:nowMs() };
-    await mergeDoc('friends/'+myId, p1);
+    await mergeDoc('friends/'+myId, withOwner(p1));
     var p2 = { from:{} }; p2.from[myId] = { name: myProfile.name || currentProfile.pseudo, at: nowMs() };
     await mergeDoc('friendReq/'+d.playerId, p2); // il ne l'affiche que s'il ne t'a pas déjà en ami
     social.addOk = d.pseudo+' ajouté ✓';
@@ -3092,11 +3910,11 @@ async function addFriend(pseudo){
 async function acceptFriend(fid){
   var r = social.reqs[fid]; if(!r) return;
   var p1 = { list:{} }; p1.list[fid] = { name:r.name, since:nowMs() };
-  await mergeDoc('friends/'+myId, p1);
+  await mergeDoc('friends/'+myId, withOwner(p1));
   var p2 = { from:{} }; p2.from[fid] = null; await mergeDoc('friendReq/'+myId, p2);
 }
 async function ignoreFriend(fid){ var p = { from:{} }; p.from[fid] = null; await mergeDoc('friendReq/'+myId, p); }
-async function removeFriend(fid){ var p = { list:{} }; p.list[fid] = null; await mergeDoc('friends/'+myId, p); }
+async function removeFriend(fid){ var p = { list:{} }; p.list[fid] = null; await mergeDoc('friends/'+myId, withOwner(p)); }
 async function inviteFriend(fid){
   if(!gameDoc) return;
   var id = nowMs().toString(36)+Math.random().toString(36).slice(2,5);
@@ -3187,7 +4005,7 @@ document.addEventListener('click', function(e){
   else if(a==='friend-add'){ var i = document.getElementById('friendPseudo'); addFriend(i ? i.value : ''); }
   else if(a==='friend-accept'){ acceptFriend(id).catch(console.error); }
   else if(a==='friend-ignore'){ ignoreFriend(id).catch(console.error); }
-  else if(a==='friend-remove'){ if(confirm('Retirer cet ami ?')) removeFriend(id).catch(console.error); }
+  else if(a==='friend-remove'){ if(confirmT('Retirer cet ami ?')) removeFriend(id).catch(console.error); }
   else if(a==='friend-invite'){ inviteFriend(id); }
   else if(a==='friend-join'){ entryMode='join'; joinGame(el.getAttribute('data-code'), myProfile.name || ''); }
   else if(a==='invite-accept'){ acceptInvite(id); }
@@ -3273,15 +4091,98 @@ function buildRoundLog(raw){
     return e;
   });
 }
-function subscribeSecrets(code){
+/* v45 : filet de sécurité « mes cartes ne s'affichent pas ».
+   1. si ma main (ou, pour l'hôte, celle des robots) n'est pas arrivée 2 s après la donne, on va la lire directement ;
+   2. si elle reste introuvable (ex. : le téléphone a changé de compte anonyme pendant la veille), on demande à l'hôte
+      de la renvoyer (handReq dans la partie) : l'hôte connaît toutes les mains et la réécrit à mon nouveau nom. */
+var handFetch = { key:null, since:0, busy:false, tries:0 }, handReqServed = {};
+function handWatchTick(){
+  var g = gameDoc;
+  if(!g || !g.dealSeed || !g.players || !g.players[myId] || g.players[myId].isBot || !(g.status==='dealing' || g.status==='bidding' || g.status==='playing')){ handFetch.key = null; return; }
+  var missingMe = !computedHand(g, myId);
+  var missingBots = g.hostId===myId && g.playerOrder.some(function(id){ return g.players[id] && g.players[id].isBot && !computedHand(g, id); });
+  if(!missingMe && !missingBots){ handFetch.key = null; return; }
+  var key = g.code+'|'+g.dealSeed+'|'+missingMe+'|'+missingBots;
+  if(key !== handFetch.key){ handFetch = { key:key, since:nowMs(), busy:false, tries:0 }; return; }
+  if(handFetch.busy || nowMs() - handFetch.since < 2000 + handFetch.tries*2000) return;
+  handFetch.busy = true; handFetch.tries++;
+  fetchSecretsNow(g, handFetch.tries).catch(function(e){ console.warn('main', e); }).then(function(){ handFetch.busy = false; handFetch.since = nowMs(); });
+}
+async function fetchSecretsNow(g, tries){
+  var code = g.code, keys = [myKeyId()], pu = g.players[myId] && g.players[myId].uid;
+  if(pu && keys.indexOf(pu) < 0) keys.push(pu);
+  for(var i=0; i<keys.length && !computedHand(gameDoc||g, myId); i++){
+    try{ var s = await claudeDb.doc('hands/'+code+'/'+keys[i]).get(), d = s.exists ? s.data() : null; if(d && d.dealId===g.dealSeed) myDeal = d; }catch(e){}
+  }
+  if(g.hostId===myId){
+    try{ var b = await claudeDb.doc('botHands/'+code+'/'+myKeyId()).get(); if(b.exists && b.data().dealId===g.dealSeed) botDeal = b.data(); }catch(e){}
+    try{ var ds = await claudeDb.doc('dealerSecrets/'+code+'/'+myKeyId()).get(); if(ds.exists) mySecret = ds.data(); }catch(e){}
+  }
+  subscribeSecrets(code, true);
+  if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc); syncHand(); onGameUpdate(); render(); }
+  // toujours rien après 2 essais : on demande à l'hôte de renvoyer ma main
+  if(tries >= 2 && gameDoc && gameDoc.code===code && gameDoc.hostId!==myId && !computedHand(gameDoc, myId)){
+    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs() };
+    try{ await claudeDb.doc('games/'+code).update(p); }catch(e){ console.warn(e); }
+  }
+}
+// côté hôte : renvoie la main d'un joueur qui l'a demandée (seulement pour la donne en cours)
+function serveHandRequests(g){
+  if(!g || g.hostId!==myId || !g.handReq || !g.dealSeed) return;
+  Object.keys(g.handReq).forEach(function(id){
+    var r = g.handReq[id]; if(!r || r.deal!==g.dealSeed || !r.uid || !g.players[id] || g.players[id].isBot) return;
+    var k = g.dealSeed+'|'+id+'|'+r.uid+'|'+r.at; if(handReqServed[k]) return;
+    var cards = dealtFor(g, id);
+    if(!cards || !cards.length){ refreshHostSecret(g); return; } // je ne connais pas sa main non plus : je relis la graine
+    handReqServed[k] = 1;
+    claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
+  });
+}
+// v45 : au réveil du téléphone (retour sur l'onglet), le jeton de connexion Firebase a pu expirer pendant la veille :
+// Firebase coupe alors toutes les écoutes privées d'un coup (main, graine, robots). On renouvelle le jeton puis on se réabonne.
+var wakeAt = 0;
+function onWakeUp(){
+  if(document.visibilityState && document.visibilityState!=='visible') return;
+  if(!gameCode || nowMs() - wakeAt < 5000) return; wakeAt = nowMs();
+  var code = gameCode;
+  var renew = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.getIdToken(true).catch(function(e){ console.warn('jeton', e); }) : Promise.resolve();
+  renew.then(function(){
+    if(gameCode!==code) return;
+    secretsResubAt = 0; subscribeSecrets(code, true);
+    if(gameDoc && gameDoc.code===code) fetchSecretsNow(gameDoc, 0).catch(function(e){ console.warn(e); });
+  });
+}
+document.addEventListener('visibilitychange', onWakeUp);
+window.addEventListener('focus', onWakeUp);
+window.addEventListener('online', onWakeUp);
+// l'hôte relit la graine de la donne en cours (si sa propre écoute a été coupée), au plus toutes les 3 s
+var hostSecretAt = 0;
+function refreshHostSecret(g){
+  if(nowMs() - hostSecretAt < 3000) return; hostSecretAt = nowMs();
+  claudeDb.doc('dealerSecrets/'+g.code+'/'+myKeyId()).get().then(function(s){
+    if(s.exists){ mySecret = s.data(); if(gameDoc && gameDoc.code===g.code){ gameDoc = Object.assign({}, gameDoc); serveHandRequests(gameDoc); } }
+  }).catch(function(e){ console.warn('graine', e); });
+  subscribeSecrets(g.code, true);
+}
+var secretsResubAt = 0;
+function subscribeSecrets(code, keep){
+  if(keep){ // réabonnement après une coupure : au plus une fois toutes les 3 s, et on garde ce qu'on sait déjà
+    if(nowMs() - secretsResubAt < 3000) return;
+    secretsResubAt = nowMs();
+  }
   secretUnsubs.forEach(function(u){ try{ u(); }catch(e){} }); secretUnsubs = [];
-  myDeal = null; botDeal = null; mySecret = null; logDoc = null;
+  if(!keep){ myDeal = null; botDeal = null; mySecret = null; logDoc = null; }
   var sub = function(path, cb){
     try{
       secretUnsubs.push(claudeDb.doc(path).onSnapshot(function(snap){
         cb(snap.exists ? snap.data() : null);
         if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc, { roundLog: buildRoundLog(gameDoc) }); syncHand(); onGameUpdate(); render(); }
-      }, function(err){ console.warn(path, err); }));
+      }, function(err){
+        // v45 : Firebase coupe définitivement une écoute refusée (réseau coupé, téléphone en veille, jeton expiré…).
+        // Avant, la main n'arrivait plus jamais (« Plus de cartes. ») : on se réabonne tout seul.
+        console.warn(path, err);
+        setTimeout(function(){ if(gameCode===code) subscribeSecrets(code, true); }, 2000);
+      }));
     }catch(e){ console.warn(e); }
   };
   sub('hands/'+code+'/'+myKeyId(), function(d){ myDeal = d; });
@@ -3324,6 +4225,7 @@ function homeIcon(name, size, color){
 }
 function homeFanCard(rank, suit, red, cls){
   var sym = { S:'♠︎', H:'♥︎', D:'♦︎', C:'♣︎' }[suit];
+  if(LANG==='en') rank = { D:'Q', R:'K', V:'J' }[rank] || rank; // figures anglaises
   return '<span class="hc-card '+cls+(red?' red':'')+'"><span class="hc-idx">'+rank+'<br>'+sym+'</span><span class="hc-mid">'+sym+'</span><span class="hc-idx hc-rot">'+rank+'<br>'+sym+'</span></span>';
 }
 function renderHomeFriends(){
@@ -3370,6 +4272,8 @@ function renderEntry(){
   html += '</div>';
   var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
   if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
+  else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
+    html += '<div class="home-panel"><div class="card-panel" style="margin-bottom:12px; padding:12px 16px;">'+renderClaimsList()+'</div></div>';
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true"><span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span></div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
@@ -3400,16 +4304,20 @@ function renderEntry(){
   html += renderHomeFriends();
   // --- pied de page ---
   html += '<div class="hc-foot"><span class="hc-status">'
-    + (usingFirebase ? '<span class="hc-dot"></span>En ligne · '+homeIcon('lock', 11)+' cartes secrètes' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
-    + '</span><span class="hc-ver">v'+APP_VERSION+'</span></div>';
+    + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
+    + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
+    + '<button data-action="set-lang" data-lang="fr" aria-pressed="'+(LANG==='fr')+'"'+(LANG==='fr'?' class="on"':'')+'>FR</button>'
+    + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> v'+APP_VERSION+'</span></div>';
   html += '</div>';
   if(showRules) html += renderRulesModal();
+  if(beerOpen) html += renderBeerModal();
   return html;
 }
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action="home-profile"]') : null; if(!el) return;
   homeProfileOpen = !homeProfileOpen;
   if(!homeProfileOpen){ profileUi.err=''; profileUi.ok=''; profileUi.mode=null; }
+  else if(isAdmin()) loadClaims().then(render); // l'organisateur voit les nouvelles demandes « code oublié » sans recharger
   render();
 });
 document.addEventListener('keydown', function(e){
@@ -3531,10 +4439,20 @@ async function dealNextRoundAs(actorId){
   try{ await dealNextRoundInner(g); } finally { dealingNext = false; }
 }
 async function dealNextRoundInner(g){
-  // relit la partie : si quelqu'un a déjà distribué (bouton « Passer » ou minuterie), on ne redistribue pas
-  var freshSnap = await claudeDb.doc('games/'+g.code).get();
-  var fresh = freshSnap.data();
-  if(!fresh || fresh.status!=='round_end' || fresh.round!==g.round) return;
+  // v45 : UN SEUL appareil distribue. Avant, si deux joueurs cliquaient « Passer » en même temps, deux donnes
+  // différentes partaient : la partie en gardait une, certains recevaient les cartes de l'autre → « Plus de cartes. ».
+  var gref = claudeDb.doc('games/'+g.code), ck = 'next:'+g.round;
+  if(gref.claim){
+    var won = await gref.claim(function(cur, tok){
+      if(cur.status!=='round_end' || cur.round!==g.round) return null;                 // déjà distribuée
+      var c = cur.dealClaim; if(c && c.key===ck && nowMs() - c.at < 20000) return null; // quelqu'un est en train de distribuer
+      return { dealClaim:{ key:ck, by:myId, at:nowMs() }, claimTok:tok };
+    });
+    if(!won) return;
+  } else {
+    var freshSnap = await gref.get(), fresh = freshSnap.data();
+    if(!fresh || fresh.status!=='round_end' || fresh.round!==g.round) return;
+  }
   var order = g.playerOrder, n = order.length;
   var prevIdx = order.indexOf(g.dealerId);
   var nextDealerId = order[(prevIdx+1)%n];
@@ -3920,6 +4838,8 @@ function renderBidPanel(g){
 }
 
 function renderHand(g){
+  if(!myHand && (g.status==='dealing' || g.status==='bidding' || g.status==='playing')) // v45 : main pas encore arrivée (≠ plus de cartes)
+    return '<p class="muted" style="text-align:center; font-size:13px;">Chargement de ta main…</p>';
   if(!myHand || !myHand.cards.length) return '<p class="muted" style="text-align:center; font-size:13px;">Plus de cartes.</p>';
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
@@ -3929,8 +4849,9 @@ function renderHand(g){
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
   var hasLed = ledSuit ? myHand.cards.some(function(c){ return c.suit===ledSuit; }) : false;
+  var suitOrder = handSuitOrder(myHand.cards);
   var sorted = myHand.cards.slice().sort(function(a,b){
-    if(a.suit!==b.suit) return SUITS.indexOf(a.suit)-SUITS.indexOf(b.suit);
+    if(a.suit!==b.suit) return suitOrder.indexOf(a.suit)-suitOrder.indexOf(b.suit);
     return a.value-b.value;
   });
   var n = sorted.length;
@@ -4019,12 +4940,201 @@ function renderRoundEnd(g){
   var dc = checkRevealedDeal(g, lastLog);
   if(dc==='ok') html += '<div class="muted" style="text-align:center; font-size:12px; margin:6px 0 0;">🔒 Donne vérifiée : personne ne connaissait vos cartes, et la distribution n\'a pas été modifiée.</div>';
   else if(dc==='bad') html += '<div class="error-text" style="text-align:center;">⚠️ La distribution de cette manche ne correspond pas à son empreinte.</div>';
+  html += auditHtml(g);
   html += coachReviewHtml(g, lastLog);
   var left = Math.max(0, roundBreakLeft(g));
   html += '<div class="countdown"><div class="bar"><i id="cd-bar" style="width:'+(100*left/ROUND_BREAK_MS)+'%"></i></div>'
     + '<div class="row between"><span class="muted" id="cd-text" style="font-size:13.5px;">'+(left>0?('Manche suivante dans '+Math.ceil(left/1000)+' s'):'Distribution…')+'</span>'
     + '<button class="btn small" data-action="deal-next" title="Lancer tout de suite la manche '+(g.round+2)+' ('+nh+' carte'+(nh>1?'s':'')+')">Passer →</button></div></div>';
   return html;
+}
+
+/* ===================== v41 : vérification croisée des scores =====================
+   Sans serveur, n'importe quel appareil peut écrire dans la partie : un joueur doué pourrait modifier les scores.
+   Chaque téléphone vérifie donc tout seul :
+   - il rejoue chaque manche à partir de la graine révélée (contrôlée avec l'empreinte annoncée AVANT la manche) :
+     chaque carte jouée était bien dans la main du joueur, il a suivi la couleur, les plis et les points sont justes ;
+   - il compare avec ce qu'il a VU en direct (annonces, plis) : réécrire l'historique après coup se voit ;
+   - le total doit être égal à la somme des manches, et le barème ne doit pas changer en cours de partie.
+   Si quelque chose cloche, tout le monde voit l'alerte, et la ligue n'enregistre que des scores recalculés et vérifiés. */
+var witnessed = { tricks:{}, bids:{}, scoring:{} };
+function witnessGame(g){
+  if(!g || !g.dealSeed || !g.playerOrder) return;
+  var n = g.playerOrder.length, gid = g.code+'|'+(g.startedAt||g.createdAt);
+  if(g.status!=='lobby' && g.settings && !witnessed.scoring[gid]) witnessed.scoring[gid] = JSON.stringify(getScoring(g));
+  if(g.status==='playing' && g.bids && !witnessed.bids[g.dealSeed] && g.playerOrder.every(function(id){ return g.bids[id]!=null; })){
+    witnessed.bids[g.dealSeed] = JSON.stringify(g.playerOrder.map(function(id){ return g.bids[id]; }));
+  }
+  var lt = g.lastTrick;
+  if(lt && lt.cards && lt.cards.length===n && (g.status==='playing' || g.status==='round_end' || g.status==='game_over')){
+    var w = witnessed.tricks[g.dealSeed] || (witnessed.tricks[g.dealSeed] = {});
+    w[lt.cards.map(function(p){ return p.playerId+':'+cardKey(p.card); }).join(',')] = 1;
+  }
+}
+// rejoue une manche de l'historique ; renvoie la liste des problèmes (vide = tout est juste)
+function auditRound(g, e, sc){
+  var issues = [], order = g.playerOrder, H = e.handSize, label = 'Manche '+(e.round+1)+' : ';
+  if(!e.dealSeed) return { issues:[], unverified:true };
+  if(!Array.isArray(e.played) || e.played.length !== H*order.length || !Array.isArray(e.bidOrder) || !e.bidOrder.length) return { issues:[label+'historique incomplet'] };
+  var hands = dealCards(e.dealSeed, order, H).hands, rem = {}, won = {};
+  order.forEach(function(id){ rem[id] = hands[id].slice(); won[id] = 0; });
+  var trumpSuit = e.trump ? e.trump.suit : null, real = dealCards(e.dealSeed, order, H).trumpCard;
+  if((real ? cardKey(real) : null) !== (e.trump ? cardKey(e.trump) : null)) issues.push(label+'l\'atout ne correspond pas à la donne');
+  var lead = e.bidOrder[0], k = 0, seenTricks = {};
+  for(var t=0; t<H && !issues.length; t++){
+    var i0 = order.indexOf(lead), trick = [];
+    for(var q=0; q<order.length; q++){
+      var id = order[(i0+q)%order.length], c = e.played[k++], hand = rem[id];
+      var idx = hand.findIndex(function(x){ return c && x.suit===c.suit && x.rank===c.rank; });
+      if(idx < 0){ issues.push(label+(g.players[id]||{name:'?'}).name+' a joué une carte qu\'il n\'avait pas'); break; }
+      var led = trick.length ? trick[0].card.suit : null;
+      if(led && c.suit!==led && hand.some(function(x){ return x.suit===led; })){ issues.push(label+(g.players[id]||{name:'?'}).name+' n\'a pas suivi la couleur'); break; }
+      hand.splice(idx, 1); trick.push({ playerId:id, card:c });
+    }
+    if(issues.length) break;
+    seenTricks[trick.map(function(p){ return p.playerId+':'+cardKey(p.card); }).join(',')] = 1;
+    lead = trickWinner(trick, trick[0].card.suit, trumpSuit); won[lead]++;
+  }
+  if(issues.length) return { issues:issues };
+  var pts = {};
+  order.forEach(function(id){
+    if((e.tricksWon||{})[id] !== won[id]) issues.push(label+'plis de '+(g.players[id]||{name:'?'}).name+' faux ('+(e.tricksWon||{})[id]+' au lieu de '+won[id]+')');
+    pts[id] = scoreRound(sc, e.bids[id], won[id]);
+    if((e.points||{})[id] !== pts[id]) issues.push(label+'points de '+(g.players[id]||{name:'?'}).name+' faux');
+  });
+  // ce que j'ai vu en direct doit se retrouver dans l'historique
+  var wb = witnessed.bids[e.dealId];
+  if(wb && wb !== JSON.stringify(order.map(function(id){ return e.bids[id]; }))) issues.push(label+'les annonces ont été modifiées après coup');
+  var wt = witnessed.tricks[e.dealId];
+  if(wt && Object.keys(wt).some(function(key){ return !seenTricks[key]; })) issues.push(label+'les plis ne correspondent pas à ce qui a été joué');
+  return { issues:issues, points:pts };
+}
+// bilan de toute la partie : { state:'ok'|'bad'|'partial', issues, scores recalculés }
+function auditGame(g){
+  var out = { state:'ok', issues:[], scores:{} };
+  if(!g || !g.playerOrder) return out;
+  var sc = getScoring(g), log = g.roundLog || [], unverified = 0, gid = g.code+'|'+(g.startedAt||g.createdAt);
+  g.playerOrder.forEach(function(id){ out.scores[id] = 0; });
+  if(witnessed.scoring[gid] && witnessed.scoring[gid] !== JSON.stringify(sc)) out.issues.push('le barème a été modifié en cours de partie');
+  log.forEach(function(e){
+    var r = auditRound(g, e, sc);
+    if(r.unverified){ unverified++; g.playerOrder.forEach(function(id){ out.scores[id] += scoreRound(sc, e.bids[id], (e.tricksWon||{})[id]||0); }); return; }
+    out.issues = out.issues.concat(r.issues);
+    if(r.points) g.playerOrder.forEach(function(id){ out.scores[id] += r.points[id]; });
+    if(e.dealHash && e.dealId && dealChecks[e.dealId]==='bad') out.issues.push('Manche '+(e.round+1)+' : la graine révélée ne correspond pas à l\'empreinte');
+    else if(e.dealHash && e.dealId) checkRevealedDeal(g, e); // lance la vérification de l'empreinte (asynchrone)
+  });
+  var complete = log.length && log[log.length-1].round === g.round && (g.status==='round_end' || g.status==='game_over');
+  if(complete) g.playerOrder.forEach(function(id){
+    if((g.scores[id]||0) !== out.scores[id]) out.issues.push('score affiché de '+(g.players[id]||{name:'?'}).name+' : '+(g.scores[id]||0)+' au lieu de '+out.scores[id]);
+  });
+  out.state = out.issues.length ? 'bad' : (unverified || !complete ? 'partial' : 'ok');
+  return out;
+}
+// version complète (attend les empreintes) : utilisée avant d'enregistrer dans la ligue
+async function auditGameFull(g){
+  var log = g.roundLog || [];
+  for(var i=0; i<log.length; i++){
+    var e = log[i];
+    if(e.dealHash && e.dealId && e.dealSeed && !dealChecks[e.dealId]) dealChecks[e.dealId] = (await sha256hex(e.dealSeed))===e.dealHash ? 'ok' : 'bad';
+  }
+  return auditGame(g);
+}
+/* ===================== v43 : confirmation des parties de ligue en ligne =====================
+   Avant, l'hôte écrivait seul le résultat dans la ligue : un joueur doué pouvait y inscrire une fausse partie.
+   Maintenant chaque téléphone de joueur, après avoir revérifié toute la partie (auditGame), dépose tout seul une
+   confirmation à SON nom : leagueAttest/{partie}__{compte} (les règles Firebase interdisent d'écrire au nom d'un autre
+   et de modifier une confirmation). Une partie de ligue en ligne compte quand la MAJORITÉ des joueurs l'a confirmée.
+   Filets de sécurité si quelqu'un ferme l'appli trop tôt :
+   1. confirmation immédiate dès la fin de la partie (pendant l'affichage du classement) ;
+   2. rattrapage : la partie est notée sur le téléphone dès son lancement ; à la prochaine ouverture du jeu,
+      le téléphone relit la partie terminée, la revérifie et confirme ;
+   3. majorité seulement (2 sur 3, 3 sur 4 ou 5…) ;
+   4. l'organisateur peut valider à la main une partie restée en attente (leagueValid/{partie}).
+   Les parties enregistrées avant ATTEST_FROM (et les vraies cartes) comptent comme avant. */
+var ATTEST_FROM = Date.UTC(2026, 9, 1); // 1er octobre 2026
+var attestDone = {}, attestBusy = {};
+function leagueGameId(g){ return 'o_'+g.code+'_'+(g.startedAt||g.createdAt); }
+function resultDigest(pairs){ // [[compte, score]] → texte comparable, indépendant de l'ordre
+  return pairs.map(function(p){ return String(p[0])+':'+Number(p[1]); }).sort().join('|');
+}
+function attestTodos(){ try{ return JSON.parse(localStorage.getItem('rikiki_attest_todo_'+myId)||'{}') || {}; }catch(e){ return {}; } }
+function saveAttestTodos(t){ try{ localStorage.setItem('rikiki_attest_todo_'+myId, JSON.stringify(t)); }catch(e){} }
+function iPlayLeague(g){
+  return !!(g && g.settings && g.settings.league && g.players && g.players[myId] && !g.players[myId].isBot && g.status!=='lobby' && !onlineLeagueCheck(g));
+}
+// noté dès le lancement : si je quitte avant la fin, je confirmerai à la prochaine ouverture
+function rememberLeagueGame(g){
+  if(!iPlayLeague(g) || g.status==='game_over') return;
+  var gid = leagueGameId(g), t = attestTodos(); if(t[gid]) return;
+  t[gid] = { code:g.code, startedAt:g.startedAt||g.createdAt, at:nowMs() }; saveAttestTodos(t);
+}
+async function attestResult(g){
+  var gid = leagueGameId(g);
+  if(attestDone[gid] || attestBusy[gid]) return attestDone[gid] || 'busy';
+  attestBusy[gid] = true;
+  try{
+    var audit = await auditGameFull(g);
+    if(audit.state==='bad'){ attestDone[gid] = 'bad'; return 'bad'; } // jamais de confirmation pour une partie suspecte
+    if(audit.state!=='ok') return 'wait';                               // graines pas encore révélées : on réessaiera
+    var digest = resultDigest(g.playerOrder.map(function(id){ return [keyOfPlayer(g, id), audit.scores[id]||0]; }));
+    try{ await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).set({ gid:gid, digest:digest, at:nowMs() }); }
+    catch(e){ // déjà confirmé (les règles refusent de réécrire) : c'est bon aussi
+      var ex = await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).get().catch(function(){ return null; });
+      if(!(ex && ex.exists)) throw e;
+    }
+    attestDone[gid] = 'ok';
+    var t = attestTodos(); delete t[gid]; saveAttestTodos(t);
+    return 'ok';
+  }catch(e){ console.warn('confirmation de ligue', e); return 'wait'; }
+  finally{ attestBusy[gid] = false; }
+}
+// appelée en continu pendant la partie : note la partie, puis confirme dès que c'est possible
+function maybeAttest(g){
+  if(!iPlayLeague(g)) return;
+  rememberLeagueGame(g);
+  if(g.status==='game_over') attestResult(g);
+}
+// rattrapage au démarrage : parties de ligue que j'ai quittées avant la fin
+async function processAttestTodos(){
+  var t = attestTodos(), ids = Object.keys(t); if(!ids.length || !claudeDb) return;
+  for(var i=0; i<ids.length; i++){
+    var gid = ids[i], it = t[gid];
+    try{
+      if(nowMs() - it.at > 14*86400000){ delete t[gid]; continue; } // trop vieux : l'organisateur validera
+      var gs = await claudeDb.doc('games/'+it.code).get(), gd = gs.exists ? gs.data() : null;
+      if(!gd || (gd.startedAt||gd.createdAt) !== it.startedAt){ delete t[gid]; continue; } // partie remplacée par « Rejouer »
+      if(gd.status!=='game_over') continue;                                                  // pas encore finie : on garde
+      var ls = await claudeDb.doc('gameLogs/'+it.code).get(), ld = ls.exists ? ls.data() : null;
+      var rounds = (ld && ld.rounds) || {}, seeds = (ld && ld.seeds) || {};
+      var log = Object.keys(rounds).map(Number).sort(function(a,b){ return a-b; }).map(function(k){
+        var e = Object.assign({}, rounds[k]); if(!e.dealSeed && e.dealId && seeds[e.dealId]) e.dealSeed = seeds[e.dealId]; return e; });
+      if(!log.length && Array.isArray(gd.roundLog)) log = gd.roundLog;
+      var g2 = Object.assign({}, gd, { roundLog: log });
+      if(!iPlayLeague(g2)){ delete t[gid]; continue; }
+      var r = await attestResult(g2);
+      if(r==='ok' || r==='bad') delete t[gid];
+    }catch(e){ console.warn('rattrapage de confirmation', e); }
+  }
+  var cur = attestTodos(); ids.forEach(function(id){ if(!(id in t)) delete cur[id]; }); saveAttestTodos(cur); // retire ce qui est réglé
+}
+// dans le classement : une partie en ligne récente compte-t-elle ?
+function attestStatus(rec){
+  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : rec.at;
+  if(rec.mode!=='online' || at < ATTEST_FROM) return { counts:true, legacy:true };
+  var ps = rec.players || [], need = Math.floor(ps.length/2) + 1;
+  if(league.valid && league.valid[rec.id]) return { counts:true, byAdmin:true, need:need, have:need };
+  if(!ps.every(function(p){ return p.uid; })) return { counts:false, need:need, have:0 };
+  var digest = resultDigest(ps.map(function(p){ return [p.uid, p.score]; })), have = 0;
+  ps.forEach(function(p){ var a = league.attest && league.attest[rec.id+'__'+p.uid]; if(a && a.digest===digest) have++; });
+  return { counts: have >= need, need:need, have:have };
+}
+
+function auditHtml(g){
+  var a = auditGame(g);
+  if(a.state==='bad') return '<div class="error-text" style="text-align:center; margin:8px 0 0;">⚠️ Scores suspects : '+esc(a.issues.slice(0,3).join(' · '))+(a.issues.length>3?' …':'')+'<br><span style="font-weight:400;">Les points ont peut-être été trafiqués. Cette partie ne comptera pas pour la ligue.</span></div>';
+  if(a.state==='ok') return '<div class="muted" style="text-align:center; font-size:12px; margin:6px 0 0;">✓ Scores vérifiés par ton téléphone : chaque carte et chaque point ont été recontrôlés.</div>';
+  return '';
 }
 
 function renderGameOver(g){
@@ -4038,9 +5148,12 @@ function renderGameOver(g){
       + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="display" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
+  html += auditHtml(g);
   if(g.settings && g.settings.league){
     var why = onlineLeagueCheck(g);
     html += '<p class="muted" style="text-align:center; font-size:13.5px; margin:10px 0 0;">'+(why ? esc(why) : (g.leagueRecorded ? 'Partie de ligue enregistrée ✓ <button class="link-btn" data-action="league-openscreen" data-mode="online">Voir le classement en ligne</button>' : 'Enregistrement dans la ligue…'))+'</p>';
+    if(!why && iPlayLeague(g)){ var ad = attestDone[leagueGameId(g)];
+      html += '<p class="muted" style="text-align:center; font-size:12px; margin:4px 0 0;">'+(ad==='ok' ? '🔒 Ton téléphone a confirmé le résultat.' : (ad==='bad' ? '⚠️ Ton téléphone ne confirme pas ce résultat.' : '🔒 Confirmation du résultat en cours…'))+'</p>'; }
   }
   html += '<div style="text-align:center; margin:18px 0 6px;">'
     + (g.hostId===myId ? '<button class="btn" data-action="replay">↻ Rejouer (mêmes joueurs, mêmes règles)</button>'
@@ -4219,7 +5332,7 @@ function sheetSetValue(pid, v){
   if(sheet.phase==='bid') sheet.bids[pid]=v; else if(sheet.phase==='tricks') sheet.tricks[pid]=v;
   saveSheet(); render();
 }
-function sheetMaxZeros(){ return 3; } // règle officielle, aussi en vraies cartes
+function sheetMaxZeros(){ return (sheet && sheet.settings && sheet.settings.direction==='quick') ? 0 : 3; } // règle officielle, aussi en vraies cartes (sauf partie rapide)
 function sheetZeroBanned(pid){
   var mz = sheetMaxZeros(); if(!mz || zeroStreakIn(sheet.roundLog, pid) < mz) return false;
   // exception : manche à 1 carte où le donneur ne peut pas annoncer 1 → le zéro reste permis
@@ -4283,7 +5396,7 @@ function renderSheetSetup(){
   html += '<div id="sheetDealerWrap">'+dealerSelectHtml(d)+'</div>';
   if(d.league) html += '<datalist id="leagueMemberList">'+league.members.map(function(m){ return '<option value="'+esc(m.name)+'"></option>'; }).join('')+'</datalist>';
   html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:12px 0 0;"><input type="checkbox" id="sheetLeague" '+(d.league?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
-  html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">Règle : pas plus de 3 zéros d\'affilée.</p>';
+  html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">'+(d.direction==='quick' ? 'Partie rapide : pas de limite de zéros.' : 'Règle : pas plus de 3 zéros d\'affilée.')+'</p>';
   if(d.league) html += '<p class="muted" style="font-size:12.5px; margin:4px 0 0;">Tape le prénom d\'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum '+LEAGUE_MIN_HUMANS+' joueurs.</p>';
   html += '<div class="divider"></div>';
   html += '<div class="settings-grid">';
@@ -4472,6 +5585,17 @@ function seasonLabel(key){
   return 'Saison T'+t+' '+parts[0]+' · '+months[t-1];
 }
 function memberById(id){ return league.members.filter(function(m){ return m.id===id; })[0] || null; }
+// membre principal d'un membre éventuellement fusionné (on suit la chaîne « fusionné dans »)
+function canonMember(id){
+  var all = league.allMembers || league.members, seen = {};
+  for(var i=0; i<10 && id && !seen[id]; i++){
+    seen[id] = 1;
+    var m = all.filter(function(x){ return x.id===id; })[0];
+    if(!m || !m.mergedInto) return id;
+    id = m.mergedInto;
+  }
+  return id;
+}
 function myMember(){ return myId ? (league.members.filter(function(m){ return m.userId===myId; })[0] || null) : null; }
 function normName(s){ return (s||'').trim().toLowerCase(); }
 
@@ -4481,8 +5605,30 @@ async function loadLeague(force){
   try{
     var ms = await claudeDb.collection('leagueMembers').get();
     var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
-    league.members = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
-    league.games = gs.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    // v47 : les fiches de la ligue ne sont plus modifiables (sauf par l'organisateur). « C'est moi » est rangé à part,
+    // dans leagueLinks/{membre} : écrit une seule fois, par le propriétaire du compte (contrôlé par les règles Firebase).
+    try{
+      (await claudeDb.collection('leagueLinks').get()).docs.forEach(function(d){
+        var l = d.data(), m = league.allMembers.filter(function(x){ return x.id===d.id; })[0];
+        if(m && !m.userId && l && l.userId) m.userId = l.userId;
+      });
+    }catch(e){ console.warn('liens ligue', e); }
+    // v42 : fusion de doublons. Les parties enregistrées ne sont jamais réécrites : on redirige en mémoire
+    // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
+    league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
+    // v43 : confirmations des joueurs + validations de l'organisateur
+    league.attest = {}; league.valid = {};
+    try{ (await claudeDb.collection('leagueAttest').get()).docs.forEach(function(d){ league.attest[d.id] = d.data(); }); }catch(e){ console.warn('confirmations', e); }
+    try{ (await claudeDb.collection('leagueValid').get()).docs.forEach(function(d){ league.valid[d.id] = d.data(); }); }catch(e){ console.warn('validations', e); }
+    var all = gs.docs.map(function(d){
+      var g = Object.assign({ id:d.id }, d.data());
+      g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
+      g.attest = attestStatus(g);
+      return g;
+    });
+    league.games = all.filter(function(g){ return g.attest.counts; });     // seules les parties confirmées comptent
+    league.pending = all.filter(function(g){ return !g.attest.counts; });
     league.loaded = true;
   }catch(e){ console.error(e); league.error = dbErrorText(e); }
   league.loading = false;
@@ -4493,11 +5639,15 @@ async function loadLeague(force){
 async function ensureMember(opts){
   await loadLeague();
   var m = null;
-  if(opts.userId) m = league.members.filter(function(x){ return x.userId===opts.userId; })[0];
+  if(opts.userId){ // y compris un membre fusionné : on renvoie alors le membre principal
+    var any = (league.allMembers || league.members).filter(function(x){ return x.userId===opts.userId; })[0];
+    if(any && any.mergedInto){ var cid = canonMember(any.id); if(memberById(cid)) return cid; }
+    m = league.members.filter(function(x){ return x.userId===opts.userId; })[0];
+  }
   if(!m && opts.userId){
     // premier passage en ligne : si un membre IRL du même prénom n'est relié à aucun compte, on le relie
     var same = league.members.filter(function(x){ return !x.userId && normName(x.name)===normName(opts.name); });
-    if(same.length===1){ m = same[0]; await claudeDb.collection('leagueMembers').doc(m.id).update({ userId: opts.userId }); m.userId = opts.userId; }
+    if(same.length===1 && (opts.userId===myId || isAdmin())){ m = same[0]; await linkMember(m.id, opts.userId, opts.pkey); }
   }
   if(!m && opts.memberId) m = memberById(opts.memberId);
   if(!m && opts.byName) m = league.members.filter(function(x){ return normName(x.name)===normName(opts.name); })[0];
@@ -4506,7 +5656,15 @@ async function ensureMember(opts){
   var doc = { name:(opts.name||'Joueur').slice(0,24), userId: opts.userId || null, createdAt: nowMs() };
   await claudeDb.collection('leagueMembers').doc(id).set(doc);
   league.members.push(Object.assign({ id:id }, doc));
+  if(league.allMembers && league.allMembers !== league.members) league.allMembers.push(Object.assign({ id:id }, doc));
   return id;
+}
+
+// relie un membre « vraies cartes » à un compte (une seule fois ; seul le propriétaire du compte ou l'organisateur peut le faire)
+async function linkMember(mid, userId, pkey){
+  pkey = pkey || (currentProfile && currentProfile.key) || '';
+  await claudeDb.doc('leagueLinks/'+mid).set({ memberId: mid, userId: userId, at: nowMs(), __plain:{ pkey: pkey } });
+  (league.allMembers || league.members).concat(league.members).forEach(function(x){ if(x.id===mid) x.userId = userId; });
 }
 
 function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo = même rang)
@@ -4519,7 +5677,7 @@ function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo
 async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   // rows: [{ memberId, name, score, contracts, absDiff }]
   var ranks = ranksFromScores(rows.map(function(r){ return { key:r.memberId, score:r.score }; }));
-  var players = rows.map(function(r){ return { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; });
+  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; return p; });
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
@@ -4549,12 +5707,14 @@ async function maybeRecordOnline(g){
   if(onlineLeagueCheck(g)) return;
   leagueRecording = true;
   try{
+    var audit = await auditGameFull(g);
+    if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
     for(var i=0;i<g.playerOrder.length;i++){
       var uid = g.playerOrder[i], p = g.players[uid];
       var mid = await ensureMember({ userId: uid, name: p.name });
       var st = statsFromLog(g.roundLog||[], uid);
-      rows.push({ memberId: mid, name: p.name, score: g.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff });
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid) }); // scores recalculés, pas ceux affichés
     }
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
@@ -4692,6 +5852,19 @@ function renderLeague(){
       html += '</div>';
     }
   }
+  // v43 : parties en ligne pas encore confirmées par la majorité des joueurs
+  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return leagueView.season==='all' || g.season===leagueView.season; }) : [];
+  if(pend.length){
+    html += '<div class="card-panel" style="margin-top:14px;"><div class="eyebrow" style="margin-bottom:6px;">⏳ En attente de confirmation</div>'
+      + '<p class="muted" style="font-size:12.5px; margin:0 0 8px;">Une partie compte dès que la majorité des joueurs l\'a confirmée. C\'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.</p>';
+    pend.slice().reverse().slice(0, 10).forEach(function(g){
+      html += '<div class="row between" style="margin-top:6px; gap:8px;"><span style="flex:1; min-width:0; font-size:13.5px;">'+new Date(g.at).toLocaleDateString('fr-BE')+' · '
+        + esc((g.players||[]).map(function(p){ return p.name; }).join(', '))+' <span class="muted">('+g.attest.have+'/'+g.attest.need+' confirmations)</span></span>'
+        + (isAdmin() ? '<button class="btn small" data-action="league-validate" data-id="'+esc(g.id)+'">Valider</button>' : '') + '</div>';
+    });
+    if(isAdmin()) html += '<p class="muted" style="font-size:11.5px; margin:8px 0 0;">Organisateur : valide à la main seulement si tu es sûr du résultat (tu as joué, ou tu as vu la partie).</p>';
+    html += '</div>';
+  }
   if(leagueView.help){
     html += '<div class="modal-backdrop" data-action="league-help"><div class="card-panel modal">'
       + '<button class="btn ghost close-x" data-action="league-help">Fermer</button><h3>Comment marche le classement</h3>'
@@ -4700,6 +5873,7 @@ function renderLeague(){
       + '<p>Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.</p>'
       + '<p>Chaque saison (un trimestre) repart de '+ELO_START+'. Le classement « Général » cumule toutes les parties.</p>'
       + '<p>Seules les parties cochées « Partie de ligue », avec au moins '+LEAGUE_MIN_HUMANS+' joueurs humains, sans bot et jouées jusqu\'au bout, comptent. Il faut '+LEAGUE_MIN_GAMES+' parties pour apparaître dans le classement.</p>'
+      + '<p>Anti-triche (en ligne) : à la fin d\'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l\'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.</p>'
       + '<p>Contrats réussis = manches où l\'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).</p>'
       + '</div></div>';
   }
@@ -4715,9 +5889,16 @@ document.addEventListener('click', function(e){
   else if(a==='league-home'){ screen='entry'; leagueView.help=false; render(); }
   else if(a==='league-open'){ var id=el.getAttribute('data-id'); leagueView.open = leagueView.open===id ? null : id; render(); }
   else if(a==='league-help'){ leagueView.help = !leagueView.help; render(); }
+  else if(a==='league-validate' && isAdmin()){
+    var gid = el.getAttribute('data-id');
+    if(!confirmT('Compter cette partie dans le classement, même sans la majorité des confirmations ?')) return;
+    claudeDb.doc('leagueValid/'+gid).set({ by: currentProfile ? currentProfile.pseudo : '', at: nowMs() })
+      .then(function(){ league.loaded = false; return loadLeague(true); })
+      .catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
+  }
   else if(a==='league-claim'){
     var id2 = el.getAttribute('data-id');
-    claudeDb.collection('leagueMembers').doc(id2).update({ userId: myId }).then(function(){ var m=memberById(id2); if(m) m.userId=myId; render(); })
+    linkMember(id2, myId).then(function(){ render(); })
       .catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
   }
 });
@@ -4754,7 +5935,7 @@ document.addEventListener('click', function(e){
   }
   else if(action==='start-game'){ startGame(); }
   else if(action==='toggle-ready'){ toggleReady(); }
-  else if(action==='reset-scoring'){ updateSettings({ scoring: Object.assign({}, DEFAULT_SCORING) }); }
+  else if(action==='reset-scoring'){ updateSettings({ scoring: Object.assign({}, ONLINE_DEFAULT_SCORING) }); }
   else if(action==='add-bot'){ addBot(); }
   else if(action==='remove-bot'){ removeBot(el.getAttribute('data-bot')); }
   else if(action==='bid'){ submitBid(parseInt(el.getAttribute('data-value'),10)); }
@@ -4785,7 +5966,7 @@ document.addEventListener('change', function(e){
     var key = el.getAttribute('data-key');
     var f = SCORING_FIELDS.filter(function(x){ return x.key===key; })[0];
     if(!f) return;
-    var n = parseInt(el.value,10); if(!isFinite(n)) n = DEFAULT_SCORING[key];
+    var n = parseInt(el.value,10); if(!isFinite(n)) n = ONLINE_DEFAULT_SCORING[key];
     n = Math.max(f.min, Math.min(f.max, n));
     var sp = {}; sp[key] = n;
     updateSettings({ scoring: sp });
