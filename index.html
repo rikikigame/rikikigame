@@ -713,7 +713,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '46';
+var APP_VERSION = '47';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2842,7 +2842,7 @@ async function profileCreate(){
     var salt = Math.random().toString(36).slice(2,10);
     var doc = { pseudo:f.pseudo, key:key, playerId:myId, color:myProfile.color||'#C9A24B', salt:salt, pinHash: await pinHash(key, salt, f.pin), createdAt: nowMs() };
     await ref.set(doc);
-    try{ await ensureMember({ userId: myId, name: f.pseudo }); }catch(e){ console.error(e); } // relie un membre IRL du même prénom
+    try{ await ensureMember({ userId: myId, name: f.pseudo, pkey: key }); }catch(e){ console.error(e); } // relie un membre IRL du même prénom
     saveProfileLocal({ key:key, pseudo:f.pseudo, playerId:myId, color:doc.color });
     try{ localStorage.setItem('rikiki_fb_name', f.pseudo); }catch(e){}
     location.reload();
@@ -3553,7 +3553,7 @@ function lastBackupText(){
 }
 async function collectBackup(){
   var out = { app:'rikiki', version: APP_VERSION, at: nowMs(), collections:{}, docs:{} };
-  var cols = ['leagueMembers','leagueGames','analysisGames'];
+  var cols = ['leagueMembers','leagueLinks','leagueGames','analysisGames'];
   for(var i=0;i<cols.length;i++){
     var snap = await claudeDb.collection(cols[i]).limit(5000).get();
     out.collections[cols[i]] = {};
@@ -3583,7 +3583,7 @@ async function restoreBackup(file){
     var data = JSON.parse(await file.text());
     if(!data || data.app!=='rikiki' || !data.collections) throw new Error('ce fichier n\'est pas une sauvegarde Rikiki');
     var created = 0, kept = 0;
-    var cols = Object.keys(data.collections).filter(function(k){ return ['leagueMembers','leagueGames','analysisGames'].indexOf(k)>=0; });
+    var cols = Object.keys(data.collections).filter(function(k){ return ['leagueMembers','leagueLinks','leagueGames','analysisGames'].indexOf(k)>=0; });
     for(var i=0;i<cols.length;i++){
       var ids = Object.keys(data.collections[cols[i]]);
       for(var j=0;j<ids.length;j++){
@@ -3681,7 +3681,7 @@ async function authProfileCreate(f, key){
   }
   var doc = { pseudo:f.pseudo, key:key, playerId:myId, color:myProfile.color||'#C9A24B', createdAt: nowMs(), __plain:{ owner:u.uid, email:email } };
   await ref.set(doc);
-  try{ await ensureMember({ userId: myId, name: f.pseudo }); }catch(e){ console.error(e); }
+  try{ await ensureMember({ userId: myId, name: f.pseudo, pkey: key }); }catch(e){ console.error(e); }
   finishLogin(key, doc);
 }
 async function authProfileLogin(f, key){
@@ -5588,6 +5588,14 @@ async function loadLeague(force){
     var ms = await claudeDb.collection('leagueMembers').get();
     var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
     league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    // v47 : les fiches de la ligue ne sont plus modifiables (sauf par l'organisateur). « C'est moi » est rangé à part,
+    // dans leagueLinks/{membre} : écrit une seule fois, par le propriétaire du compte (contrôlé par les règles Firebase).
+    try{
+      (await claudeDb.collection('leagueLinks').get()).docs.forEach(function(d){
+        var l = d.data(), m = league.allMembers.filter(function(x){ return x.id===d.id; })[0];
+        if(m && !m.userId && l && l.userId) m.userId = l.userId;
+      });
+    }catch(e){ console.warn('liens ligue', e); }
     // v42 : fusion de doublons. Les parties enregistrées ne sont jamais réécrites : on redirige en mémoire
     // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
     league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
@@ -5621,7 +5629,7 @@ async function ensureMember(opts){
   if(!m && opts.userId){
     // premier passage en ligne : si un membre IRL du même prénom n'est relié à aucun compte, on le relie
     var same = league.members.filter(function(x){ return !x.userId && normName(x.name)===normName(opts.name); });
-    if(same.length===1){ m = same[0]; await claudeDb.collection('leagueMembers').doc(m.id).update({ userId: opts.userId }); m.userId = opts.userId; }
+    if(same.length===1 && (opts.userId===myId || isAdmin())){ m = same[0]; await linkMember(m.id, opts.userId, opts.pkey); }
   }
   if(!m && opts.memberId) m = memberById(opts.memberId);
   if(!m && opts.byName) m = league.members.filter(function(x){ return normName(x.name)===normName(opts.name); })[0];
@@ -5632,6 +5640,13 @@ async function ensureMember(opts){
   league.members.push(Object.assign({ id:id }, doc));
   if(league.allMembers && league.allMembers !== league.members) league.allMembers.push(Object.assign({ id:id }, doc));
   return id;
+}
+
+// relie un membre « vraies cartes » à un compte (une seule fois ; seul le propriétaire du compte ou l'organisateur peut le faire)
+async function linkMember(mid, userId, pkey){
+  pkey = pkey || (currentProfile && currentProfile.key) || '';
+  await claudeDb.doc('leagueLinks/'+mid).set({ memberId: mid, userId: userId, at: nowMs(), __plain:{ pkey: pkey } });
+  (league.allMembers || league.members).concat(league.members).forEach(function(x){ if(x.id===mid) x.userId = userId; });
 }
 
 function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo = même rang)
@@ -5865,7 +5880,7 @@ document.addEventListener('click', function(e){
   }
   else if(a==='league-claim'){
     var id2 = el.getAttribute('data-id');
-    claudeDb.collection('leagueMembers').doc(id2).update({ userId: myId }).then(function(){ var m=memberById(id2); if(m) m.userId=myId; render(); })
+    linkMember(id2, myId).then(function(){ render(); })
       .catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
   }
 });
