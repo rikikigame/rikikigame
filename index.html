@@ -711,7 +711,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '44';
+var APP_VERSION = '45';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1410,7 +1410,7 @@ var I18N_EN = { exact: {
   ". Au 4e zéro, c'est interdit : il faudra tenter au moins un pli.":". On the 4th zero it's forbidden: you'll have to go for at least one trick.",
   "ton annonce ? Contrat réussi ! Sinon, c'est raté. Puis on passe à la manche suivante.":"your bid? Bid made! Otherwise it's missed. Then on to the next round.", "Tu as fait":"Did you take",
   "Tu connais l'essentiel. Pour commencer en douceur : une":"You know the essentials. To start gently: a", "partie rapide":"quick game", ", 5 manches avec un nombre de cartes au hasard.":", 5 rounds with a random number of cards.",
-  "Plus de cartes.":"No more cards.",
+  "Plus de cartes.":"No more cards.", "Chargement de ta main…":"Loading your hand…",
   // --- amis, invitations, divers ---
   "Amis":"Friends", "Voir":"Show", "aucun pour l'instant":"none yet", "t'a ajouté":"added you", "Ajouter aussi":"Add back", "Pseudo de ton ami":"Your friend's username",
   "Ajoute des amis depuis l'accueil pour les inviter en un clic.":"Add friends from the home screen to invite them in one tap.", "joue aux vraies cartes":"playing with real cards",
@@ -1682,6 +1682,15 @@ function mockDocRef(path){
       if(mockGetRaw(path)==null){ var err = new Error('document absent'); err.code='invalid_argument'; throw err; }
       mockPatch(path, JSON.parse(JSON.stringify(patch))); mockNotify(path);
     },
+    // v45 : réservation « un seul gagnant » (voir firebaseDocRef.claim). En local : on écrit, on attend, on relit.
+    claim: async function(fn){
+      var cur = mockGetRaw(path); if(cur==null) return false;
+      var tok = Math.random().toString(36).slice(2), p = fn(JSON.parse(JSON.stringify(cur)), tok); if(!p) return false;
+      mockPatch(path, JSON.parse(JSON.stringify(p))); mockNotify(path);
+      await new Promise(function(r){ setTimeout(r, 80); });
+      var after = mockGetRaw(path);
+      return !!(after && after.claimTok === tok);
+    },
     delete: async function(){ try{ localStorage.removeItem(MOCK_PREFIX+path); localStorage.removeItem(MOCK_PREFIX+path+'#t'); mockPatchKeys(path).forEach(function(k){ localStorage.removeItem(k); }); }catch(e){} mockNotify(path); },
     onSnapshot: function(next, err){
       mockListeners[path] = mockListeners[path] || [];
@@ -1804,6 +1813,21 @@ function firebaseDocRef(path){
           return fbEncode(mockDeepMerge(obj, clean));
         });
         if(!res.committed || fbDecode(res.snapshot.val())==null){ var err = new Error('document absent'); err.code='invalid_argument'; throw err; }
+      } finally { ref.off('value', holder); }
+    },
+    // v45 : réservation atomique. fn(doc, jeton) renvoie le patch à appliquer, ou null pour renoncer.
+    // Une seule transaction gagne : sert à ce qu'UN SEUL appareil distribue une manche (avant : deux donnes mélangées).
+    claim: async function(fn){
+      var tok = Math.random().toString(36).slice(2), holder = null;
+      await new Promise(function(resolve, reject){ var first = true; holder = function(){ if(first){ first = false; resolve(); } }; ref.on('value', holder, reject); });
+      try{
+        var res = await ref.transaction(function(cur){
+          var obj = fbDecode(cur); if(obj==null) return;
+          var p = fn(JSON.parse(JSON.stringify(obj)), tok); if(!p) return; // abandon : rien n'est écrit
+          return fbEncode(mockDeepMerge(obj, JSON.parse(JSON.stringify(p))));
+        });
+        var after = res.committed ? fbDecode(res.snapshot.val()) : null;
+        return !!(after && after.claimTok === tok);
       } finally { ref.off('value', holder); }
     },
     delete: async function(){ await ref.remove(); },
@@ -1964,6 +1988,7 @@ async function init(){
     botDriverTick();
     updateCountdown();
     turnTick();
+    try{ handWatchTick(); }catch(e){ console.warn(e); } // v45 : mes cartes n'arrivent pas → on va les chercher
   }, 400);
 }
 function armWatchdog(){
@@ -2086,6 +2111,7 @@ function subscribeGame(code){
   subscribeChat(code);
   gameUnsub = ref.onSnapshot(function(snap){
     clearTimeout(loadWatchdog);
+    subscribeGame.retries = 0;
     try{
       if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
@@ -2110,6 +2136,12 @@ function subscribeGame(code){
   }, function(err){
     console.error(err);
     clearTimeout(loadWatchdog);
+    // v45 : écoute coupée (souvent jeton expiré pendant la veille) → on renouvelle le jeton et on se réabonne (2 essais)
+    if((subscribeGame.retries = (subscribeGame.retries||0) + 1) <= 2){
+      var renew = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.getIdToken(true).catch(function(){}) : Promise.resolve();
+      renew.then(function(){ setTimeout(function(){ if(gameCode===code) subscribeGame(code); }, 1500); });
+      return;
+    }
     fatalError = "Impossible de synchroniser la partie (" + (err&&err.code||'erreur') + "). Vérifie ta connexion et réessaie.";
     render();
   });
@@ -2137,6 +2169,7 @@ function onGameUpdate(){
   if(!gameDoc) return;
   witnessGame(gameDoc);
   try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
+  try{ serveHandRequests(gameDoc); }catch(e){ console.warn(e); } // v45 : l'hôte renvoie une main demandée
   if(gameDoc.status === 'dealing'){
     handleDealing();
     // filet de sécurité : dès que quelqu'un voit que tout le monde est servi, on passe aux annonces
@@ -2317,7 +2350,10 @@ async function takeOverHost(g, key){
   var fresh = (await ref.get()).data();
   if(!fresh || hostStallKey(fresh) !== key) return; // la partie a bougé entre-temps (l'hôte est revenu, ou un autre a repris)
   var mid = fresh.status==='dealing' || fresh.status==='bidding' || fresh.status==='playing';
-  await ref.update({ hostId: myId, hostChange: { from: fresh.hostId, to: myId, at: nowMs(), redealt: mid } });
+  var hc = { hostId: myId, hostChange: { from: fresh.hostId, to: myId, at: nowMs(), redealt: mid } };
+  if(ref.claim){ // v45 : un seul joueur reprend la main, même si deux le tentent au même moment
+    if(!(await ref.claim(function(cur, tok){ return hostStallKey(cur)===key ? Object.assign({ claimTok:tok }, hc) : null; }))) return;
+  } else await ref.update(hc);
   var g2 = Object.assign({}, fresh, { hostId: myId });
   gameDoc = Object.assign({}, gameDoc, { hostId: myId });
   hostWatch.seenChange = null;
@@ -2329,6 +2365,12 @@ async function takeOverHost(g, key){
 }
 // même manche, même donneur, nouvelles cartes (seul le nouvel hôte les connaît, comme n'importe quel hôte)
 async function redealCurrentRound(g){
+  var rref = claudeDb.doc('games/'+g.code), rk = 'redeal:'+g.dealSeed;
+  if(rref.claim && !(await rref.claim(function(cur, tok){
+    if(cur.dealSeed!==g.dealSeed || cur.hostId!==myId) return null;
+    var c = cur.dealClaim; if(c && c.key===rk && nowMs() - c.at < 20000) return null;
+    return { dealClaim:{ key:rk, by:myId, at:nowMs() }, claimTok:tok };
+  }))) return;
   var order = g.playerOrder, n = order.length, round = g.round, handSize = g.roundPlan[round];
   var startIdx = (order.indexOf(g.dealerId)+1) % n;
   var bidOrder = order.slice(startIdx).concat(order.slice(0,startIdx));
@@ -4009,15 +4051,98 @@ function buildRoundLog(raw){
     return e;
   });
 }
-function subscribeSecrets(code){
+/* v45 : filet de sécurité « mes cartes ne s'affichent pas ».
+   1. si ma main (ou, pour l'hôte, celle des robots) n'est pas arrivée 2 s après la donne, on va la lire directement ;
+   2. si elle reste introuvable (ex. : le téléphone a changé de compte anonyme pendant la veille), on demande à l'hôte
+      de la renvoyer (handReq dans la partie) : l'hôte connaît toutes les mains et la réécrit à mon nouveau nom. */
+var handFetch = { key:null, since:0, busy:false, tries:0 }, handReqServed = {};
+function handWatchTick(){
+  var g = gameDoc;
+  if(!g || !g.dealSeed || !g.players || !g.players[myId] || g.players[myId].isBot || !(g.status==='dealing' || g.status==='bidding' || g.status==='playing')){ handFetch.key = null; return; }
+  var missingMe = !computedHand(g, myId);
+  var missingBots = g.hostId===myId && g.playerOrder.some(function(id){ return g.players[id] && g.players[id].isBot && !computedHand(g, id); });
+  if(!missingMe && !missingBots){ handFetch.key = null; return; }
+  var key = g.code+'|'+g.dealSeed+'|'+missingMe+'|'+missingBots;
+  if(key !== handFetch.key){ handFetch = { key:key, since:nowMs(), busy:false, tries:0 }; return; }
+  if(handFetch.busy || nowMs() - handFetch.since < 2000 + handFetch.tries*2000) return;
+  handFetch.busy = true; handFetch.tries++;
+  fetchSecretsNow(g, handFetch.tries).catch(function(e){ console.warn('main', e); }).then(function(){ handFetch.busy = false; handFetch.since = nowMs(); });
+}
+async function fetchSecretsNow(g, tries){
+  var code = g.code, keys = [myKeyId()], pu = g.players[myId] && g.players[myId].uid;
+  if(pu && keys.indexOf(pu) < 0) keys.push(pu);
+  for(var i=0; i<keys.length && !computedHand(gameDoc||g, myId); i++){
+    try{ var s = await claudeDb.doc('hands/'+code+'/'+keys[i]).get(), d = s.exists ? s.data() : null; if(d && d.dealId===g.dealSeed) myDeal = d; }catch(e){}
+  }
+  if(g.hostId===myId){
+    try{ var b = await claudeDb.doc('botHands/'+code+'/'+myKeyId()).get(); if(b.exists && b.data().dealId===g.dealSeed) botDeal = b.data(); }catch(e){}
+    try{ var ds = await claudeDb.doc('dealerSecrets/'+code+'/'+myKeyId()).get(); if(ds.exists) mySecret = ds.data(); }catch(e){}
+  }
+  subscribeSecrets(code, true);
+  if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc); syncHand(); onGameUpdate(); render(); }
+  // toujours rien après 2 essais : on demande à l'hôte de renvoyer ma main
+  if(tries >= 2 && gameDoc && gameDoc.code===code && gameDoc.hostId!==myId && !computedHand(gameDoc, myId)){
+    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs() };
+    try{ await claudeDb.doc('games/'+code).update(p); }catch(e){ console.warn(e); }
+  }
+}
+// côté hôte : renvoie la main d'un joueur qui l'a demandée (seulement pour la donne en cours)
+function serveHandRequests(g){
+  if(!g || g.hostId!==myId || !g.handReq || !g.dealSeed) return;
+  Object.keys(g.handReq).forEach(function(id){
+    var r = g.handReq[id]; if(!r || r.deal!==g.dealSeed || !r.uid || !g.players[id] || g.players[id].isBot) return;
+    var k = g.dealSeed+'|'+id+'|'+r.uid+'|'+r.at; if(handReqServed[k]) return;
+    var cards = dealtFor(g, id);
+    if(!cards || !cards.length){ refreshHostSecret(g); return; } // je ne connais pas sa main non plus : je relis la graine
+    handReqServed[k] = 1;
+    claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
+  });
+}
+// v45 : au réveil du téléphone (retour sur l'onglet), le jeton de connexion Firebase a pu expirer pendant la veille :
+// Firebase coupe alors toutes les écoutes privées d'un coup (main, graine, robots). On renouvelle le jeton puis on se réabonne.
+var wakeAt = 0;
+function onWakeUp(){
+  if(document.visibilityState && document.visibilityState!=='visible') return;
+  if(!gameCode || nowMs() - wakeAt < 5000) return; wakeAt = nowMs();
+  var code = gameCode;
+  var renew = (fbAuth && fbAuth.currentUser) ? fbAuth.currentUser.getIdToken(true).catch(function(e){ console.warn('jeton', e); }) : Promise.resolve();
+  renew.then(function(){
+    if(gameCode!==code) return;
+    secretsResubAt = 0; subscribeSecrets(code, true);
+    if(gameDoc && gameDoc.code===code) fetchSecretsNow(gameDoc, 0).catch(function(e){ console.warn(e); });
+  });
+}
+document.addEventListener('visibilitychange', onWakeUp);
+window.addEventListener('focus', onWakeUp);
+window.addEventListener('online', onWakeUp);
+// l'hôte relit la graine de la donne en cours (si sa propre écoute a été coupée), au plus toutes les 3 s
+var hostSecretAt = 0;
+function refreshHostSecret(g){
+  if(nowMs() - hostSecretAt < 3000) return; hostSecretAt = nowMs();
+  claudeDb.doc('dealerSecrets/'+g.code+'/'+myKeyId()).get().then(function(s){
+    if(s.exists){ mySecret = s.data(); if(gameDoc && gameDoc.code===g.code){ gameDoc = Object.assign({}, gameDoc); serveHandRequests(gameDoc); } }
+  }).catch(function(e){ console.warn('graine', e); });
+  subscribeSecrets(g.code, true);
+}
+var secretsResubAt = 0;
+function subscribeSecrets(code, keep){
+  if(keep){ // réabonnement après une coupure : au plus une fois toutes les 3 s, et on garde ce qu'on sait déjà
+    if(nowMs() - secretsResubAt < 3000) return;
+    secretsResubAt = nowMs();
+  }
   secretUnsubs.forEach(function(u){ try{ u(); }catch(e){} }); secretUnsubs = [];
-  myDeal = null; botDeal = null; mySecret = null; logDoc = null;
+  if(!keep){ myDeal = null; botDeal = null; mySecret = null; logDoc = null; }
   var sub = function(path, cb){
     try{
       secretUnsubs.push(claudeDb.doc(path).onSnapshot(function(snap){
         cb(snap.exists ? snap.data() : null);
         if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc, { roundLog: buildRoundLog(gameDoc) }); syncHand(); onGameUpdate(); render(); }
-      }, function(err){ console.warn(path, err); }));
+      }, function(err){
+        // v45 : Firebase coupe définitivement une écoute refusée (réseau coupé, téléphone en veille, jeton expiré…).
+        // Avant, la main n'arrivait plus jamais (« Plus de cartes. ») : on se réabonne tout seul.
+        console.warn(path, err);
+        setTimeout(function(){ if(gameCode===code) subscribeSecrets(code, true); }, 2000);
+      }));
     }catch(e){ console.warn(e); }
   };
   sub('hands/'+code+'/'+myKeyId(), function(d){ myDeal = d; });
@@ -4273,10 +4398,20 @@ async function dealNextRoundAs(actorId){
   try{ await dealNextRoundInner(g); } finally { dealingNext = false; }
 }
 async function dealNextRoundInner(g){
-  // relit la partie : si quelqu'un a déjà distribué (bouton « Passer » ou minuterie), on ne redistribue pas
-  var freshSnap = await claudeDb.doc('games/'+g.code).get();
-  var fresh = freshSnap.data();
-  if(!fresh || fresh.status!=='round_end' || fresh.round!==g.round) return;
+  // v45 : UN SEUL appareil distribue. Avant, si deux joueurs cliquaient « Passer » en même temps, deux donnes
+  // différentes partaient : la partie en gardait une, certains recevaient les cartes de l'autre → « Plus de cartes. ».
+  var gref = claudeDb.doc('games/'+g.code), ck = 'next:'+g.round;
+  if(gref.claim){
+    var won = await gref.claim(function(cur, tok){
+      if(cur.status!=='round_end' || cur.round!==g.round) return null;                 // déjà distribuée
+      var c = cur.dealClaim; if(c && c.key===ck && nowMs() - c.at < 20000) return null; // quelqu'un est en train de distribuer
+      return { dealClaim:{ key:ck, by:myId, at:nowMs() }, claimTok:tok };
+    });
+    if(!won) return;
+  } else {
+    var freshSnap = await gref.get(), fresh = freshSnap.data();
+    if(!fresh || fresh.status!=='round_end' || fresh.round!==g.round) return;
+  }
   var order = g.playerOrder, n = order.length;
   var prevIdx = order.indexOf(g.dealerId);
   var nextDealerId = order[(prevIdx+1)%n];
@@ -4662,6 +4797,8 @@ function renderBidPanel(g){
 }
 
 function renderHand(g){
+  if(!myHand && (g.status==='dealing' || g.status==='bidding' || g.status==='playing')) // v45 : main pas encore arrivée (≠ plus de cartes)
+    return '<p class="muted" style="text-align:center; font-size:13px;">Chargement de ta main…</p>';
   if(!myHand || !myHand.cards.length) return '<p class="muted" style="text-align:center; font-size:13px;">Plus de cartes.</p>';
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
