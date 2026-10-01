@@ -514,6 +514,8 @@
   .hc-status{ display:flex; align-items:center; gap:6px; }
   .hc-dot{ width:7px; height:7px; border-radius:50%; background:#3DDC97; flex:none; }
   .hc-ver{ font-family:'DM Mono', ui-monospace, monospace; }
+  .hc-beer{ font:inherit; font-size:13px; background:transparent; border:none; padding:0 4px; margin-right:6px; cursor:pointer; opacity:0.55; vertical-align:middle; }
+  .hc-beer:hover, .hc-beer:focus-visible{ opacity:1; }
   .hc-lang{ display:inline-flex; gap:2px; margin-right:8px; vertical-align:middle; }
   .hc-lang button{ font:inherit; font-size:11px; background:transparent; color:inherit; border:1px solid #2A3247; border-radius:6px; padding:2px 6px; cursor:pointer; opacity:0.7; }
   .hc-lang button.on{ background:#2A3247; color:#EEF0F6; opacity:1; }
@@ -711,7 +713,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '45';
+var APP_VERSION = '46';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1191,6 +1193,25 @@ var RANK_LABEL = { J:'V', Q:'D', K:'R' }, RANK_NAME = { J:'Valet', Q:'Dame', K:'
 function rankLabel(r){ return LANG==='en' ? r : (RANK_LABEL[r] || r); } // en anglais : J, Q, K
 function rankName(r){ return RANK_NAME[r] || r; }
 
+/* ===================== v46 : « Offrir une bière » (discret) =====================
+   Un petit 🍺 en bas de l'accueil, à côté de la version. Il n'apparaît que si BEER_URL est rempli
+   (page Buy Me a Coffee du créateur). Rien ne s'ouvre tout seul, jamais pendant une partie. */
+var BEER_URL = 'https://buymeacoffee.com/vroombat'; // ← lien de la page (vide = bouton caché)
+var beerOpen = false;
+function renderBeerModal(){
+  var url = BEER_URL;
+  return '<div class="modal-backdrop" data-action="beer-close"><div class="card-panel modal" style="max-width:360px; text-align:center;">'
+    + '<div style="font-size:40px; line-height:1;">🍺</div><h3 style="margin:8px 0 6px;">Offrir une bière au créateur</h3>'
+    + '<p class="muted" style="font-size:13.5px; margin:0 0 14px;">Rikiki est gratuit et sans pub. Si le jeu vous fait passer de bonnes soirées, une bière fait toujours plaisir. Merci !</p>'
+    + '<a class="btn" style="display:inline-block; text-decoration:none;" href="'+esc(url)+'" target="_blank" rel="noopener">🍺 Choisir combien de bières</a>'
+    + '<div style="margin-top:10px;"><button class="btn ghost small" data-action="beer-close">Non merci</button></div></div></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="beer-open"], [data-action="beer-close"]') : null; if(!el) return;
+  if(el.getAttribute('data-action')==='beer-close' && e.target.closest('.modal') && !e.target.closest('button')) return; // clic dans la fenêtre : on la garde
+  beerOpen = el.getAttribute('data-action')==='beer-open'; render();
+});
+
 /* ===================== v44 : français / anglais =====================
    Le jeu est écrit en français. En anglais, un traducteur réécrit le texte AFFICHÉ (nœuds de texte + placeholder,
    title, aria-label) grâce au dictionnaire I18N_EN : phrases exactes, puis modèles avec des nombres ou des noms.
@@ -1410,7 +1431,8 @@ var I18N_EN = { exact: {
   ". Au 4e zéro, c'est interdit : il faudra tenter au moins un pli.":". On the 4th zero it's forbidden: you'll have to go for at least one trick.",
   "ton annonce ? Contrat réussi ! Sinon, c'est raté. Puis on passe à la manche suivante.":"your bid? Bid made! Otherwise it's missed. Then on to the next round.", "Tu as fait":"Did you take",
   "Tu connais l'essentiel. Pour commencer en douceur : une":"You know the essentials. To start gently: a", "partie rapide":"quick game", ", 5 manches avec un nombre de cartes au hasard.":", 5 rounds with a random number of cards.",
-  "Plus de cartes.":"No more cards.", "Chargement de ta main…":"Loading your hand…",
+  "Plus de cartes.":"No more cards.", "Offrir une bière au créateur":"Buy the creator a beer", "Non merci":"No thanks", "🍺 Choisir combien de bières":"🍺 Choose how many beers",
+  "Rikiki est gratuit et sans pub. Si le jeu vous fait passer de bonnes soirées, une bière fait toujours plaisir. Merci !":"Rikiki is free and ad-free. If it gives you good evenings, a beer is always appreciated. Thanks!", "Chargement de ta main…":"Loading your hand…",
   // --- amis, invitations, divers ---
   "Amis":"Friends", "Voir":"Show", "aucun pour l'instant":"none yet", "t'a ajouté":"added you", "Ajouter aussi":"Add back", "Pseudo de ton ami":"Your friend's username",
   "Ajoute des amis depuis l'accueil pour les inviter en un clic.":"Add friends from the home screen to invite them in one tap.", "joue aux vraies cartes":"playing with real cards",
@@ -4265,11 +4287,12 @@ function renderEntry(){
   // --- pied de page ---
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
-    + '</span><span class="hc-ver"><span class="hc-lang" data-noi18n>'
+    + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
     + '<button data-action="set-lang" data-lang="fr" aria-pressed="'+(LANG==='fr')+'"'+(LANG==='fr'?' class="on"':'')+'>FR</button>'
     + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> v'+APP_VERSION+'</span></div>';
   html += '</div>';
   if(showRules) html += renderRulesModal();
+  if(beerOpen) html += renderBeerModal();
   return html;
 }
 document.addEventListener('click', function(e){
