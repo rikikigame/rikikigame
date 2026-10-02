@@ -697,6 +697,12 @@
     transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#F4FBFF;
     -webkit-text-stroke:calc(var(--w) * 0.004) #F4FBFF; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #8FE6FF, 0 0 calc(var(--w) * 0.1) rgba(47,184,255,0.75); }
   :root[data-deck="cafe"] .card.mini.back::after{ display:none; }
+  /* le néon reste dans la niche (mêmes proportions que dans cafeWall : x 30–110, y 22–174 sur 140 × 196) */
+  .card .cafe-neon{ position:absolute; left:21.43%; right:21.43%; top:11.22%; bottom:11.22%; border-radius:calc(var(--w) * 0.114); overflow:hidden;
+    display:flex; justify-content:center; align-items:flex-start; padding:calc(var(--w) * 0.05) 0 0 calc(var(--w) * 0.03); pointer-events:none; } /* décalé à droite : le coin de la carte mord la niche */
+  .card .cafe-neon span{ display:block; white-space:nowrap; font-family:'Sacramento', cursive; font-size:calc(var(--w) * 0.09); line-height:1; color:#F4FBFF; transform:rotate(-6deg);
+    text-shadow:0 0 calc(var(--w) * 0.008) #FFFFFF, 0 0 calc(var(--w) * 0.03) #8FE6FF, 0 0 calc(var(--w) * 0.06) rgba(47,184,255,0.8); }
+  .deck-peek .cafe-neon{ display:none; }
   .deck-choice{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .deck-choice .seg{ display:inline-flex; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .deck-choice .seg button{ font:inherit; font-size:13px; font-weight:700; padding:7px 12px; background:transparent; color:inherit; border:none; cursor:pointer; opacity:0.7; }
@@ -732,7 +738,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '52';
+var APP_VERSION = '53';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1636,7 +1642,8 @@ function pipsHtml(rank, sym){
   return '<div class="pips">'+lay.map(function(p){ return '<span class="'+(p.r?'r':'')+'" style="left:'+p.x+'%; top:'+p.y+'%;">'+sym+'</span>'; }).join('')+'</div>';
 }
 /* ===================== v51 : jeu de cartes « Café Jacquet » (dessins SVG générés dans le code) =====================
-   Albert sur les 4 Rois, Fredo sur les 4 Valets (v52 : sacoche + t-shirt trop court), la patronne sur les 4 Dames (v52) :
+   Albert sur les 4 Rois, Fredo sur les 4 Valets (v52 : sacoche + t-shirt trop court), Monique sur les 4 Dames (v52),
+   tous devant le mur bleu « Café Jacquet » (v53 ; « Chez Monique » derrière Monique) :
    la couleur des vêtements et le symbole changent avec la couleur de la carte.
    As de pique « maison » noir et or (dague ailée, « Qui coupe gagne »). Dos : mur de briques bleu « Café Jacquet ».
    Les cartes à points restent classiques. */
@@ -1657,16 +1664,22 @@ function cafePlaid(id, c){
     + '<rect y="7" width="18" height="4" fill="'+c[1]+'" opacity="0.6"/><rect x="7" width="4" height="18" fill="'+c[1]+'" opacity="0.6"/>'
     + '<rect y="14" width="18" height="1.2" fill="'+c[2]+'" opacity="0.55"/><rect x="14" width="1.2" height="18" fill="'+c[2]+'" opacity="0.55"/></pattern>';
 }
-var CAFE_BRICK = '<pattern id="cjBrick" width="40" height="20" patternUnits="userSpaceOnUse"><rect width="40" height="20" fill="#6B3424"/><path d="M0 0.8H40M0 10H40M0 19.2H40M10 0V10M30 10V20" stroke="#3E1D14" stroke-width="1.6"/></pattern>';
 // cadre commun des figures : fond crème, niche en briques, portrait au centre (viewBox 140 × 196, proportions d'une carte)
-function cafeFaceFrame(defs, portrait){
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 196"><defs>'+CAFE_BRICK+defs+'</defs>'
+// v53 : les figures posent devant le mur de briques bleu du dos. Deux images superposées : le mur (cafeWall) puis le
+// portrait seul (fond transparent). Entre les deux, le néon (« Café Jacquet », « Chez Monique » pour la Dame) est du texte
+// HTML : la police Sacramento ne peut pas être utilisée à l'intérieur d'une image SVG.
+function cafeWall(){
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 196"><defs>'
+    + '<pattern id="cjBlueW" width="40" height="20" patternUnits="userSpaceOnUse"><rect width="40" height="20" fill="#2346A8"/><path d="M0 0.8H40M0 10H40M0 19.2H40M10 0V10M30 10V20" stroke="#142B6E" stroke-width="1.6"/></pattern></defs>'
     + '<rect width="140" height="196" fill="#FBF4E6"/>'
-    + '<clipPath id="cjNiche"><rect x="30" y="22" width="80" height="152" rx="16"/></clipPath>'
-    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="#6B3424"/><rect x="30" y="22" width="80" height="152" rx="16" fill="url(#cjBrick)" opacity="0.55"/>'
-    + '<g clip-path="url(#cjNiche)"><svg x="15" y="24" width="110" height="150" viewBox="0 0 200 240" preserveAspectRatio="xMidYMax meet">'+portrait+'</svg></g>'
-    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="none" stroke="#3E1D14" stroke-width="1.2" opacity="0.5"/></svg>';
+    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="url(#cjBlueW)"/><rect x="30" y="22" width="80" height="152" rx="16" fill="#0A1433" opacity="0.32"/></svg>';
 }
+function cafeFaceFrame(defs, portrait){ // le portrait seul, découpé à la forme de la niche
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 196"><defs>'+defs+'<clipPath id="cjNiche"><rect x="30" y="22" width="80" height="152" rx="16"/></clipPath></defs>'
+    + '<g clip-path="url(#cjNiche)"><svg x="15" y="24" width="110" height="150" viewBox="0 0 200 240" preserveAspectRatio="xMidYMax meet">'+portrait+'</svg></g>'
+    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="none" stroke="#0E1A40" stroke-width="1.2" opacity="0.6"/></svg>';
+}
+var CAFE_NEON = { K:'Café Jacquet', J:'Café Jacquet', Q:'Chez Monique' };
 function cafeAlbert(suit){
   var cl = CAFE_CLOTH[suit], ink = CAFE_INK[suit];
   return cafeFaceFrame(cafePlaid('cjPlaid', cl),
@@ -1821,7 +1834,12 @@ function cardHtml(card, opts){
   var corner = '<span>'+r+'</span><span class="s">'+sym+'</span>';
   var small = !!opts.mini, cafe = !small && cafeArt(card), art = cafe || (face && !small && FACE_IMG[card.suit+card.rank]);
   var middle;
-  if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';
+  if(cafe && face){
+    CAFE_IMG.wall = CAFE_IMG.wall || cafeUri(cafeWall());
+    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG.wall+'\')"></div><div class="cafe-neon" data-noi18n><span>'+CAFE_NEON[card.rank]+'</span></div>'
+      + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
+  }
+  else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   else if(!small && !face && PIP_LAYOUT[card.rank]) middle = pipsHtml(card.rank, sym);
   else middle = '<div class="pip'+(face?' face':'')+'">'+(face ? '<span class="fl">'+r+'</span><span class="fs">'+sym+'</span>' : sym)+'</div>';
   if(cafe) cls += ' cafe-art' + (card.rank==='A' ? ' cafe-ace' : '');
