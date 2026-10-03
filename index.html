@@ -151,7 +151,7 @@
   .roll-row .who{ flex:1; min-width:0; }
   .roll-row .nm{ font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .roll-row .mt{ font-size:12px; color:var(--cream-dim); white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .roll-row .sc{ font-family:'DM Serif Display', Georgia, serif; font-size:15px; font-variant-numeric:tabular-nums; }
+  .roll-row .sc{ font-family:'Bricolage Grotesque', 'Karla', sans-serif; font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; }
   .roll-row.active{ background:var(--navy); border-color:var(--navy); color:var(--sand); padding:10px 10px; }
   .roll-row.active .mt{ color:rgba(239,230,210,0.75); }
   .roll-row.active .nm{ font-size:15.5px; }
@@ -270,7 +270,7 @@
 
   .ranking-row{ display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; margin-bottom:6px; background:var(--paper); border:1px solid var(--line); }
   .ranking-row.first{ border:1.5px solid var(--navy); }
-  .rank-num{ font-family:'DM Serif Display', Georgia, serif; font-size:22px; width:28px; text-align:center; color:var(--brick); }
+  .rank-num{ font-family:'Bricolage Grotesque', 'Karla', sans-serif; font-weight:800; font-size:22px; width:28px; text-align:center; color:var(--brick); }
 
   .error-text{ color:var(--brick); font-size:13.5px; margin-top:8px; font-weight:600; }
   .pts-pos{ color:var(--green); } .pts-neg{ color:var(--brick); } .pts-zero{ color:var(--cream-dim); }
@@ -390,11 +390,11 @@
   .lg-who{ flex:1; min-width:0; display:flex; flex-direction:column; }
   .lg-name{ font-weight:700; font-size:15px; }
   .lg-meta{ font-size:12.5px; color:var(--cream-dim); font-variant-numeric:tabular-nums; }
-  .lg-elo{ font-family:'DM Serif Display', Georgia, serif; font-size:24px; font-variant-numeric:tabular-nums; }
+  .lg-elo{ font-family:'Bricolage Grotesque', 'Karla', sans-serif; font-weight:800; font-size:24px; font-variant-numeric:tabular-nums; }
   .lg-detail{ padding:4px 14px 14px; border-top:1px solid var(--line); }
   .lg-stats{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin:12px 0; }
   .lg-stats div{ display:flex; flex-direction:column; }
-  .lg-stats b{ font-family:'DM Serif Display', Georgia, serif; font-weight:400; font-size:20px; font-variant-numeric:tabular-nums; }
+  .lg-stats b{ font-family:'Bricolage Grotesque', 'Karla', sans-serif; font-weight:800; font-size:20px; font-variant-numeric:tabular-nums; }
   .lg-stats span{ font-size:11.5px; color:var(--cream-dim); }
   .lg-spark{ color:var(--navy); }
   @media (max-width:430px){ .lg-stats{ grid-template-columns:repeat(2, 1fr); } }
@@ -685,6 +685,12 @@
     .tt-a, .tt-deal, .tt-flip{ animation:none; }
     .tt-glow .card{ animation:none; box-shadow:0 0 0 4px rgba(255,122,61,0.6); }
   }
+  /* v54 : scores dans une police aux chiffres francs (avec Bodoni / DM Serif, le 4 ressemblait à un 1) */
+  .num, :root[data-look="dark"] .display.num{ font-family:'Bricolage Grotesque', 'Karla', sans-serif; font-weight:800; letter-spacing:0; font-variant-numeric:tabular-nums; }
+  /* v54 : la carte « levée » au survol seulement avec une vraie souris (sur téléphone, le survol restait collé là où le doigt avait touché) */
+  @media (hover:none){
+    .hand-fan .hand-card:not(:disabled):hover, .hand-card:not(:disabled):hover{ transform:none; }
+  }
   /* v51 : jeu de cartes « Café Jacquet » (au choix, mémorisé sur l'appareil) */
   .card.cafe-art .art{ inset:0; border-radius:inherit; }
   .card.cafe-art .corner{ background:#FBF4E6; }
@@ -731,6 +737,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-check-compat.js"></script>
 <script>
 (function(){
 'use strict';
@@ -738,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '53';
+var APP_VERSION = '55';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2157,6 +2164,8 @@ function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify
 function clearLocal(){ try{ localStorage.removeItem('rikiki_last'); }catch(e){} }
 
 /* ===================== init ===================== */
+// v55 : clé de site reCAPTCHA v3 pour App Check (elle est publique, ce n'est pas un secret). Vide = App Check pas encore branché.
+var APPCHECK_SITE_KEY = '';
 async function init(){
   migrationImportIfPresent();              // arrivée depuis l'ancienne adresse : on reprend son identité
   if(migrationRedirectIfNeeded()) return;  // ancienne adresse : on part vers la nouvelle
@@ -2164,6 +2173,8 @@ async function init(){
   try{
     if(firebaseConfigured()){
       firebase.initializeApp(window.FIREBASE_CONFIG);
+      // v55 : App Check — seul le vrai site (et pas un programme qui imite le jeu) peut parler à la base
+      if(APPCHECK_SITE_KEY && firebase.appCheck){ try{ firebase.appCheck().activate(new firebase.appCheck.ReCaptchaV3Provider(APPCHECK_SITE_KEY), true); }catch(e){ console.warn('App Check', e); } }
       try{ firebase.database().ref('.info/serverTimeOffset').on('value', function(snap){ serverOffset = Number(snap.val()) || 0; }); }catch(e){ console.error(e); }
       claudeDb = firebaseDbFactory();
       claudeUser = firebaseUserFactory();
@@ -3851,6 +3862,83 @@ document.addEventListener('change', function(e){
   }
 });
 
+/* ===================== v55 : entretien (organisateur) =====================
+   1. Vieilles parties : chaque partie en ligne laisse des données (partie, chat, mains, historique…) qui n'étaient jamais
+      effacées. On supprime celles sans activité depuis 30 jours (la ligue et l'analyse des robots sont gardées à part).
+   2. Anciennes empreintes de code : les profils créés avant les vrais comptes (v25) et jamais reconnectés depuis gardent
+      une empreinte de leur code PIN lisible par les joueurs connectés (facile à deviner : 10 000 codes possibles), et
+      n'importe qui pouvait s'en déclarer propriétaire. On efface l'empreinte et on verrouille le profil : le joueur
+      repasse par « Code oublié » (l'organisateur valide). */
+var MAINT_DAYS = 30, maintUi = { busy:false, msg:'' };
+var GAME_PARTS = ['chats','gameLogs','hands','botHands','dealerSecrets']; // tout ce qui est rangé sous le code d'une partie
+async function oldGameCodes(cutoff, max){
+  if(usingFirebase){ // index « __at » (dernière écriture) : on ne télécharge que les vieilles parties
+    var snap = await firebase.database().ref('games').orderByChild('__at').endAt(cutoff).limitToFirst(max).once('value');
+    var out = []; snap.forEach(function(c){ out.push(c.key); }); return out;
+  }
+  var all = await claudeDb.collection('games').get(); // mode local de test : date de création
+  return all.docs.filter(function(d){ var g = d.data(); return (g.createdAt||0) < cutoff; }).map(function(d){ return d.id; }).slice(0, max);
+}
+async function cleanOldGames(){
+  if(!isAdmin() || maintUi.busy) return;
+  var cutoff = nowMs() - MAINT_DAYS*86400000, done = 0;
+  maintUi.busy = true; maintUi.msg = 'Recherche des vieilles parties…'; render();
+  try{
+    var first = await oldGameCodes(cutoff, 40);
+    if(!first.length){ maintUi.msg = 'Rien à nettoyer : aucune partie sans activité depuis '+MAINT_DAYS+' jours.'; return; }
+    if(!confirmT('Supprimer les parties sans activité depuis '+MAINT_DAYS+' jours ? La ligue, les classements et l\'analyse des robots ne sont pas touchés.')){ maintUi.msg = ''; return; }
+    for(var batch = first; batch.length; batch = await oldGameCodes(cutoff, 40)){
+      for(var i=0; i<batch.length; i++){
+        var code = batch[i];
+        for(var k=0; k<GAME_PARTS.length; k++) await claudeDb.doc(GAME_PARTS[k]+'/'+code).delete();
+        await claudeDb.doc('games/'+code).delete(); // en dernier : si on est coupé, on la retrouvera au prochain nettoyage
+        done++;
+        if(done % 10 === 0){ maintUi.msg = 'Nettoyage… '+done+' partie'+(done>1?'s':'')+' supprimée'+(done>1?'s':''); render(); }
+      }
+      if(done > 5000) break; // garde-fou
+    }
+    maintUi.msg = 'Nettoyage terminé ✓ '+done+' vieille'+(done>1?'s':'')+' partie'+(done>1?'s':'')+' supprimée'+(done>1?'s':'')+'.';
+  }catch(e){ console.error(e); maintUi.msg = 'Nettoyage interrompu ('+done+' supprimée'+(done>1?'s':'')+') : '+dbErrorText(e); }
+  finally{ maintUi.busy = false; render(); }
+}
+async function legacyProfiles(){
+  var all = await claudeDb.collection('profiles').get();
+  return all.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); })
+    .filter(function(p){ return p.pinHash && !(p.__plain && p.__plain.owner); });
+}
+async function purgeLegacyPins(){
+  if(!isAdmin() || maintUi.busy || !authOn()) return; // sans vrais comptes (mode local), l'empreinte EST le code : on n'y touche pas
+  maintUi.busy = true; maintUi.msg = 'Recherche des anciens profils…'; render();
+  try{
+    var list = await legacyProfiles();
+    if(!list.length){ maintUi.msg = 'Aucune ancienne empreinte : tous les profils sont protégés ✓'; return; }
+    var names = list.map(function(p){ return p.pseudo || p.id; });
+    if(!confirmT(list.length+' ancien'+(list.length>1?'s':'')+' profil'+(list.length>1?'s':'')+' jamais reconnecté'+(list.length>1?'s':'')+' : '+names.join(', ')+'.\n\nEffacer leur ancienne empreinte de code ? Ces joueurs devront passer par « Code oublié » (tu valideras sur ton accueil).')){ maintUi.msg = ''; return; }
+    for(var i=0; i<list.length; i++){
+      var p = list[i], d = stripLegacy(p); delete d.id; delete d.__serverAt;
+      // propriétaire « aucun » : plus personne ne peut s'approprier le profil, sauf via « Code oublié » validé par l'organisateur
+      await claudeDb.doc('profiles/'+p.id).set(Object.assign(d, { __plain:{ owner:'aucun', email:authEmail(p.id) } }));
+    }
+    maintUi.msg = 'Fait ✓ '+list.length+' profil'+(list.length>1?'s':'')+' protégé'+(list.length>1?'s':'')+' : '+names.join(', ')+'. Préviens-les de passer par « Code oublié ».';
+  }catch(e){ console.error(e); maintUi.msg = 'Impossible : '+dbErrorText(e); }
+  finally{ maintUi.busy = false; render(); }
+}
+function renderMaintenancePanel(){
+  if(!isAdmin() || !(usingFirebase || usingMock)) return '';
+  var dis = maintUi.busy ? ' disabled' : '';
+  return '<div class="card-panel" style="margin-top:16px;"><h3 style="margin:0 0 6px;">🧹 Entretien</h3>'
+    + '<p class="muted" style="font-size:13px; margin:0 0 10px;">Réservé à l\'organisateur. Fais d\'abord une sauvegarde.</p>'
+    + '<div class="row" style="gap:8px; flex-wrap:wrap;">'
+    + '<button class="btn secondary small" data-action="maint-games"'+dis+'>Nettoyer les vieilles parties ('+MAINT_DAYS+' j)</button>'
+    + (authOn() ? '<button class="btn secondary small" data-action="maint-pins"'+dis+'>Effacer les anciennes empreintes de code</button>' : '') + '</div>'
+    + (maintUi.msg ? '<p style="font-size:13px; font-weight:700; margin:10px 0 0;">'+esc(maintUi.msg)+'</p>' : '')
+    + '</div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="maint-games"], [data-action="maint-pins"]') : null; if(!el) return;
+  if(el.getAttribute('data-action')==='maint-games') cleanOldGames(); else purgeLegacyPins();
+});
+
 /* ===================== v25 : vrais comptes (Firebase Authentication) =====================
    Même expérience pour les joueurs (pseudo + code), mais :
    - le code est vérifié par Google (anti-essais en boucle), il n'est plus stocké dans la base ;
@@ -3916,6 +4004,7 @@ async function authProfileLogin(f, key){
   var snap = await claudeDb.doc('profiles/'+key).get();
   if(!snap.exists) throw { ui:'Pseudo inconnu. Pour le créer, clique « Créer mon profil ».' };
   var d = snap.data(), plain = d.__plain || {}, email = plain.email || authEmail(key);
+  if(plain.owner === 'aucun') throw { ui:'Ce profil a été protégé par l\'organisateur : clique « Code oublié » pour choisir un nouveau code.', forgot:true }; // v55
   try{
     await fbAuth.signInWithEmailAndPassword(email, authPw(f.pin));
     if(!plain.owner){ // conversion interrompue la dernière fois : on la termine
@@ -5350,7 +5439,7 @@ function renderScorePanel(g){
   var html = '<table class="score-table"><thead><tr><th>Joueur</th><th>Score</th></tr></thead><tbody>';
   order.forEach(function(id){
     var p = g.players[id];
-    html += '<tr><td>'+esc(p.name)+(id===myId?' <span class="muted">(toi)</span>':'')+'</td><td class="display" style="font-size:17px;">'+(g.scores[id]||0)+'</td></tr>';
+    html += '<tr><td>'+esc(p.name)+(id===myId?' <span class="muted">(toi)</span>':'')+'</td><td class="display num" style="font-size:17px;">'+(g.scores[id]||0)+'</td></tr>';
   });
   html += '</tbody></table>';
   return html;
@@ -5390,7 +5479,7 @@ function renderRoundEnd(g){
       + '<span class="dot" style="background:'+p.color+';"></span>'
       + '<div style="flex:1; min-width:0;"><div style="font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="muted" style="font-size:12.5px;">annonce '+lastLog.bids[id]+' · fait '+lastLog.tricksWon[id]+(ok?' · <span class="pts-pos">réussi</span>':' · <span class="pts-neg">raté</span>')+'</div></div>'
-      + '<div style="text-align:right;"><div class="display" style="font-size:22px;">'+(g.scores[id]||0)+'</div><div class="delta '+ptsClass(pv)+'">'+fmtPts(pv)+'</div></div></div>';
+      + '<div style="text-align:right;"><div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div><div class="delta '+ptsClass(pv)+'">'+fmtPts(pv)+'</div></div></div>';
   });
   var dc = checkRevealedDeal(g, lastLog);
   if(dc==='ok') html += '<div class="muted" style="text-align:center; font-size:12px; margin:6px 0 0;">🔒 Donne vérifiée : personne ne connaissait vos cartes, et la distribution n\'a pas été modifiée.</div>';
@@ -5601,7 +5690,7 @@ function renderGameOver(g){
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
       + '<span class="dot" style="background:'+p.color+';"></span>'
       + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
-      + '<div class="display" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
+      + '<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
   html += auditHtml(g);
   if(g.settings && g.settings.league){
@@ -5638,7 +5727,7 @@ function renderGameRecap(g){
     });
     html += '<tr><td>'+esc(p.name)+(id===myId?' <span class="muted">(toi)</span>':'')+'</td>'
       + '<td>'+ok+' / '+log.length+'</td><td>'+plis+'</td>'
-      + '<td class="display" style="font-size:16px;">'+(g.scores[id]||0)+'</td></tr>';
+      + '<td class="display num" style="font-size:16px;">'+(g.scores[id]||0)+'</td></tr>';
   });
   html += '</tbody></table></div>';
   // détail manche par manche
@@ -5910,7 +5999,7 @@ function renderSheet(){
     var order = g.playerOrder.slice().sort(function(a,b){ return (g.scores[b]||0)-(g.scores[a]||0); });
     html += '<div class="card-panel" style="text-align:center; margin-bottom:18px;"><div class="display" style="font-size:26px;">Partie terminée</div><p class="muted" style="margin-top:6px;">'+s.roundPlan.length+' manches jouées</p></div>';
     order.forEach(function(id,i){
-      html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div><div style="flex:1; font-weight:600;">'+esc(g.players[id].name)+'</div><div class="display" style="font-size:20px;">'+(g.scores[id]||0)+'</div></div>';
+      html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div><div style="flex:1; font-weight:600;">'+esc(g.players[id].name)+'</div><div class="display num" style="font-size:20px;">'+(g.scores[id]||0)+'</div></div>';
     });
     if(s.league) html += '<p class="muted" style="text-align:center; font-size:13.5px; margin:10px 0 0;">'+(s.leagueRecorded ? 'Partie de ligue enregistrée ✓ <button class="link-btn" data-action="league-openscreen" data-mode="cards">Voir le classement IRL</button>' : 'Enregistrement dans la ligue…')+'</p>';
     html += renderGameRecap(g);
@@ -5978,7 +6067,7 @@ function renderSheet(){
   // classement en cours
   var ids = s.players.map(function(p){ return p.id; }).sort(function(a,b){ return (s.scores[b]||0)-(s.scores[a]||0); });
   html += '<div class="card-panel" style="margin-top:16px;"><h3 style="font-size:15px; margin-bottom:10px;">Scores</h3><table class="score-table"><tbody>';
-  ids.forEach(function(id){ var p = s.players.filter(function(x){ return x.id===id; })[0]; html += '<tr><td>'+esc(p.name)+'</td><td class="display">'+(s.scores[id]||0)+'</td></tr>'; });
+  ids.forEach(function(id){ var p = s.players.filter(function(x){ return x.id===id; })[0]; html += '<tr><td>'+esc(p.name)+'</td><td class="display num">'+(s.scores[id]||0)+'</td></tr>'; });
   html += '</tbody></table></div>';
   if(s.roundLog.length) html += renderGameRecap(sheetAsGame());
   html += '<div style="text-align:center; margin-top:18px;"><button class="btn secondary small" data-action="sheet-new-confirm">'+(sheetConfirmNew?'Sûr ? La partie en cours sera effacée — confirmer':'Abandonner et recommencer')+'</button></div>';
@@ -6334,6 +6423,7 @@ function renderLeague(){
       + '</div></div>';
   }
   html += renderBackupPanel();
+  html += renderMaintenancePanel();
   return html;
 }
 
