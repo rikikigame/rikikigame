@@ -745,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '57';
+var APP_VERSION = '58';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1401,7 +1401,7 @@ var I18N_EN = { exact: {
   "Dans chaque case : annoncé / réalisé, les points de la manche, et le total cumulé en dessous.":"In each cell: bid / made, the round's points, and the running total below.",
   "↻ Rejouer (mêmes joueurs, mêmes règles)":"↻ Play again (same players, same rules)", "L'hôte peut relancer une partie avec les mêmes joueurs.":"The host can start another game with the same players.",
   "Retour à l'accueil":"Back to home", "Accueil":"Home", "Partie de ligue enregistrée ✓":"League game saved ✓", "Voir le classement en ligne":"See the online ranking", "Enregistrement dans la ligue…":"Saving to the league…",
-  "Ne compte pas pour la ligue : il y avait des bots.":"Doesn't count for the league: there were bots.", "Ne compte pas pour la ligue : il faut au moins 3 joueurs.":"Doesn't count for the league: at least 3 players needed.",
+  "Ne compte pas pour la ligue : il y avait des bots.":"Doesn't count for the league: there were bots.", "Ne compte pas pour la ligue : partie rapide.":"Doesn't count for the league: quick game.", "⚡ Les parties rapides ne comptent pas pour la ligue.":"⚡ Quick games don't count for the league.", "⚡ Partie rapide : hors ligue":"⚡ Quick game: not in the league", "Ne compte pas pour la ligue : il faut au moins 3 joueurs.":"Doesn't count for the league: at least 3 players needed.",
   "🔒 Ton téléphone a confirmé le résultat.":"🔒 Your phone confirmed the result.", "⚠️ Ton téléphone ne confirme pas ce résultat.":"⚠️ Your phone doesn't confirm this result.", "🔒 Confirmation du résultat en cours…":"🔒 Confirming the result…",
   "🧠 Le coach revoit ta manche…":"🧠 The coach is reviewing your round…", "🧠 Tes manches revues par le coach":"🧠 Your rounds reviewed by the coach", "Tu as annoncé":"You bid", "et fait":"and made",
   "). Le coach aurait annoncé":"). The coach would have bid", "). Le coach aurait annoncé pareil 👍":"). The coach would have bid the same 👍", "Voir le coup différent":"See the different move", "Masquer le détail":"Hide details",
@@ -2303,7 +2303,7 @@ async function createGameInner(name, mode){
   var players = {}; players[myId] = { name:name, color:myProfile.color, joinedAt:now, ready:false };
   await ref.set({
     code: code, createdAt: now, hostId: myId, status:'lobby',
-    settings: { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true },
+    settings: { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
     players: players
   });
   gameCode = code;
@@ -5204,7 +5204,8 @@ function renderLobby(g){
        : (esc(DIRECTION_LABEL[direction]||'')+' · '+plan.length+' manche'+(plan.length>1?'s':'')+' ('+esc(planText(plan))+' cartes)<br>'))
     + (maxZerosOf(g) ? ('Pas plus de '+maxZerosOf(g)+' zéros d\'affilée<br>') : '')
     + (blindOne ? 'Manche à 1 carte à l\'aveugle<br>' : '')
-    + ((g.settings && g.settings.league) ? ('<strong style="color:var(--navy);">Partie de ligue</strong>'+(onlineLeagueCheck(g) ? ' <span class="pts-neg">· '+esc(onlineLeagueCheck(g).replace('Ne compte pas pour la ligue : ','ne comptera pas : '))+'</span>' : '')+'<br>') : 'Partie d\'entraînement (hors ligue)<br>')
+    + (direction==='quick' ? '⚡ Partie rapide : hors ligue<br>' : '')
+    + ((g.settings && g.settings.league && direction!=='quick') ? ('<strong style="color:var(--navy);">Partie de ligue</strong>'+(onlineLeagueCheck(g) ? ' <span class="pts-neg">· '+esc(onlineLeagueCheck(g).replace('Ne compte pas pour la ligue : ','ne comptera pas : '))+'</span>' : '')+'<br>') : (direction==='quick' ? '' : 'Partie d\'entraînement (hors ligue)<br>'))
     + 'Points : '+esc(scoringSummary(sc))+'<br>'
     + (turnLimitSec(g) ? ('Temps par tour : '+turnLimitSec(g)+' s, puis coup au hasard') : 'Pas de limite de temps par tour')+'<br>'
     + 'Robots : niveau '+BOT_LEVEL_LABEL[botLevelOf(g)]+'</div>';
@@ -5219,7 +5220,8 @@ function renderLobby(g){
       + '<option value="pyramid"'+(direction==='pyramid'?' selected':'')+'>'+startSize+' → 1 → '+startSize+'</option>'
       + '<option value="quick"'+(direction==='quick'?' selected':'')+'>⚡ Partie rapide (5 manches, cartes au hasard)</option>'
       + '</select></div></div>';
-    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
+    if(direction==='quick') html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">⚡ Les parties rapides ne comptent pas pour la ligue.</p>';
+    else html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
     var bl = botLevelOf(g);
     html += '<div style="margin:0 0 10px;"><label for="botLevelSelect">Niveau des robots</label><select id="botLevelSelect" data-action-change="set-botlevel">'
       + ['facile','humain','fort'].map(function(v){ return '<option value="'+v+'"'+(v===bl?' selected':'')+'>'+BOT_LEVEL_LABEL[v]+(v==='humain'?' (calé sur vos parties)':'')+'</option>'; }).join('') + '</select></div>';
@@ -6155,7 +6157,7 @@ async function loadLeague(force){
   try{
     var ms = await claudeDb.collection('leagueMembers').get();
     var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
-    league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); });
+    league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); }).filter(function(m){ return m.name; }); // v58 : entrées vides ignorées
     // v47 : les fiches de la ligue ne sont plus modifiables (sauf par l'organisateur). « C'est moi » est rangé à part,
     // dans leagueLinks/{membre} : écrit une seule fois, par le propriétaire du compte (contrôlé par les règles Firebase).
     try{
@@ -6176,7 +6178,7 @@ async function loadLeague(force){
       g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
       g.attest = attestStatus(g);
       return g;
-    });
+    }).filter(function(g){ return g.players.length; }); // v58 : entrées vides ignorées
     league.games = all.filter(function(g){ return g.attest.counts; });     // seules les parties confirmées comptent
     league.pending = all.filter(function(g){ return !g.attest.counts; });
     league.loaded = true;
@@ -6243,6 +6245,7 @@ function statsFromLog(roundLog, key){
 
 // Partie en ligne terminée : l'hôte l'enregistre une seule fois.
 function onlineLeagueCheck(g){
+  if(g.settings && g.settings.direction==='quick') return 'Ne compte pas pour la ligue : partie rapide.'; // v58 : les parties rapides restent pour s'amuser
   var ids = g.playerOrder || Object.keys(g.players||{});
   var humans = ids.filter(function(id){ return !g.players[id].isBot; });
   var bots = ids.length - humans.length;
