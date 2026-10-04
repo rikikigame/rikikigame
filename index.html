@@ -745,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '55';
+var APP_VERSION = '57';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2165,7 +2165,7 @@ function clearLocal(){ try{ localStorage.removeItem('rikiki_last'); }catch(e){} 
 
 /* ===================== init ===================== */
 // v55 : clé de site reCAPTCHA v3 pour App Check (elle est publique, ce n'est pas un secret). Vide = App Check pas encore branché.
-var APPCHECK_SITE_KEY = '';
+var APPCHECK_SITE_KEY = '6LcJXt0tAAAAAMSq35fmuxfcHb00iIDo2MCkGX9p';
 async function init(){
   migrationImportIfPresent();              // arrivée depuis l'ancienne adresse : on reprend son identité
   if(migrationRedirectIfNeeded()) return;  // ancienne adresse : on part vers la nouvelle
@@ -3247,9 +3247,12 @@ async function profileAdminReset(){
 function renderClaimsList(){
   if(!(isAdmin() && authOn() && profileClaimsList.length)) return '';
   return '<div style="margin-top:8px;"><strong style="font-size:13.5px;">🔑 Demandes « code oublié »</strong>' + profileClaimsList.map(function(c){
-    return '<div class="row between" style="margin-top:6px; gap:6px;"><span style="flex:1; min-width:0;">'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span></span>'
-      + '<button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button><button class="btn ghost small" data-action="claim-refuse" data-key="'+esc(c.id)+'">Refuser</button></div>';
-  }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si tu es sûr que c\'est bien ton ami (demande-lui par message).</div></div>';
+    var mine = currentProfile && c.id === currentProfile.key; // v57 : quelqu'un demande à prendre le profil de l'organisateur
+    return '<div class="row between" style="margin-top:6px; gap:6px;"><span style="flex:1; min-width:0;">'+esc(c.pseudo)+' <span class="muted" style="font-size:12px;">('+new Date(c.at).toLocaleString('fr-BE')+')</span>'
+      + (mine ? '<br><strong class="pts-neg" style="font-size:12.5px;">⛔ C\'est TON profil d\'organisateur : quelqu\'un essaie de le prendre. Refuse.</strong>' : '') + '</span>'
+      + (mine ? '' : '<button class="btn small" data-action="claim-approve" data-key="'+esc(c.id)+'">Valider</button>')
+      + '<button class="btn ghost small" data-action="claim-refuse" data-key="'+esc(c.id)+'">Refuser</button></div>';
+  }).join('') + '<div class="muted" style="font-size:11.5px; margin-top:4px;">Ne valide que si l\'ami te l\'a demandé lui-même, de vive voix ou par message. Valider donne le profil (et ses points) à la personne qui a fait la demande.</div></div>';
 }
 function renderProfileExtras(){
   var html = '';
@@ -4054,6 +4057,8 @@ async function approveClaim(key){
   var c = profileClaimsList.filter(function(x){ return x.id===key; })[0]; if(!c) return;
   var ref = claudeDb.doc('profiles/'+key), snap = await ref.get(); if(!snap.exists) return;
   var d = snap.data();
+  // v57 : le profil de l'organisateur ne change jamais de propriétaire par le jeu (les règles Firebase l'interdisent aussi)
+  if(key === (currentProfile && currentProfile.key) || (d.__plain && d.__plain.owner && d.__plain.owner === adminUid)) throw { code:'admin-profile', message:'C\'est le profil de l\'organisateur : refuse cette demande.' };
   await ref.set(Object.assign(stripLegacy(d), { __plain:{ owner:c.__plain.newOwner, email:c.__plain.email } }));
   await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:c.__plain }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
