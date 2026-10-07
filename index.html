@@ -745,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '58';
+var APP_VERSION = '59';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1401,7 +1401,7 @@ var I18N_EN = { exact: {
   "Dans chaque case : annoncé / réalisé, les points de la manche, et le total cumulé en dessous.":"In each cell: bid / made, the round's points, and the running total below.",
   "↻ Rejouer (mêmes joueurs, mêmes règles)":"↻ Play again (same players, same rules)", "L'hôte peut relancer une partie avec les mêmes joueurs.":"The host can start another game with the same players.",
   "Retour à l'accueil":"Back to home", "Accueil":"Home", "Partie de ligue enregistrée ✓":"League game saved ✓", "Voir le classement en ligne":"See the online ranking", "Enregistrement dans la ligue…":"Saving to the league…",
-  "Ne compte pas pour la ligue : il y avait des bots.":"Doesn't count for the league: there were bots.", "Ne compte pas pour la ligue : partie rapide.":"Doesn't count for the league: quick game.", "⚡ Les parties rapides ne comptent pas pour la ligue.":"⚡ Quick games don't count for the league.", "⚡ Partie rapide : hors ligue":"⚡ Quick game: not in the league", "Ne compte pas pour la ligue : il faut au moins 3 joueurs.":"Doesn't count for the league: at least 3 players needed.",
+  "Ne compte pas pour la ligue : il y avait des bots.":"Doesn't count for the league: there were bots.", "Ne compte pas pour la ligue : partie rapide.":"Doesn't count for the league: quick game.", "⚡ Les parties rapides ne comptent pas pour la ligue.":"⚡ Quick games don't count for the league.", "⚡ Partie rapide : hors ligue":"⚡ Quick game: not in the league", "Ne compte pas pour la ligue : il faut au moins 4 joueurs.":"Doesn't count for the league: at least 4 players needed.",
   "🔒 Ton téléphone a confirmé le résultat.":"🔒 Your phone confirmed the result.", "⚠️ Ton téléphone ne confirme pas ce résultat.":"⚠️ Your phone doesn't confirm this result.", "🔒 Confirmation du résultat en cours…":"🔒 Confirming the result…",
   "🧠 Le coach revoit ta manche…":"🧠 The coach is reviewing your round…", "🧠 Tes manches revues par le coach":"🧠 Your rounds reviewed by the coach", "Tu as annoncé":"You bid", "et fait":"and made",
   "). Le coach aurait annoncé":"). The coach would have bid", "). Le coach aurait annoncé pareil 👍":"). The coach would have bid the same 👍", "Voir le coup différent":"See the different move", "Masquer le détail":"Hide details",
@@ -1416,18 +1416,18 @@ var I18N_EN = { exact: {
   "← Annonces":"← Bids", "Valider les plis":"Confirm the tricks", "Annoncé":"Bid", "Réalisé":"Made", "Voir le résultat final":"See the final result", "Nouvelle partie":"New game",
   "Préparation…":"Getting ready…", "profil ✓":"profile ✓", "membre":"member", "nouveau":"new", "Voir le classement IRL":"See the real-cards ranking",
   "Sûr ? La partie en cours sera effacée — confirmer":"Sure? The current game will be erased — confirm",
-  "Tape le prénom d'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum 3 joueurs.":"Type a member's name (suggested automatically); an unknown name creates a new member. Minimum 3 players.", "· donneur":"· dealer", "· annonce en 1er":"· bids 1st", "Joueur 1":"Player 1", "Joueur 2":"Player 2", "Joueur 3":"Player 3",
+  "Tape le prénom d'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum 4 joueurs.":"Type a member's name (suggested automatically); an unknown name creates a new member. Minimum 4 players.", "· donneur":"· dealer", "· annonce en 1er":"· bids 1st", "Joueur 1":"Player 1", "Joueur 2":"Player 2", "Joueur 3":"Player 3",
   // --- ligue ---
   "Classement en ligne":"Online ranking", "Classement IRL":"Real-cards ranking", "Vraies cartes (IRL)":"Real cards (IRL)", "Saison":"Season", "Général (depuis le début)":"All-time",
   "Analyse":"Analysis", "Comment ça marche":"How it works", "Comment marche le classement":"How the ranking works", "Chargement de la ligue…":"Loading the league…", "Chargement…":"Loading…",
   "Aucune partie de ligue pour l'instant":"No league games yet", "💾 Sauvegarde":"💾 Backup", "Télécharger la sauvegarde":"Download the backup", "Restaurer…":"Restore…",
-  "Coche « Partie de ligue » dans la feuille de score (Jouer avec de vraies cartes). Il faut au moins 3 joueurs humains et aller jusqu'au bout.":"Tick “League game” on the score sheet (Real cards). You need at least 3 human players and to finish the game.",
-  "Coche « Partie de ligue » dans les réglages du salon avant de lancer. Il faut au moins 3 joueurs humains et aller jusqu'au bout.":"Tick “League game” in the lobby settings before starting. You need at least 3 human players and to finish the game.",
+  "Coche « Partie de ligue » dans la feuille de score (Jouer avec de vraies cartes). Il faut au moins 4 joueurs humains et aller jusqu'au bout.":"Tick “League game” on the score sheet (Real cards). You need at least 4 human players and to finish the game.",
+  "Les parties en ligne comptent d'office (sauf les parties rapides). Il faut au moins 4 joueurs humains et aller jusqu'au bout.":"Online games count automatically (except quick games). You need at least 4 human players and to finish the game.",
   "Chaque joueur commence à 1000. Une partie compte comme des duels entre tous les joueurs selon le classement final : finir devant quelqu'un, c'est gagner le duel.":"Everyone starts at 1000. A game counts as duels between all players based on the final standings: finishing ahead of someone means winning that duel.",
   "Battre un joueur mieux coté rapporte plus que battre un joueur moins bien coté ; perdre contre un joueur moins bien coté coûte plus. Le gain est divisé par le nombre d'adversaires, donc une partie à 6 ne compte pas plus qu'une partie à 3.":"Beating a higher-rated player earns more than beating a lower-rated one; losing to a lower-rated player costs more. The gain is divided by the number of opponents, so a 6-player game doesn't count more than a 3-player one.",
   "Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.":"There are two separate rankings: online games and real-card (IRL) games. Each has its own rating.",
   "Chaque saison (un trimestre) repart de 1000. Le classement « Général » cumule toutes les parties.":"Each season (a quarter) restarts from 1000. The “All-time” ranking adds up every game.",
-  "Seules les parties cochées « Partie de ligue », avec au moins 3 joueurs humains, sans bot et jouées jusqu'au bout, comptent. Il faut 3 parties pour apparaître dans le classement.":"Only games ticked “League game”, with at least 3 human players, no bots and played to the end, count. You need 3 games to appear in the ranking.",
+  "Seules les parties cochées « Partie de ligue », avec au moins 4 joueurs humains, sans bot et jouées jusqu'au bout, comptent. Il faut 3 parties pour apparaître dans le classement.":"Only games ticked “League game”, with at least 4 human players, no bots and played to the end, count. You need 3 games to appear in the ranking.",
   "Contrats réussis = manches où l'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).":"Bids made = rounds where the bid was exact. Average gap = average difference between bid and tricks won (0 = perfect).",
   "Anti-triche (en ligne) : à la fin d'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.":"Anti-cheat (online): at the end of a game, every phone re-checks all the cards and points, then confirms the result on its own. The game counts once most players have confirmed it; a player who left early confirms the next time they open the game.",
   "⏳ En attente de confirmation":"⏳ Awaiting confirmation", "Une partie compte dès que la majorité des joueurs l'a confirmée. C'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.":"A game counts as soon as most players have confirmed it. It's automatic: at the end of the game, or the next time the player opens the game.",
@@ -6125,7 +6125,7 @@ document.addEventListener('change', function(e){
 //   leagueMembers/{memberId}  { name, userId|null, createdAt }
 //   leagueGames/{gameId}      { at, season, mode:'online'|'cards', rounds, players:[{memberId,name,rank,score,contracts,absDiff}] }
 // Le classement n'est jamais stocké : il est recalculé en rejouant toutes les parties dans l'ordre (déterministe).
-var LEAGUE_MIN_GAMES = 3, ELO_START = 1000, ELO_K = 32, LEAGUE_MIN_HUMANS = 3;
+var LEAGUE_MIN_GAMES = 3, ELO_START = 1000, ELO_K = 32, LEAGUE_MIN_HUMANS = 4; // v59 : 4 joueurs humains minimum (avant : 3)
 var league = { loaded:false, loading:false, members:[], games:[], error:'' };
 var leagueView = { season:null, open:null, mode:'online' };
 
@@ -6393,7 +6393,7 @@ function renderLeague(){
   var res = computeLeague(leagueView.season, leagueView.mode);
   if(!res.games){
     html += '<div class="card-panel" style="text-align:center;"><p style="margin:0 0 6px; font-weight:700;">Aucune partie de ligue pour l\'instant</p>'
-      + '<p class="muted" style="font-size:13.5px; margin:0;">'+(leagueView.mode==='cards' ? 'Coche « Partie de ligue » dans la feuille de score (Jouer avec de vraies cartes).' : 'Coche « Partie de ligue » dans les réglages du salon avant de lancer.')+' Il faut au moins '+LEAGUE_MIN_HUMANS+' joueurs humains et aller jusqu\'au bout.</p></div>';
+      + '<p class="muted" style="font-size:13.5px; margin:0;">'+(leagueView.mode==='cards' ? 'Coche « Partie de ligue » dans la feuille de score (Jouer avec de vraies cartes).' : 'Les parties en ligne comptent d\'office (sauf les parties rapides).')+' Il faut au moins '+LEAGUE_MIN_HUMANS+' joueurs humains et aller jusqu\'au bout.</p></div>';
   } else {
     html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">'+res.games+' partie'+(res.games>1?'s':'')+' · cote Elo (départ '+ELO_START+') · classé à partir de '+LEAGUE_MIN_GAMES+' parties</p>';
     html += '<div class="league-list">';
