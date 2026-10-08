@@ -745,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '61';
+var APP_VERSION = '62';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2901,9 +2901,10 @@ async function replayGame(){
 }
 
 /* ===================== v13 : chat avec GIF ===================== */
-// Recherche de GIF : colle ici une clé gratuite GIPHY (developers.giphy.com → Create an App → API).
+// Recherche de GIF : clé gratuite KLIPY (partner.klipy.com). Giphy est devenu payant et l'API Tenor a fermé en juin 2026.
+// Cette clé est publique par nature (elle est lisible dans la page du jeu) ; clé « test » : 100 recherches par heure.
 // Sans clé, on peut quand même envoyer un GIF en collant son lien.
-var GIPHY_API_KEY = '';
+var KLIPY_API_KEY = 'JpSau9vnvDeSX2j92H3dIbtIjG3DmNMvRGlwkYi9EG1PP2SK0jqeTyIjASkwnacf';
 var chatUnsub=null, chatCode=null, chatMsgs=[], chatOpen=false, chatSeenAt=nowMs(), chatSkelKey=null, chatListSig=null;
 var gifOpen=false, gifResults=[], gifLoading=false, gifTimer=null, gifSig=null;
 function subscribeChat(code){
@@ -2921,7 +2922,7 @@ function unsubscribeChat(){
   if(chatUnsub){ chatUnsub(); chatUnsub=null; }
   chatCode=null; chatMsgs=[]; chatOpen=false; gifOpen=false; renderChat();
 }
-function looksLikeGifUrl(t){ return /^https:\/\/\S+$/i.test(t) && /(\.gif(\?|$)|giphy\.com|tenor\.com)/i.test(t); }
+function looksLikeGifUrl(t){ return /^https:\/\/\S+$/i.test(t) && /(\.gif(\?|$)|giphy\.com|tenor\.com|klipy\.com)/i.test(t); }
 async function sendChat(payload){
   if(!chatCode) return;
   var me = gameDoc && gameDoc.players ? gameDoc.players[myId] : null;
@@ -2953,7 +2954,7 @@ function renderChat(){
     else {
       root.innerHTML = '<div class="chat-panel"><div class="chat-head"><strong>Chat de la partie</strong><button class="chat-x" data-chat="close" aria-label="Fermer le chat">✕</button></div>'
         + '<div class="chat-list" id="chat-list"></div>'
-        + '<div class="gif-box" id="gif-box" hidden><input id="gif-q" placeholder="'+(GIPHY_API_KEY ? 'Chercher un GIF…' : 'Colle le lien d\'un GIF (https://…)')+'" autocomplete="off"><div class="gif-grid" id="gif-grid"></div><div class="gif-note" id="gif-note"></div></div>'
+        + '<div class="gif-box" id="gif-box" hidden><input id="gif-q" placeholder="'+(KLIPY_API_KEY ? 'Chercher un GIF…' : 'Colle le lien d\'un GIF (https://…)')+'" autocomplete="off"><div class="gif-grid" id="gif-grid"></div><div class="gif-note" id="gif-note"></div></div>'
         + '<div class="chat-quick">'+['😂','👏','😱','😡','🔥','🃏','🍀','😭'].map(function(x){ return '<button data-chat="emoji" data-v="'+x+'">'+x+'</button>'; }).join('')+'</div>'
         + '<div class="chat-send"><button class="gif" data-chat="gif">GIF</button><input id="chat-input" maxlength="300" placeholder="Message…" autocomplete="off"><button data-chat="send">Envoyer</button></div></div>';
       var inp = document.getElementById('chat-input'); if(inp && window.innerWidth>700) inp.focus();
@@ -2984,21 +2985,22 @@ function renderChat(){
         gifSig = gsig;
         var grid = document.getElementById('gif-grid'), note = document.getElementById('gif-note');
         if(grid) grid.innerHTML = gifResults.map(function(r){ return '<img src="'+esc(r.preview)+'" data-chat="pick" data-url="'+esc(r.url)+'" alt="GIF" loading="lazy">'; }).join('');
-        if(note) note.textContent = !GIPHY_API_KEY ? 'Colle un lien de GIF puis Entrée.' : (gifLoading ? 'Recherche…' : (gifResults.length ? 'Touche un GIF pour l\'envoyer' : 'Aucun résultat'));
+        if(note) note.textContent = !KLIPY_API_KEY ? 'Colle un lien de GIF puis Entrée.' : (gifLoading ? 'Recherche…' : (gifResults.length ? 'Touche un GIF pour l\'envoyer' : 'Aucun résultat'));
       }
     }
   }
 }
 async function searchGifs(q){
-  if(!GIPHY_API_KEY) return;
+  if(!KLIPY_API_KEY) return;
   gifLoading = true; renderChat();
   try{
-    var url = 'https://api.giphy.com/v1/gifs/'+(q ? 'search' : 'trending')+'?api_key='+encodeURIComponent(GIPHY_API_KEY)+'&limit=18&rating=pg-13&lang=fr'+(q ? '&q='+encodeURIComponent(q) : '');
+    var url = 'https://api.klipy.com/api/v1/'+encodeURIComponent(KLIPY_API_KEY)+'/gifs/'+(q ? 'search' : 'trending')+'?per_page=18&locale=fr_FR'+(q ? '&q='+encodeURIComponent(q) : '');
     var res = await fetch(url); var data = await res.json();
-    gifResults = (data.data||[]).map(function(d){
-      var im = d.images||{};
-      return { id:d.id, preview:(im.fixed_height_small||im.fixed_height||{}).url, url:(im.fixed_height||im.original||{}).url };
-    }).filter(function(r){ return r.preview && r.url; });
+    var items = (data && data.data && data.data.data) || [];
+    gifResults = items.filter(function(d){ return d && d.file && (!d.type || d.type==='gif'); }).map(function(d){
+      var f = d.file, sm = f.sm || f.md || f.hd || {}, md = f.md || f.hd || f.sm || {};
+      return { id:d.id, preview:((sm.webp||sm.gif)||{}).url, url:(md.gif||{}).url };
+    }).filter(function(r){ return r.preview && r.url && looksLikeGifUrl(r.url); });
   }catch(e){ console.error(e); gifResults = []; }
   gifLoading = false; renderChat();
 }
@@ -3015,7 +3017,7 @@ document.addEventListener('click', function(e){
   else if(a==='close'){ chatOpen=false; gifOpen=false; renderChat(); }
   else if(a==='send'){ sendChatInput(); }
   else if(a==='emoji'){ sendChat({ text: el.getAttribute('data-v') }); }
-  else if(a==='gif'){ gifOpen=!gifOpen; gifSig=null; renderChat(); if(gifOpen){ var q=document.getElementById('gif-q'); if(q) q.focus(); if(GIPHY_API_KEY && !gifResults.length) searchGifs(''); } }
+  else if(a==='gif'){ gifOpen=!gifOpen; gifSig=null; renderChat(); if(gifOpen){ var q=document.getElementById('gif-q'); if(q) q.focus(); if(KLIPY_API_KEY && !gifResults.length) searchGifs(''); } }
   else if(a==='pick'){ sendChat({ gif: el.getAttribute('data-url') }); gifOpen=false; gifSig=null; renderChat(); }
 });
 document.addEventListener('keydown', function(e){
@@ -3025,11 +3027,11 @@ document.addEventListener('keydown', function(e){
     e.preventDefault();
     var v = e.target.value.trim();
     if(looksLikeGifUrl(v)){ sendChat({ gif:v }); e.target.value=''; gifOpen=false; gifSig=null; renderChat(); }
-    else if(GIPHY_API_KEY) searchGifs(v);
+    else if(KLIPY_API_KEY) searchGifs(v);
   }
 });
 document.addEventListener('input', function(e){
-  if(!e.target || e.target.id!=='gif-q' || !GIPHY_API_KEY) return;
+  if(!e.target || e.target.id!=='gif-q' || !KLIPY_API_KEY) return;
   var v = e.target.value.trim();
   if(looksLikeGifUrl(v)) return;
   clearTimeout(gifTimer); gifTimer = setTimeout(function(){ searchGifs(v); }, 400);
