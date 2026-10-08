@@ -31,7 +31,14 @@ function readProfileForm(){
   if(ps) profileUi.pseudo = ps.value; // garde la saisie si l'écran se redessine (message d'erreur)
   return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '' };
 }
-function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); }
+function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); } // connexion : les anciens codes (4 à 6 chiffres) restent valables
+// v60 : tout NOUVEAU code fait 6 chiffres (1 000 000 de possibilités au lieu de 10 000) et n'est pas trop simple
+function validNewPin(pin){
+  if(!/^[0-9]{6}$/.test(pin)) return false;
+  if(/^(\d)\1{5}$/.test(pin)) return false;                       // 000000, 111111…
+  if('0123456789012345'.indexOf(pin)>=0 || '9876543210987654'.indexOf(pin)>=0) return false; // 123456, 654321…
+  return ['121212','696969','112233','123123'].indexOf(pin)<0;
+}
 // v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
 function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
 function editDistance(a, b){
@@ -51,7 +58,7 @@ async function profileCreate(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
   if(key.length < 2){ profileUi.err = 'Choisis un pseudo d\'au moins 2 lettres ou chiffres.'; render(); return; }
-  if(!validPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 4 à 6 chiffres.'; render(); return; }
+  if(!validNewPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
   if(profileUi.similarOk !== key){
     try{ await loadLeague(); }catch(e){}
     var sim = similarProfiles(f.pseudo);
@@ -134,13 +141,13 @@ function renderProfileBox(){
   } else {
     html += '<div class="row between" style="margin-bottom:8px;"><strong>Mon profil</strong><button class="btn ghost" data-action="profile-close">✕</button></div>';
     html += '<label for="profilePseudo">Pseudo</label><input type="text" id="profilePseudo" maxlength="24" autocomplete="username" placeholder="Ton pseudo" value="'+esc(profileUi.pseudo!=null ? profileUi.pseudo : (myProfile.name||''))+'" style="margin-bottom:10px;">';
-    html += '<label for="profilePin">Code PIN (4 à 6 chiffres)</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:12px;">';
+    html += '<label for="profilePin">Code PIN (6 chiffres)</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:12px;">';
     html += '<div class="row"><button class="btn" style="flex:1;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Se connecter</button>'
       + '<button class="btn secondary" style="flex:1;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button></div>';
     if(authOn()){
       if(profileUi.mode==='forgot'){
         html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
-          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (4 à 6 chiffres)" style="margin-bottom:8px;">'
+          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (6 chiffres)" style="margin-bottom:8px;">'
           + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
       } else if(profileUi.suggestForgot){ // v42 : après un mauvais code, on propose tout de suite la bonne porte (au lieu de recréer un profil)
         html += '<div style="margin-top:12px; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px;"><strong style="font-size:14px;">Tu ne retrouves plus ton code ?</strong>'
@@ -213,7 +220,7 @@ function migrationImportIfPresent(){
 async function profileChangePin(){
   var cur = (document.getElementById('pinCurrent')||{}).value || '', nw = (document.getElementById('pinNew')||{}).value || '';
   profileUi.err = ''; profileUi.ok = '';
-  if(!validPin(nw)){ profileUi.err = 'Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
+  if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authChangePin(cur.trim(), nw.trim()); profileUi.busy=false; profileUi.mode=null; profileUi.ok='Code changé ✓'; }
@@ -261,7 +268,7 @@ function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
     html += '<div style="margin-top:10px;"><label for="pinCurrent">Code actuel</label><input type="password" id="pinCurrent" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:8px;">'
-      + '<label for="pinNew">Nouveau code (4 à 6 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:10px;">'
+      + '<label for="pinNew">Nouveau code (6 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-change-pin" '+(profileUi.busy?'disabled':'')+'>Enregistrer</button><button class="btn secondary" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
@@ -320,7 +327,7 @@ document.addEventListener('click', function(e){
     var f = readProfileForm(), key = profileKey(f.pseudo), np = ((document.getElementById('forgotPin')||{}).value||'').trim();
     profileUi.err=''; profileUi.ok='';
     if(key.length<2){ profileUi.err='Entre ton pseudo.'; render(); return; }
-    if(!validPin(np)){ profileUi.err='Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
+    if(!validNewPin(np)){ profileUi.err='Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
     profileUi.busy = true; render();
     authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.suggestForgot=false; profileUi.ok='Demande envoyée ✓ L\'organisateur la voit sur son accueil. Dès qu\'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.'; render(); })
       .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Demande impossible : '+authErrText(e)); render(); });

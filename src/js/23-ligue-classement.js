@@ -34,7 +34,8 @@ async function loadLeague(force){
   league.loading = true; league.error = '';
   try{
     var ms = await claudeDb.collection('leagueMembers').get();
-    var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
+    var gs = await claudeDb.collection('leagueGames').orderBy('at', 'desc').limit(1000).get(); // v60 : les 1000 plus récentes (classées par le serveur)
+    gs.docs.sort(function(a,b){ return (a.data().at||0)-(b.data().at||0); }); // l'écran attend l'ordre chronologique
     league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); }).filter(function(m){ return m.name; }); // v58 : entrées vides ignorées
     // v47 : les fiches de la ligue ne sont plus modifiables (sauf par l'organisateur). « C'est moi » est rangé à part,
     // dans leagueLinks/{membre} : écrit une seule fois, par le propriétaire du compte (contrôlé par les règles Firebase).
@@ -48,15 +49,20 @@ async function loadLeague(force){
     // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
     league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
     // v43 : confirmations des joueurs + validations de l'organisateur
-    league.attest = {}; league.valid = {};
+    league.attest = {}; league.valid = {}; league.hidden = {};
+    try{ (await claudeDb.collection('leagueHidden').get()).docs.forEach(function(d){ league.hidden[d.id] = true; }); }catch(e){ console.warn('parties masquées', e); } // v60 : l'organisateur peut masquer une fausse partie
     try{ (await claudeDb.collection('leagueAttest').get()).docs.forEach(function(d){ league.attest[d.id] = d.data(); }); }catch(e){ console.warn('confirmations', e); }
     try{ (await claudeDb.collection('leagueValid').get()).docs.forEach(function(d){ league.valid[d.id] = d.data(); }); }catch(e){ console.warn('validations', e); }
+    league.recent = [];
     var all = gs.docs.map(function(d){
       var g = Object.assign({ id:d.id }, d.data());
+      g.hidden = !!league.hidden[d.id];
       g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
       g.attest = attestStatus(g);
       return g;
     }).filter(function(g){ return g.players.length; }); // v58 : entrées vides ignorées
+    league.recent = all.slice(-15).reverse(); // v60 : pour le panneau d'entretien (masquer une partie)
+    all = all.filter(function(g){ return !g.hidden; });
     league.games = all.filter(function(g){ return g.attest.counts; });     // seules les parties confirmées comptent
     league.pending = all.filter(function(g){ return !g.attest.counts; });
     league.loaded = true;
@@ -111,6 +117,7 @@ async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
+  if(String(gameId).indexOf('o_')===0) rec.__plain = { code: String(gameId).split('_')[1] }; // v60 : code de la partie, en clair, pour que les règles vérifient qu'elle existe
   if(!already.exists) await gref.set(rec); // une partie de ligue enregistrée n'est plus jamais réécrite (protégé par les règles)
   league.loaded = false;
 }
@@ -221,7 +228,7 @@ function sparkline(values){
 }
 function seasonsList(){
   var set = {}; set[seasonOf(nowMs())] = true;
-  league.games.forEach(function(g){ if(g.season) set[g.season]=true; });
+  league.games.forEach(function(g){ if(g.season && /^\d{4}-T[1-4]$/.test(String(g.season))) set[g.season]=true; }); // v60 : saison au format strict
   return Object.keys(set).sort().reverse();
 }
 function renderLeagueRow(s, i, ranked){
@@ -266,7 +273,7 @@ function renderLeague(){
     + '<button class="btn secondary'+(leagueView.mode==='cards'?' active':'')+'" role="tab" aria-selected="'+(leagueView.mode==='cards')+'" data-action="league-mode" data-mode="cards">Vraies cartes (IRL)</button></div>';
   html += '<div class="league-head"><h2 style="font-size:28px;">'+(leagueView.mode==='cards'?'Classement IRL':'Classement en ligne')+'</h2>'
     + '<select id="leagueSeason" aria-label="Saison">'
-    + seasons.map(function(k){ return '<option value="'+k+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
+    + seasons.map(function(k){ return '<option value="'+esc(k)+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
     + '<option value="all"'+(leagueView.season==='all'?' selected':'')+'>'+seasonLabel('all')+'</option></select></div>';
   var res = computeLeague(leagueView.season, leagueView.mode);
   if(!res.games){

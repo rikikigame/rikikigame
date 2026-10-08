@@ -150,8 +150,27 @@ function renderMaintenancePanel(){
     + '<button class="btn secondary small" data-action="maint-games"'+dis+'>Nettoyer les vieilles parties ('+MAINT_DAYS+' j)</button>'
     + (authOn() ? '<button class="btn secondary small" data-action="maint-pins"'+dis+'>Effacer les anciennes empreintes de code</button>' : '') + '</div>'
     + (maintUi.msg ? '<p style="font-size:13px; font-weight:700; margin:10px 0 0;">'+esc(maintUi.msg)+'</p>' : '')
+    + renderHideGames()
     + '</div>';
 }
+// v60 : masquer une fausse partie de la ligue (rien n'est effacé : on peut la réafficher)
+function renderHideGames(){
+  var rec = (typeof league!=='undefined' && league.recent) || [];
+  if(!rec.length) return '';
+  return '<div class="eyebrow" style="margin:14px 0 4px;">Dernières parties de la ligue</div>'
+    + rec.map(function(g){
+      return '<div class="row between" style="gap:8px; margin-top:6px;"><span style="flex:1; min-width:0; font-size:12.5px;'+(g.hidden?' opacity:.5; text-decoration:line-through;':'')+'">'
+        + new Date(g.at||0).toLocaleDateString('fr-BE')+' · '+esc((g.players||[]).map(function(p){ return p.name; }).join(', '))+'</span>'
+        + '<button class="btn secondary small" data-action="league-hide" data-id="'+esc(g.id)+'" data-hide="'+(g.hidden?'0':'1')+'">'+(g.hidden?'Réafficher':'Masquer')+'</button></div>';
+    }).join('');
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="league-hide"]') : null; if(!el || !isAdmin()) return;
+  var gid = el.getAttribute('data-id'), hide = el.getAttribute('data-hide')==='1';
+  if(hide && !confirmT('Masquer cette partie ? Elle ne comptera plus dans le classement (tu pourras la réafficher).')) return;
+  var p = hide ? claudeDb.doc('leagueHidden/'+gid).set({ by: currentProfile ? currentProfile.pseudo : '', at: nowMs() }) : claudeDb.doc('leagueHidden/'+gid).delete();
+  p.then(function(){ league.loaded = false; return loadLeague(true); }).catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
+});
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action="maint-games"], [data-action="maint-pins"]') : null; if(!el) return;
   if(el.getAttribute('data-action')==='maint-games') cleanOldGames(); else purgeLegacyPins();

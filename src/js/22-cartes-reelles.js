@@ -213,7 +213,7 @@ function renderStepperRow(p, value, hs, note, allowed){
   var html = '<div class="sheet-row"><div class="sheet-name">'+esc(p.name)+(note?' <span class="muted" style="font-weight:400; font-size:12.5px;">· '+esc(note)+'</span>':'')+'</div><div class="sheet-picks">';
   for(var v=0; v<=hs; v++){
     var dis = allowed && allowed.indexOf(v) < 0;
-    html += '<button class="bid-btn'+(set && value===v ? ' picked' : '')+'" data-action="sheet-set" data-pid="'+p.id+'" data-value="'+v+'" '+(dis?'disabled title="Interdit : déjà 3 zéros d\'affilée"':'')+'>'+v+'</button>';
+    html += '<button class="bid-btn'+(set && value===v ? ' picked' : '')+'" data-action="sheet-set" data-pid="'+esc(p.id)+'" data-value="'+v+'" '+(dis?'disabled title="Interdit : déjà 3 zéros d\'affilée"':'')+'>'+v+'</button>';
   }
   html += '</div></div>';
   return html;

@@ -147,8 +147,8 @@ function renderChat(){
       chatListSig = sig;
       list.innerHTML = chatMsgs.length ? chatMsgs.map(function(m){
         var mine = m.uid===myId;
-        var body = m.gif ? '<img src="'+esc(m.gif)+'" alt="GIF" loading="lazy">' : '<span class="bb">'+esc(m.text||'')+'</span>';
-        return '<div class="chat-msg'+(mine?' mine':'')+'">'+(mine?'':'<div class="nm" style="color:'+esc(m.color||'#1F2E4A')+';">'+esc(m.name||'?')+'</div>')+body+'</div>';
+        var body = (m.gif && looksLikeGifUrl(String(m.gif))) ? '<img src="'+esc(m.gif)+'" alt="GIF" loading="lazy">' : '<span class="bb">'+esc(m.text||'')+'</span>';
+        return '<div class="chat-msg'+(mine?' mine':'')+'">'+(mine?'':'<div class="nm" style="color:'+esc(safeColor(m.color||'#1F2E4A'))+';">'+esc(m.name||'?')+'</div>')+body+'</div>';
       }).join('') : '<div class="chat-empty">Aucun message pour l\'instant.<br>Dis bonjour à la table 👋</div>';
       list.scrollTop = list.scrollHeight;
     }

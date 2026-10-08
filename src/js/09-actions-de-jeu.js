@@ -87,9 +87,14 @@ function subscribeGame(code){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearLocal(); render(); return;
       }
       screen='game';
-      if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId()) && !versionSent){
-        versionSent = true; var vp = { players:{} }; vp.players[myId] = { v: APP_VERSION, uid: myKeyId() };
-        claudeDb.doc('games/'+code).update(vp).catch(function(e){ console.error(e); });
+      if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
+        versionSent = true;
+        // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver
+        // que c'est bien moi si je dois redemander ma main avec un nouveau compte (cf. serveHandRequests)
+        sha256hex(myPtok()).then(function(h){
+          var vp = { players:{} }; vp.players[myId] = { v: APP_VERSION, uid: myKeyId(), pt: h };
+          return claudeDb.doc('games/'+code).update(vp);
+        }).catch(function(e){ console.error(e); });
       }
       syncHand();
       onGameUpdate();
@@ -134,6 +139,7 @@ function syncHand(){
 }
 function onGameUpdate(){
   if(!gameDoc) return;
+  primeUidTrust(gameDoc); // v60 : retient le compte de chaque joueur avant toute distribution
   try{ sfxOnGame(gameDoc); }catch(e){ console.warn('bruitages', e); } // v50
   witnessGame(gameDoc);
   try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue

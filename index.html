@@ -745,7 +745,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '59';
+var APP_VERSION = '60';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1219,7 +1219,12 @@ function botSearchCardInner(botId, g, hand){
   return legal[best];
 }
 function genCode(){ var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var s=''; for(var i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)]; return s; }
-function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML; }
+// v60 : échappe aussi les guillemets (sinon une valeur piégée placée dans un attribut HTML pouvait ajouter du code)
+function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'':String(s)); return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// v60 : une couleur venant d'un autre joueur n'est jamais injectée telle quelle dans le HTML
+function safeColor(c){ return (typeof c==='string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#8A93A6'; }
+// v60 : une saison venant de la base ne doit ressembler qu'à 2026-T4 ou « all »
+function safeSeason(k){ return (typeof k==='string' && /^(all|\d{4}(-T[1-4])?)$/.test(k)) ? k : ''; }
 // Figures à la française : Roi, Dame, Valet (V, D, R dans les coins)
 var RANK_LABEL = { J:'V', Q:'D', K:'R' }, RANK_NAME = { J:'Valet', Q:'Dame', K:'Roi', A:'As' };
 function rankLabel(r){ return LANG==='en' ? r : (RANK_LABEL[r] || r); } // en anglais : J, Q, K
@@ -1328,9 +1333,9 @@ var I18N_EN = { exact: {
   "Nouveau au Rikiki ?":"New to Rikiki?", "Les règles en 1 minute, en animation.":"The rules in 1 minute, animated.", "Voir le tuto":"Watch the tutorial", "Masquer":"Hide",
   "hors ligne":"offline", "en salon":"in a lobby", "en partie":"in a game", "vraies cartes":"real cards", "en ligne":"online",
   // --- profil ---
-  "Pseudo":"Username", "Ton pseudo":"Your username", "Code PIN (4 à 6 chiffres)":"PIN code (4 to 6 digits)", "Se connecter":"Sign in", "Créer mon profil":"Create my profile",
+  "Pseudo":"Username", "Ton pseudo":"Your username", "Code PIN (6 chiffres)":"PIN code (6 digits)", "Se connecter":"Sign in", "Créer mon profil":"Create my profile",
   "Se déconnecter":"Sign out", "Code oublié ?":"Forgot your code?", "Code oublié":"Forgot code", "Envoyer la demande":"Send the request", "Annuler":"Cancel", "Fermer":"Close",
-  "Nouveau code (4 à 6 chiffres)":"New code (4 to 6 digits)", "Changer mon code":"Change my code", "Code actuel":"Current code", "Enregistrer":"Save",
+  "Nouveau code (6 chiffres)":"New code (6 digits)", "Changer mon code":"Change my code", "Code actuel":"Current code", "Enregistrer":"Save",
   "👤 Tu joues en":"👤 You're playing as a", "invité":"guest", "Crée un profil pour la ligue et pour te retrouver sur tous tes appareils.":"Create a profile for the league and to find yourself on all your devices.",
   "👤 Connecté :":"👤 Signed in:", "Tes parties comptent pour ton profil, sur n'importe quel appareil.":"Your games count for your profile, on any device.",
   "Code oublié ? Demande à l'organisateur de t'en générer un nouveau. Sécurité simple, entre amis : n'utilise pas le code de ta carte bancaire 😉":"Forgot your code? Ask the organiser to generate a new one. Simple security between friends: don't use your bank card PIN 😉",
@@ -1349,7 +1354,7 @@ var I18N_EN = { exact: {
   "Regrouper deux joueurs du classement":"Merge two players in the ranking", "Doublon":"Duplicate", "Compte pour":"Counts for", "Chargement du classement…":"Loading the ranking…",
   "Pour les noms tapés deux fois en vraies cartes (« Tom » et « Thomas »). Ne touche pas aux profils.":"For names typed twice in real-card games (“Tom” and “Thomas”). Doesn't touch profiles.",
   "Code PIN incorrect.":"Wrong PIN code.", "Code actuel incorrect.":"Current code is wrong.", "Code changé ✓":"Code changed ✓", "Entre ton pseudo.":"Enter your username.",
-  "Le code PIN doit faire 4 à 6 chiffres.":"The PIN code must be 4 to 6 digits.", "Le nouveau code doit faire 4 à 6 chiffres.":"The new code must be 4 to 6 digits.",
+  "Le code PIN doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).":"The PIN code must be 6 digits, not too simple (no 123456, no 000000…).", "Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).":"The new code must be 6 digits, not too simple (no 123456, no 000000…).",
   "Entre ton pseudo et ton code PIN (4 à 6 chiffres).":"Enter your username and PIN code (4 to 6 digits).", "Choisis un pseudo d'au moins 2 lettres ou chiffres.":"Choose a username of at least 2 letters or digits.",
   "Pseudo inconnu. Pour le créer, clique « Créer mon profil ».":"Unknown username. To create it, click “Create my profile”.", "Pseudo inconnu.":"Unknown username.",
   "Ce pseudo est déjà pris. Si c'est le tien, clique « Se connecter ».":"This username is taken. If it's yours, click “Sign in”.", "Ce pseudo est déjà pris.":"This username is taken.",
@@ -2095,16 +2100,21 @@ function firebaseCollection(cpath){
       limit: function(n){ return build(Object.assign({}, o, { lim:n })); },
       where: function(){ return build(o); },
       get: async function(){
-        var snap = await base.once('value');
+        // v60 : orderBy('at').limit(n) est classé et limité PAR FIREBASE sur la date écrite par le serveur (__at, non falsifiable) :
+        // on ne télécharge plus toute la collection, et de fausses anciennes entrées ne peuvent plus chasser les vraies.
+        var serverSide = (o.order==='at' && o.lim);
+        var snap = serverSide ? await (o.dir==='desc' ? base.orderByChild('__at').limitToLast(o.lim) : base.orderByChild('__at').limitToFirst(o.lim)).once('value')
+                              : await base.once('value');
         var docs = [];
         snap.forEach(function(child){
           var data = fbDecode(child.val());
           if(data!=null) docs.push(fbSnap(cpath+'/'+child.key, data));
         });
-        if(o.order){
+        if(serverSide && o.dir==='desc') docs.reverse();
+        else if(o.order){
           docs.sort(function(a,b){ var x=a.data()[o.order], y=b.data()[o.order]; return (x>y?1:x<y?-1:0) * (o.dir==='desc'?-1:1); });
         }
-        if(o.lim) docs = docs.slice(0, o.lim);
+        if(o.lim && !serverSide) docs = docs.slice(0, o.lim);
         return { docs: docs, size: docs.length, empty: !docs.length };
       }
     };
@@ -2370,9 +2380,14 @@ function subscribeGame(code){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearLocal(); render(); return;
       }
       screen='game';
-      if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId()) && !versionSent){
-        versionSent = true; var vp = { players:{} }; vp.players[myId] = { v: APP_VERSION, uid: myKeyId() };
-        claudeDb.doc('games/'+code).update(vp).catch(function(e){ console.error(e); });
+      if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
+        versionSent = true;
+        // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver
+        // que c'est bien moi si je dois redemander ma main avec un nouveau compte (cf. serveHandRequests)
+        sha256hex(myPtok()).then(function(h){
+          var vp = { players:{} }; vp.players[myId] = { v: APP_VERSION, uid: myKeyId(), pt: h };
+          return claudeDb.doc('games/'+code).update(vp);
+        }).catch(function(e){ console.error(e); });
       }
       syncHand();
       onGameUpdate();
@@ -2417,6 +2432,7 @@ function syncHand(){
 }
 function onGameUpdate(){
   if(!gameDoc) return;
+  primeUidTrust(gameDoc); // v60 : retient le compte de chaque joueur avant toute distribution
   try{ sfxOnGame(gameDoc); }catch(e){ console.warn('bruitages', e); } // v50
   witnessGame(gameDoc);
   try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
@@ -2931,8 +2947,8 @@ function renderChat(){
       chatListSig = sig;
       list.innerHTML = chatMsgs.length ? chatMsgs.map(function(m){
         var mine = m.uid===myId;
-        var body = m.gif ? '<img src="'+esc(m.gif)+'" alt="GIF" loading="lazy">' : '<span class="bb">'+esc(m.text||'')+'</span>';
-        return '<div class="chat-msg'+(mine?' mine':'')+'">'+(mine?'':'<div class="nm" style="color:'+esc(m.color||'#1F2E4A')+';">'+esc(m.name||'?')+'</div>')+body+'</div>';
+        var body = (m.gif && looksLikeGifUrl(String(m.gif))) ? '<img src="'+esc(m.gif)+'" alt="GIF" loading="lazy">' : '<span class="bb">'+esc(m.text||'')+'</span>';
+        return '<div class="chat-msg'+(mine?' mine':'')+'">'+(mine?'':'<div class="nm" style="color:'+esc(safeColor(m.color||'#1F2E4A'))+';">'+esc(m.name||'?')+'</div>')+body+'</div>';
       }).join('') : '<div class="chat-empty">Aucun message pour l\'instant.<br>Dis bonjour à la table 👋</div>';
       list.scrollTop = list.scrollHeight;
     }
@@ -3028,7 +3044,14 @@ function readProfileForm(){
   if(ps) profileUi.pseudo = ps.value; // garde la saisie si l'écran se redessine (message d'erreur)
   return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '' };
 }
-function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); }
+function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); } // connexion : les anciens codes (4 à 6 chiffres) restent valables
+// v60 : tout NOUVEAU code fait 6 chiffres (1 000 000 de possibilités au lieu de 10 000) et n'est pas trop simple
+function validNewPin(pin){
+  if(!/^[0-9]{6}$/.test(pin)) return false;
+  if(/^(\d)\1{5}$/.test(pin)) return false;                       // 000000, 111111…
+  if('0123456789012345'.indexOf(pin)>=0 || '9876543210987654'.indexOf(pin)>=0) return false; // 123456, 654321…
+  return ['121212','696969','112233','123123'].indexOf(pin)<0;
+}
 // v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
 function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
 function editDistance(a, b){
@@ -3048,7 +3071,7 @@ async function profileCreate(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
   if(key.length < 2){ profileUi.err = 'Choisis un pseudo d\'au moins 2 lettres ou chiffres.'; render(); return; }
-  if(!validPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 4 à 6 chiffres.'; render(); return; }
+  if(!validNewPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
   if(profileUi.similarOk !== key){
     try{ await loadLeague(); }catch(e){}
     var sim = similarProfiles(f.pseudo);
@@ -3131,13 +3154,13 @@ function renderProfileBox(){
   } else {
     html += '<div class="row between" style="margin-bottom:8px;"><strong>Mon profil</strong><button class="btn ghost" data-action="profile-close">✕</button></div>';
     html += '<label for="profilePseudo">Pseudo</label><input type="text" id="profilePseudo" maxlength="24" autocomplete="username" placeholder="Ton pseudo" value="'+esc(profileUi.pseudo!=null ? profileUi.pseudo : (myProfile.name||''))+'" style="margin-bottom:10px;">';
-    html += '<label for="profilePin">Code PIN (4 à 6 chiffres)</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:12px;">';
+    html += '<label for="profilePin">Code PIN (6 chiffres)</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:12px;">';
     html += '<div class="row"><button class="btn" style="flex:1;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Se connecter</button>'
       + '<button class="btn secondary" style="flex:1;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button></div>';
     if(authOn()){
       if(profileUi.mode==='forgot'){
         html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
-          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (4 à 6 chiffres)" style="margin-bottom:8px;">'
+          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (6 chiffres)" style="margin-bottom:8px;">'
           + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
       } else if(profileUi.suggestForgot){ // v42 : après un mauvais code, on propose tout de suite la bonne porte (au lieu de recréer un profil)
         html += '<div style="margin-top:12px; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px;"><strong style="font-size:14px;">Tu ne retrouves plus ton code ?</strong>'
@@ -3210,7 +3233,7 @@ function migrationImportIfPresent(){
 async function profileChangePin(){
   var cur = (document.getElementById('pinCurrent')||{}).value || '', nw = (document.getElementById('pinNew')||{}).value || '';
   profileUi.err = ''; profileUi.ok = '';
-  if(!validPin(nw)){ profileUi.err = 'Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
+  if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authChangePin(cur.trim(), nw.trim()); profileUi.busy=false; profileUi.mode=null; profileUi.ok='Code changé ✓'; }
@@ -3258,7 +3281,7 @@ function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
     html += '<div style="margin-top:10px;"><label for="pinCurrent">Code actuel</label><input type="password" id="pinCurrent" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:8px;">'
-      + '<label for="pinNew">Nouveau code (4 à 6 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:10px;">'
+      + '<label for="pinNew">Nouveau code (6 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-change-pin" '+(profileUi.busy?'disabled':'')+'>Enregistrer</button><button class="btn secondary" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
@@ -3317,7 +3340,7 @@ document.addEventListener('click', function(e){
     var f = readProfileForm(), key = profileKey(f.pseudo), np = ((document.getElementById('forgotPin')||{}).value||'').trim();
     profileUi.err=''; profileUi.ok='';
     if(key.length<2){ profileUi.err='Entre ton pseudo.'; render(); return; }
-    if(!validPin(np)){ profileUi.err='Le nouveau code doit faire 4 à 6 chiffres.'; render(); return; }
+    if(!validNewPin(np)){ profileUi.err='Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
     profileUi.busy = true; render();
     authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.suggestForgot=false; profileUi.ok='Demande envoyée ✓ L\'organisateur la voit sur son accueil. Dès qu\'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.'; render(); })
       .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Demande impossible : '+authErrText(e)); render(); });
@@ -3935,8 +3958,27 @@ function renderMaintenancePanel(){
     + '<button class="btn secondary small" data-action="maint-games"'+dis+'>Nettoyer les vieilles parties ('+MAINT_DAYS+' j)</button>'
     + (authOn() ? '<button class="btn secondary small" data-action="maint-pins"'+dis+'>Effacer les anciennes empreintes de code</button>' : '') + '</div>'
     + (maintUi.msg ? '<p style="font-size:13px; font-weight:700; margin:10px 0 0;">'+esc(maintUi.msg)+'</p>' : '')
+    + renderHideGames()
     + '</div>';
 }
+// v60 : masquer une fausse partie de la ligue (rien n'est effacé : on peut la réafficher)
+function renderHideGames(){
+  var rec = (typeof league!=='undefined' && league.recent) || [];
+  if(!rec.length) return '';
+  return '<div class="eyebrow" style="margin:14px 0 4px;">Dernières parties de la ligue</div>'
+    + rec.map(function(g){
+      return '<div class="row between" style="gap:8px; margin-top:6px;"><span style="flex:1; min-width:0; font-size:12.5px;'+(g.hidden?' opacity:.5; text-decoration:line-through;':'')+'">'
+        + new Date(g.at||0).toLocaleDateString('fr-BE')+' · '+esc((g.players||[]).map(function(p){ return p.name; }).join(', '))+'</span>'
+        + '<button class="btn secondary small" data-action="league-hide" data-id="'+esc(g.id)+'" data-hide="'+(g.hidden?'0':'1')+'">'+(g.hidden?'Réafficher':'Masquer')+'</button></div>';
+    }).join('');
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="league-hide"]') : null; if(!el || !isAdmin()) return;
+  var gid = el.getAttribute('data-id'), hide = el.getAttribute('data-hide')==='1';
+  if(hide && !confirmT('Masquer cette partie ? Elle ne comptera plus dans le classement (tu pourras la réafficher).')) return;
+  var p = hide ? claudeDb.doc('leagueHidden/'+gid).set({ by: currentProfile ? currentProfile.pseudo : '', at: nowMs() }) : claudeDb.doc('leagueHidden/'+gid).delete();
+  p.then(function(){ league.loaded = false; return loadLeague(true); }).catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
+});
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action="maint-games"], [data-action="maint-pins"]') : null; if(!el) return;
   if(el.getAttribute('data-action')==='maint-games') cleanOldGames(); else purgeLegacyPins();
@@ -4043,7 +4085,7 @@ async function authForgot(f, key){
   if(!snap.exists) throw { ui:'Pseudo inconnu.' };
   var email = key + '.r' + nowMs().toString(36) + '@rikiki.invalid';
   var u = await authCreateOrLink(email, authPw(f.pin));
-  await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email } });
+  await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email, st:'pending' } }); // v60 : st='pending' → une demande en attente ne peut plus être écrasée par un tiers
   try{ localStorage.setItem('rikiki_claim_'+key, '1'); }catch(e){}
 }
 async function loadClaims(){
@@ -4060,12 +4102,12 @@ async function approveClaim(key){
   // v57 : le profil de l'organisateur ne change jamais de propriétaire par le jeu (les règles Firebase l'interdisent aussi)
   if(key === (currentProfile && currentProfile.key) || (d.__plain && d.__plain.owner && d.__plain.owner === adminUid)) throw { code:'admin-profile', message:'C\'est le profil de l\'organisateur : refuse cette demande.' };
   await ref.set(Object.assign(stripLegacy(d), { __plain:{ owner:c.__plain.newOwner, email:c.__plain.email } }));
-  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:c.__plain }));
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:Object.assign({}, c.__plain, { st:'done' }) }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
 }
 async function refuseClaim(key){
   var c = profileClaimsList.filter(function(x){ return x.id===key; })[0]; if(!c) return;
-  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:c.__plain }));
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:Object.assign({}, c.__plain, { st:'done' }) }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
 }
 
@@ -4343,7 +4385,27 @@ document.addEventListener('keydown', function(e){
    - l'historique des manches vit dans gameLogs/{partie} : écrit une fois par manche, plus à chaque carte. */
 var myDeal = null, botDeal = null, mySecret = null, logDoc = null, localSecrets = {}, secretUnsubs = [], revealing = {};
 function myKeyId(){ return (authOn() && authUid()) ? authUid() : myId; }
-function keyOfPlayer(g, id){ var p = g && g.players ? g.players[id] : null; return (p && p.uid) || id; }
+/* v60 : le compte (uid) d'un joueur est retenu dès qu'on le voit dans la salle d'attente, et n'est plus changé ensuite.
+   Avant, l'appareil qui distribue envoyait les cartes (et la graine secrète) au compte INDIQUÉ dans la partie, que n'importe qui
+   pouvait modifier : un tricheur pouvait ainsi recevoir les mains des autres. Maintenant une modification en cours de partie est ignorée. */
+var uidTrust = {}, uidSeenInLobby = {}, ptTrust = {}, tokUsed = {};
+function myPtok(){ var t=null; try{ t = localStorage.getItem('rikiki_ptok'); if(!t){ t = randTok()+randTok(); localStorage.setItem('rikiki_ptok', t); } }catch(e){} return t || (window.__ptokMem = window.__ptokMem || (randTok()+randTok())); }
+function primeUidTrust(g){
+  if(!g || !g.code || !g.players) return;
+  Object.keys(g.players).forEach(function(id){
+    var p = g.players[id], tk = g.code+'|'+id;
+    if(!p || p.isBot || !p.uid) return;
+    if(g.status==='lobby'){ uidTrust[tk] = p.uid; uidSeenInLobby[tk] = true; if(p.pt) ptTrust[tk] = p.pt; }   // salle d'attente : on suit les changements normaux
+    else { if(!uidTrust[tk]) uidTrust[tk] = p.uid; if(p.pt && !ptTrust[tk]) ptTrust[tk] = p.pt; }            // en cours : la première valeur vue reste
+  });
+}
+function keyOfPlayer(g, id){
+  var p = g && g.players ? g.players[id] : null;
+  var t = (g && g.code) ? uidTrust[g.code+'|'+id] : null;
+  return t || (p && p.uid) || id;
+}
+// peut-on envoyer un secret au compte de ce joueur ? (retenu dans la salle d'attente, ou c'est moi)
+function uidIsTrusted(g, id){ return id===myId || !!(g && g.code && uidSeenInLobby[g.code+'|'+id]); }
 function isSecretDeal(g){ return !!(g && g.dealHash); }
 function secretFor(dealId){
   if(!dealId) return null;
@@ -4381,7 +4443,7 @@ async function dealSecretly(g, ids, roundIdx, handSize, dealerId){
   var code = g.code, hash = await sha256hex(seed), secret = { dealId:dealId, round:roundIdx, seed:seed };
   var jobs = [claudeDb.doc('dealerSecrets/'+code+'/'+myKeyId()).set(secret)];
   var hostKey = keyOfPlayer(g, g.hostId);
-  if(hostKey !== myKeyId()) jobs.push(claudeDb.doc('dealerSecrets/'+code+'/'+hostKey).set(secret)); // l'hôte doit pouvoir jouer pour un absent
+  if(hostKey !== myKeyId() && uidIsTrusted(g, g.hostId)) jobs.push(claudeDb.doc('dealerSecrets/'+code+'/'+hostKey).set(secret)); // l'hôte doit pouvoir jouer pour un absent
   var bots = {}, anyBot = false;
   ids.forEach(function(id){
     if(g.players[id].isBot){ bots[id] = res.hands[id]; anyBot = true; }
@@ -4434,7 +4496,7 @@ async function fetchSecretsNow(g, tries){
   if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc); syncHand(); onGameUpdate(); render(); }
   // toujours rien après 2 essais : on demande à l'hôte de renvoyer ma main
   if(tries >= 2 && gameDoc && gameDoc.code===code && gameDoc.hostId!==myId && !computedHand(gameDoc, myId)){
-    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs() };
+    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs(), tok: myPtok() };
     try{ await claudeDb.doc('games/'+code).update(p); }catch(e){ console.warn(e); }
   }
 }
@@ -4444,10 +4506,21 @@ function serveHandRequests(g){
   Object.keys(g.handReq).forEach(function(id){
     var r = g.handReq[id]; if(!r || r.deal!==g.dealSeed || !r.uid || !g.players[id] || g.players[id].isBot) return;
     var k = g.dealSeed+'|'+id+'|'+r.uid+'|'+r.at; if(handReqServed[k]) return;
+    // v60 : la main part au compte retenu pour ce joueur, jamais à un compte simplement écrit dans la demande.
+    // Seule exception : le joueur change de compte (ex. téléphone réveillé) ET prouve que c'est lui grâce à son jeton de joueur
+    // (dont l'empreinte a été vue dans la salle d'attente) ; chaque jeton ne sert qu'une fois par donne.
+    var tk = g.code+'|'+id, same = (r.uid === keyOfPlayer(g, id));
+    var proofKey = r.tok ? (r.tok+'|'+g.dealSeed) : null;
+    if(!same && !(proofKey && ptTrust[tk] && !tokUsed[proofKey])) return;
     var cards = dealtFor(g, id);
     if(!cards || !cards.length){ refreshHostSecret(g); return; } // je ne connais pas sa main non plus : je relis la graine
     handReqServed[k] = 1;
-    claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
+    var send = function(){
+      if(!same) tokUsed[proofKey] = 1;
+      return claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).then(function(){ if(!same) uidTrust[tk] = r.uid; });
+    };
+    var go = same ? send() : sha256hex(r.tok).then(function(h){ if(h!==ptTrust[tk] || tokUsed[proofKey]){ handReqServed[k] = 0; return; } return send(); });
+    go.catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
   });
 }
 // v45 : au réveil du téléphone (retour sur l'onglet), le jeton de connexion Firebase a pu expirer pendant la veille :
@@ -5178,7 +5251,7 @@ function renderLobby(g){
   html += '<div class="player-list">';
   ids.forEach(function(id){
     var p = g.players[id];
-    html += '<div class="player-card"><div class="avatar" style="background:'+p.color+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
+    html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
     html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
     if(p.isBot){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';
@@ -5320,7 +5393,7 @@ function renderTable(g){
     var active = i===0 && !ending;
     var meta = (bid==null ? 'annonce ?' : ('annonce '+bid+' · '+won+' pli'+(won>1?'s':'')));
     html += '<li class="roll-row'+(active?' active':'')+'" data-flip="r-'+esc(id)+'">';
-    html += '<span class="dot" style="background:'+p.color+';"></span>';
+    html += '<span class="dot" style="background:'+safeColor(p.color)+';"></span>';
     html += '<div class="who">'+(active?'<div class="tag">'+(bidding?'annonce':'joue')+'</div>':'')
       + '<div class="nm">'+esc(p.name)+(id===myId?' <span style="font-weight:400; opacity:0.7;">(toi)</span>':'')+(g.dealerId===id?' <span class="muted" title="Donneur" style="font-weight:400;">· D</span>':'')+'</div>'
       + '<div class="mt">'+meta+'</div></div>';
@@ -5395,7 +5468,7 @@ function renderHand(g){
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
     var c0 = myHand.cards[0];
-    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+c0.suit+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
       + '<p class="muted" style="text-align:center; font-size:12.5px; margin:6px 0 0;">À l\'aveugle : tu vois les cartes des autres, pas la tienne.</p>';
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
@@ -5419,7 +5492,7 @@ function renderHand(g){
     var disabled = !canPlay || illegal;
     if(i===0 || (rowsCount===2 && i===perRow)) html += (i>0 ? '</div>' : '') + '<div class="hand-row">';
     var pick = adv && adv.card.suit===c.suit && adv.card.rank===c.rank;
-    html += '<button class="hand-card'+(pick?' coach-pick':'')+'" data-flip="c-'+c.suit+c.rank+'" data-deal="'+(i*55)+'" '+(disabled?'disabled':'')+' data-action="play-card" data-suit="'+c.suit+'" data-rank="'+esc(c.rank)+'" aria-label="'+esc(rankName(c.rank))+' de '+SUIT_NAME[c.suit]+'">'
+    html += '<button class="hand-card'+(pick?' coach-pick':'')+'" data-flip="c-'+esc(c.suit+c.rank)+'" data-deal="'+(i*55)+'" '+(disabled?'disabled':'')+' data-action="play-card" data-suit="'+esc(c.suit)+'" data-rank="'+esc(c.rank)+'" aria-label="'+esc(rankName(c.rank))+' de '+SUIT_NAME[c.suit]+'">'
       + cardHtml(c, {trump: !!(g.trumpCard && c.suit===g.trumpCard.suit)}) + '</button>';
   });
   html += '</div></div>';
@@ -5483,7 +5556,7 @@ function renderRoundEnd(g){
     var p = g.players[id], pv = lastLog.points[id];
     var ok = lastLog.bids[id]===lastLog.tricksWon[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
-      + '<span class="dot" style="background:'+p.color+';"></span>'
+      + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
       + '<div style="flex:1; min-width:0;"><div style="font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="muted" style="font-size:12.5px;">annonce '+lastLog.bids[id]+' · fait '+lastLog.tricksWon[id]+(ok?' · <span class="pts-pos">réussi</span>':' · <span class="pts-neg">raté</span>')+'</div></div>'
       + '<div style="text-align:right;"><div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div><div class="delta '+ptsClass(pv)+'">'+fmtPts(pv)+'</div></div></div>';
@@ -5671,8 +5744,13 @@ async function processAttestTodos(){
 }
 // dans le classement : une partie en ligne récente compte-t-elle ?
 function attestStatus(rec){
-  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : rec.at;
-  if(rec.mode!=='online' || at < ATTEST_FROM) return { counts:true, legacy:true };
+  // v60 : « en ligne » se lit dans l'identifiant (o_… imposé par les règles Firebase), pas dans le texte de la partie ;
+  // la date est celle du serveur (__serverAt). Une partie en ligne sans date serveur ne compte jamais d'office.
+  var online = String(rec.id||'').indexOf('o_')===0;
+  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : null;
+  if(!online) return { counts:true, legacy:true };
+  if(at!==null && at < ATTEST_FROM) return { counts:true, legacy:true };
+  if(at===null) return { counts:false, need:Math.floor((rec.players||[]).length/2)+1, have:0, noDate:true };
   var ps = rec.players || [], need = Math.floor(ps.length/2) + 1;
   if(league.valid && league.valid[rec.id]) return { counts:true, byAdmin:true, need:need, have:need };
   if(!ps.every(function(p){ return p.uid; })) return { counts:false, need:need, have:0 };
@@ -5695,7 +5773,7 @@ function renderGameOver(g){
   order.forEach(function(id, i){
     var p = g.players[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
-      + '<span class="dot" style="background:'+p.color+';"></span>'
+      + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
       + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
@@ -5993,7 +6071,7 @@ function renderStepperRow(p, value, hs, note, allowed){
   var html = '<div class="sheet-row"><div class="sheet-name">'+esc(p.name)+(note?' <span class="muted" style="font-weight:400; font-size:12.5px;">· '+esc(note)+'</span>':'')+'</div><div class="sheet-picks">';
   for(var v=0; v<=hs; v++){
     var dis = allowed && allowed.indexOf(v) < 0;
-    html += '<button class="bid-btn'+(set && value===v ? ' picked' : '')+'" data-action="sheet-set" data-pid="'+p.id+'" data-value="'+v+'" '+(dis?'disabled title="Interdit : déjà 3 zéros d\'affilée"':'')+'>'+v+'</button>';
+    html += '<button class="bid-btn'+(set && value===v ? ' picked' : '')+'" data-action="sheet-set" data-pid="'+esc(p.id)+'" data-value="'+v+'" '+(dis?'disabled title="Interdit : déjà 3 zéros d\'affilée"':'')+'>'+v+'</button>';
   }
   html += '</div></div>';
   return html;
@@ -6156,7 +6234,8 @@ async function loadLeague(force){
   league.loading = true; league.error = '';
   try{
     var ms = await claudeDb.collection('leagueMembers').get();
-    var gs = await claudeDb.collection('leagueGames').orderBy('at').limit(1000).get();
+    var gs = await claudeDb.collection('leagueGames').orderBy('at', 'desc').limit(1000).get(); // v60 : les 1000 plus récentes (classées par le serveur)
+    gs.docs.sort(function(a,b){ return (a.data().at||0)-(b.data().at||0); }); // l'écran attend l'ordre chronologique
     league.allMembers = ms.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); }).filter(function(m){ return m.name; }); // v58 : entrées vides ignorées
     // v47 : les fiches de la ligue ne sont plus modifiables (sauf par l'organisateur). « C'est moi » est rangé à part,
     // dans leagueLinks/{membre} : écrit une seule fois, par le propriétaire du compte (contrôlé par les règles Firebase).
@@ -6170,15 +6249,20 @@ async function loadLeague(force){
     // chaque membre fusionné (mergedInto) vers le membre principal, et on le retire des listes.
     league.members = league.allMembers.filter(function(m){ return !m.mergedInto; });
     // v43 : confirmations des joueurs + validations de l'organisateur
-    league.attest = {}; league.valid = {};
+    league.attest = {}; league.valid = {}; league.hidden = {};
+    try{ (await claudeDb.collection('leagueHidden').get()).docs.forEach(function(d){ league.hidden[d.id] = true; }); }catch(e){ console.warn('parties masquées', e); } // v60 : l'organisateur peut masquer une fausse partie
     try{ (await claudeDb.collection('leagueAttest').get()).docs.forEach(function(d){ league.attest[d.id] = d.data(); }); }catch(e){ console.warn('confirmations', e); }
     try{ (await claudeDb.collection('leagueValid').get()).docs.forEach(function(d){ league.valid[d.id] = d.data(); }); }catch(e){ console.warn('validations', e); }
+    league.recent = [];
     var all = gs.docs.map(function(d){
       var g = Object.assign({ id:d.id }, d.data());
+      g.hidden = !!league.hidden[d.id];
       g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
       g.attest = attestStatus(g);
       return g;
     }).filter(function(g){ return g.players.length; }); // v58 : entrées vides ignorées
+    league.recent = all.slice(-15).reverse(); // v60 : pour le panneau d'entretien (masquer une partie)
+    all = all.filter(function(g){ return !g.hidden; });
     league.games = all.filter(function(g){ return g.attest.counts; });     // seules les parties confirmées comptent
     league.pending = all.filter(function(g){ return !g.attest.counts; });
     league.loaded = true;
@@ -6233,6 +6317,7 @@ async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
+  if(String(gameId).indexOf('o_')===0) rec.__plain = { code: String(gameId).split('_')[1] }; // v60 : code de la partie, en clair, pour que les règles vérifient qu'elle existe
   if(!already.exists) await gref.set(rec); // une partie de ligue enregistrée n'est plus jamais réécrite (protégé par les règles)
   league.loaded = false;
 }
@@ -6343,7 +6428,7 @@ function sparkline(values){
 }
 function seasonsList(){
   var set = {}; set[seasonOf(nowMs())] = true;
-  league.games.forEach(function(g){ if(g.season) set[g.season]=true; });
+  league.games.forEach(function(g){ if(g.season && /^\d{4}-T[1-4]$/.test(String(g.season))) set[g.season]=true; }); // v60 : saison au format strict
   return Object.keys(set).sort().reverse();
 }
 function renderLeagueRow(s, i, ranked){
@@ -6388,7 +6473,7 @@ function renderLeague(){
     + '<button class="btn secondary'+(leagueView.mode==='cards'?' active':'')+'" role="tab" aria-selected="'+(leagueView.mode==='cards')+'" data-action="league-mode" data-mode="cards">Vraies cartes (IRL)</button></div>';
   html += '<div class="league-head"><h2 style="font-size:28px;">'+(leagueView.mode==='cards'?'Classement IRL':'Classement en ligne')+'</h2>'
     + '<select id="leagueSeason" aria-label="Saison">'
-    + seasons.map(function(k){ return '<option value="'+k+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
+    + seasons.map(function(k){ return '<option value="'+esc(k)+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
     + '<option value="all"'+(leagueView.season==='all'?' selected':'')+'>'+seasonLabel('all')+'</option></select></div>';
   var res = computeLeague(leagueView.season, leagueView.mode);
   if(!res.games){

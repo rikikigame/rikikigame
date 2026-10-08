@@ -236,16 +236,21 @@ function firebaseCollection(cpath){
       limit: function(n){ return build(Object.assign({}, o, { lim:n })); },
       where: function(){ return build(o); },
       get: async function(){
-        var snap = await base.once('value');
+        // v60 : orderBy('at').limit(n) est classé et limité PAR FIREBASE sur la date écrite par le serveur (__at, non falsifiable) :
+        // on ne télécharge plus toute la collection, et de fausses anciennes entrées ne peuvent plus chasser les vraies.
+        var serverSide = (o.order==='at' && o.lim);
+        var snap = serverSide ? await (o.dir==='desc' ? base.orderByChild('__at').limitToLast(o.lim) : base.orderByChild('__at').limitToFirst(o.lim)).once('value')
+                              : await base.once('value');
         var docs = [];
         snap.forEach(function(child){
           var data = fbDecode(child.val());
           if(data!=null) docs.push(fbSnap(cpath+'/'+child.key, data));
         });
-        if(o.order){
+        if(serverSide && o.dir==='desc') docs.reverse();
+        else if(o.order){
           docs.sort(function(a,b){ var x=a.data()[o.order], y=b.data()[o.order]; return (x>y?1:x<y?-1:0) * (o.dir==='desc'?-1:1); });
         }
-        if(o.lim) docs = docs.slice(0, o.lim);
+        if(o.lim && !serverSide) docs = docs.slice(0, o.lim);
         return { docs: docs, size: docs.length, empty: !docs.length };
       }
     };

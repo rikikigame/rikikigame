@@ -169,8 +169,13 @@ async function processAttestTodos(){
 }
 // dans le classement : une partie en ligne récente compte-t-elle ?
 function attestStatus(rec){
-  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : rec.at;
-  if(rec.mode!=='online' || at < ATTEST_FROM) return { counts:true, legacy:true };
+  // v60 : « en ligne » se lit dans l'identifiant (o_… imposé par les règles Firebase), pas dans le texte de la partie ;
+  // la date est celle du serveur (__serverAt). Une partie en ligne sans date serveur ne compte jamais d'office.
+  var online = String(rec.id||'').indexOf('o_')===0;
+  var at = typeof rec.__serverAt==='number' ? rec.__serverAt : null;
+  if(!online) return { counts:true, legacy:true };
+  if(at!==null && at < ATTEST_FROM) return { counts:true, legacy:true };
+  if(at===null) return { counts:false, need:Math.floor((rec.players||[]).length/2)+1, have:0, noDate:true };
   var ps = rec.players || [], need = Math.floor(ps.length/2) + 1;
   if(league.valid && league.valid[rec.id]) return { counts:true, byAdmin:true, need:need, have:need };
   if(!ps.every(function(p){ return p.uid; })) return { counts:false, need:need, have:0 };
@@ -193,7 +198,7 @@ function renderGameOver(g){
   order.forEach(function(id, i){
     var p = g.players[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
-      + '<span class="dot" style="background:'+p.color+';"></span>'
+      + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
       + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });

@@ -284,7 +284,7 @@ function renderLobby(g){
   html += '<div class="player-list">';
   ids.forEach(function(id){
     var p = g.players[id];
-    html += '<div class="player-card"><div class="avatar" style="background:'+p.color+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
+    html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
     html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
     if(p.isBot){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';
@@ -426,7 +426,7 @@ function renderTable(g){
     var active = i===0 && !ending;
     var meta = (bid==null ? 'annonce ?' : ('annonce '+bid+' · '+won+' pli'+(won>1?'s':'')));
     html += '<li class="roll-row'+(active?' active':'')+'" data-flip="r-'+esc(id)+'">';
-    html += '<span class="dot" style="background:'+p.color+';"></span>';
+    html += '<span class="dot" style="background:'+safeColor(p.color)+';"></span>';
     html += '<div class="who">'+(active?'<div class="tag">'+(bidding?'annonce':'joue')+'</div>':'')
       + '<div class="nm">'+esc(p.name)+(id===myId?' <span style="font-weight:400; opacity:0.7;">(toi)</span>':'')+(g.dealerId===id?' <span class="muted" title="Donneur" style="font-weight:400;">· D</span>':'')+'</div>'
       + '<div class="mt">'+meta+'</div></div>';
@@ -501,7 +501,7 @@ function renderHand(g){
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
     var c0 = myHand.cards[0];
-    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+c0.suit+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
       + '<p class="muted" style="text-align:center; font-size:12.5px; margin:6px 0 0;">À l\'aveugle : tu vois les cartes des autres, pas la tienne.</p>';
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
@@ -525,7 +525,7 @@ function renderHand(g){
     var disabled = !canPlay || illegal;
     if(i===0 || (rowsCount===2 && i===perRow)) html += (i>0 ? '</div>' : '') + '<div class="hand-row">';
     var pick = adv && adv.card.suit===c.suit && adv.card.rank===c.rank;
-    html += '<button class="hand-card'+(pick?' coach-pick':'')+'" data-flip="c-'+c.suit+c.rank+'" data-deal="'+(i*55)+'" '+(disabled?'disabled':'')+' data-action="play-card" data-suit="'+c.suit+'" data-rank="'+esc(c.rank)+'" aria-label="'+esc(rankName(c.rank))+' de '+SUIT_NAME[c.suit]+'">'
+    html += '<button class="hand-card'+(pick?' coach-pick':'')+'" data-flip="c-'+esc(c.suit+c.rank)+'" data-deal="'+(i*55)+'" '+(disabled?'disabled':'')+' data-action="play-card" data-suit="'+esc(c.suit)+'" data-rank="'+esc(c.rank)+'" aria-label="'+esc(rankName(c.rank))+' de '+SUIT_NAME[c.suit]+'">'
       + cardHtml(c, {trump: !!(g.trumpCard && c.suit===g.trumpCard.suit)}) + '</button>';
   });
   html += '</div></div>';
@@ -589,7 +589,7 @@ function renderRoundEnd(g){
     var p = g.players[id], pv = lastLog.points[id];
     var ok = lastLog.bids[id]===lastLog.tricksWon[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
-      + '<span class="dot" style="background:'+p.color+';"></span>'
+      + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
       + '<div style="flex:1; min-width:0;"><div style="font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
       + '<div class="muted" style="font-size:12.5px;">annonce '+lastLog.bids[id]+' · fait '+lastLog.tricksWon[id]+(ok?' · <span class="pts-pos">réussi</span>':' · <span class="pts-neg">raté</span>')+'</div></div>'
       + '<div style="text-align:right;"><div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div><div class="delta '+ptsClass(pv)+'">'+fmtPts(pv)+'</div></div></div>';

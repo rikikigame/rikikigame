@@ -99,7 +99,7 @@ async function authForgot(f, key){
   if(!snap.exists) throw { ui:'Pseudo inconnu.' };
   var email = key + '.r' + nowMs().toString(36) + '@rikiki.invalid';
   var u = await authCreateOrLink(email, authPw(f.pin));
-  await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email } });
+  await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email, st:'pending' } }); // v60 : st='pending' → une demande en attente ne peut plus être écrasée par un tiers
   try{ localStorage.setItem('rikiki_claim_'+key, '1'); }catch(e){}
 }
 async function loadClaims(){
@@ -116,12 +116,12 @@ async function approveClaim(key){
   // v57 : le profil de l'organisateur ne change jamais de propriétaire par le jeu (les règles Firebase l'interdisent aussi)
   if(key === (currentProfile && currentProfile.key) || (d.__plain && d.__plain.owner && d.__plain.owner === adminUid)) throw { code:'admin-profile', message:'C\'est le profil de l\'organisateur : refuse cette demande.' };
   await ref.set(Object.assign(stripLegacy(d), { __plain:{ owner:c.__plain.newOwner, email:c.__plain.email } }));
-  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:c.__plain }));
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'ok', doneAt: nowMs(), __plain:Object.assign({}, c.__plain, { st:'done' }) }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
 }
 async function refuseClaim(key){
   var c = profileClaimsList.filter(function(x){ return x.id===key; })[0]; if(!c) return;
-  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:c.__plain }));
+  await claudeDb.doc('profileClaims/'+key).set(Object.assign({}, c, { status:'refused', doneAt: nowMs(), __plain:Object.assign({}, c.__plain, { st:'done' }) }));
   profileClaimsList = profileClaimsList.filter(function(x){ return x.id!==key; });
 }
 

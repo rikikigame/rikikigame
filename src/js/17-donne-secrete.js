@@ -13,7 +13,27 @@
    - l'historique des manches vit dans gameLogs/{partie} : écrit une fois par manche, plus à chaque carte. */
 var myDeal = null, botDeal = null, mySecret = null, logDoc = null, localSecrets = {}, secretUnsubs = [], revealing = {};
 function myKeyId(){ return (authOn() && authUid()) ? authUid() : myId; }
-function keyOfPlayer(g, id){ var p = g && g.players ? g.players[id] : null; return (p && p.uid) || id; }
+/* v60 : le compte (uid) d'un joueur est retenu dès qu'on le voit dans la salle d'attente, et n'est plus changé ensuite.
+   Avant, l'appareil qui distribue envoyait les cartes (et la graine secrète) au compte INDIQUÉ dans la partie, que n'importe qui
+   pouvait modifier : un tricheur pouvait ainsi recevoir les mains des autres. Maintenant une modification en cours de partie est ignorée. */
+var uidTrust = {}, uidSeenInLobby = {}, ptTrust = {}, tokUsed = {};
+function myPtok(){ var t=null; try{ t = localStorage.getItem('rikiki_ptok'); if(!t){ t = randTok()+randTok(); localStorage.setItem('rikiki_ptok', t); } }catch(e){} return t || (window.__ptokMem = window.__ptokMem || (randTok()+randTok())); }
+function primeUidTrust(g){
+  if(!g || !g.code || !g.players) return;
+  Object.keys(g.players).forEach(function(id){
+    var p = g.players[id], tk = g.code+'|'+id;
+    if(!p || p.isBot || !p.uid) return;
+    if(g.status==='lobby'){ uidTrust[tk] = p.uid; uidSeenInLobby[tk] = true; if(p.pt) ptTrust[tk] = p.pt; }   // salle d'attente : on suit les changements normaux
+    else { if(!uidTrust[tk]) uidTrust[tk] = p.uid; if(p.pt && !ptTrust[tk]) ptTrust[tk] = p.pt; }            // en cours : la première valeur vue reste
+  });
+}
+function keyOfPlayer(g, id){
+  var p = g && g.players ? g.players[id] : null;
+  var t = (g && g.code) ? uidTrust[g.code+'|'+id] : null;
+  return t || (p && p.uid) || id;
+}
+// peut-on envoyer un secret au compte de ce joueur ? (retenu dans la salle d'attente, ou c'est moi)
+function uidIsTrusted(g, id){ return id===myId || !!(g && g.code && uidSeenInLobby[g.code+'|'+id]); }
 function isSecretDeal(g){ return !!(g && g.dealHash); }
 function secretFor(dealId){
   if(!dealId) return null;
@@ -51,7 +71,7 @@ async function dealSecretly(g, ids, roundIdx, handSize, dealerId){
   var code = g.code, hash = await sha256hex(seed), secret = { dealId:dealId, round:roundIdx, seed:seed };
   var jobs = [claudeDb.doc('dealerSecrets/'+code+'/'+myKeyId()).set(secret)];
   var hostKey = keyOfPlayer(g, g.hostId);
-  if(hostKey !== myKeyId()) jobs.push(claudeDb.doc('dealerSecrets/'+code+'/'+hostKey).set(secret)); // l'hôte doit pouvoir jouer pour un absent
+  if(hostKey !== myKeyId() && uidIsTrusted(g, g.hostId)) jobs.push(claudeDb.doc('dealerSecrets/'+code+'/'+hostKey).set(secret)); // l'hôte doit pouvoir jouer pour un absent
   var bots = {}, anyBot = false;
   ids.forEach(function(id){
     if(g.players[id].isBot){ bots[id] = res.hands[id]; anyBot = true; }
@@ -104,7 +124,7 @@ async function fetchSecretsNow(g, tries){
   if(gameDoc && gameDoc.code===code){ gameDoc = Object.assign({}, gameDoc); syncHand(); onGameUpdate(); render(); }
   // toujours rien après 2 essais : on demande à l'hôte de renvoyer ma main
   if(tries >= 2 && gameDoc && gameDoc.code===code && gameDoc.hostId!==myId && !computedHand(gameDoc, myId)){
-    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs() };
+    var p = { handReq:{} }; p.handReq[myId] = { deal: g.dealSeed, uid: myKeyId(), at: nowMs(), tok: myPtok() };
     try{ await claudeDb.doc('games/'+code).update(p); }catch(e){ console.warn(e); }
   }
 }
@@ -114,10 +134,21 @@ function serveHandRequests(g){
   Object.keys(g.handReq).forEach(function(id){
     var r = g.handReq[id]; if(!r || r.deal!==g.dealSeed || !r.uid || !g.players[id] || g.players[id].isBot) return;
     var k = g.dealSeed+'|'+id+'|'+r.uid+'|'+r.at; if(handReqServed[k]) return;
+    // v60 : la main part au compte retenu pour ce joueur, jamais à un compte simplement écrit dans la demande.
+    // Seule exception : le joueur change de compte (ex. téléphone réveillé) ET prouve que c'est lui grâce à son jeton de joueur
+    // (dont l'empreinte a été vue dans la salle d'attente) ; chaque jeton ne sert qu'une fois par donne.
+    var tk = g.code+'|'+id, same = (r.uid === keyOfPlayer(g, id));
+    var proofKey = r.tok ? (r.tok+'|'+g.dealSeed) : null;
+    if(!same && !(proofKey && ptTrust[tk] && !tokUsed[proofKey])) return;
     var cards = dealtFor(g, id);
     if(!cards || !cards.length){ refreshHostSecret(g); return; } // je ne connais pas sa main non plus : je relis la graine
     handReqServed[k] = 1;
-    claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
+    var send = function(){
+      if(!same) tokUsed[proofKey] = 1;
+      return claudeDb.doc('hands/'+g.code+'/'+r.uid).set({ dealId:g.dealSeed, round:g.round, cards:cards }).then(function(){ if(!same) uidTrust[tk] = r.uid; });
+    };
+    var go = same ? send() : sha256hex(r.tok).then(function(h){ if(h!==ptTrust[tk] || tokUsed[proofKey]){ handReqServed[k] = 0; return; } return send(); });
+    go.catch(function(e){ console.warn('renvoi de main', e); handReqServed[k] = 0; });
   });
 }
 // v45 : au réveil du téléphone (retour sur l'onglet), le jeton de connexion Firebase a pu expirer pendant la veille :
