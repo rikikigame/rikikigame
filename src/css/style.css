@@ -709,3 +709,8 @@
   .deck-choice .seg button.on{ background:#FF7A3D; color:#1B0E06; opacity:1; }
   .deck-choice .deck-peek{ display:inline-flex; gap:4px; }
   .deck-choice .deck-peek .card{ --w:30px; }
+
+  /* Chargement initial : quatre couleurs qui respirent sur le fond Nuit (au lieu d'un « Chargement… » sur fond beige) */
+  .boot-suits{ font-size:28px; letter-spacing:0.4em; color:#FF6B1A; animation:bootPulse 1.2s ease-in-out infinite; }
+  @keyframes bootPulse{ 0%,100%{opacity:.35} 50%{opacity:1} }
+  @media (prefers-reduced-motion:reduce){ .boot-suits{ animation:none; opacity:.8; } }
