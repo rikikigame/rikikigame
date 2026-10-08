@@ -117,7 +117,21 @@ function mockCollection(cpath){
   }
   return build(q);
 }
-function mockDbFactory(){ return { doc: function(path){ return mockDocRef(path); }, collection: function(path){ return mockCollection(path); } }; }
+// v60 : écoute les documents d'un dossier dont le champ en clair __plain.<field> vaut <value> (boîtes d'amis / d'invitations).
+function mockWatchBox(path, field, value, cb){
+  var last = null, stop = false;
+  var tick = async function(){
+    if(stop) return;
+    try{
+      var s = await mockCollection(path).get();
+      var list = s.docs.filter(function(d){ var x = d.data(); return x && x.__plain && x.__plain[field]===value; }).map(function(d){ return { id:d.id, data:d.data() }; });
+      var sig = JSON.stringify(list); if(sig!==last){ last = sig; cb(list); }
+    }catch(e){ console.warn(e); }
+  };
+  var t = setInterval(tick, 700); tick();
+  return function(){ stop = true; clearInterval(t); };
+}
+function mockDbFactory(){ return { doc: function(path){ return mockDocRef(path); }, collection: function(path){ return mockCollection(path); }, watchBox: mockWatchBox }; }
 function mockUserFactory(){
   var id = null;
   try{
@@ -257,7 +271,17 @@ function firebaseCollection(cpath){
   }
   return build({ order:null, dir:'asc', lim:1000 });
 }
-function firebaseDbFactory(){ return { doc: firebaseDocRef, collection: firebaseCollection }; }
+function firebaseWatchBox(path, field, value, cb, err){
+  var q = firebase.database().ref(path).orderByChild(field).equalTo(value);
+  var h = function(snap){
+    var list = [];
+    snap.forEach(function(c){ var d = fbDecode(c.val()); if(d!=null) list.push({ id:c.key, data:d }); });
+    cb(list);
+  };
+  q.on('value', h, function(e){ if(err) err(e); });
+  return function(){ q.off('value', h); };
+}
+function firebaseDbFactory(){ return { doc: firebaseDocRef, collection: firebaseCollection, watchBox: firebaseWatchBox }; }
 function firebaseUserFactory(){
   var id = null, color = null, name = '';
   try{

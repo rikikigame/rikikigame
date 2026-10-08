@@ -25,7 +25,7 @@ function renderHomeFriends(){
       + '<p class="hf-empty">Crée ou connecte ton profil pour ajouter des amis, les voir en ligne et les inviter.</p></div>';
   }
   var ids = friendIds(), online = ids.filter(friendOnline).length;
-  var reqIds = Object.keys(social.reqs).filter(function(k){ return social.reqs[k] && !social.friends[k]; });
+  var reqIds = reqIdsToShow();
   var html = '<div class="home-friends"><div class="hf-head"><span class="hf-title">Amis en ligne'
     + (ids.length ? ' <span class="hf-count">· '+online+' sur '+ids.length+'</span>' : '') + '</span>'
     + '<button class="hf-link" data-action="friends-toggle">'+(social.open ? 'Fermer' : 'Ajouter')+(reqIds.length ? ' <span class="top-badge">'+reqIds.length+'</span>' : '')+'</button></div>';

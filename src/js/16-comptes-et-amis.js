@@ -196,9 +196,11 @@ async function claimAdmin(){
 
 /* ===================== v32 : amis en ligne, invitations, lien de partie =====================
    presence/{joueur}  { name, at, code, status }  mis à jour toutes les 40 s (en ligne = vu il y a moins de 90 s)
-   friends/{joueur}   { list:{ idAmi:{ name, since } } }
-   friendReq/{joueur} { from:{ idDemandeur:{ name, at } | null } }   « X t'a ajouté »
-   invites/{joueur}   { list:{ idInvit:{ fromId, fromName, code, at } | null } }
+   friends/{joueur}   { list:{ idAmi:{ name, since, pkey } } }
+   v60 : friendReq2/{destinataire}__{expéditeur}  { name, at } + champs en clair to/from (pseudos de profil)   « X t'a ajouté »
+         invites2/{destinataire}__{expéditeur}    { fromName, code, at } + champs en clair to/from
+   Un document par expéditeur : les règles Firebase vérifient que l'expéditeur est le propriétaire de son profil, et seul le
+   destinataire peut lire / effacer sa boîte. (Avant : une seule boîte par joueur, modifiable et lisible par tous.)
    Réservé aux joueurs connectés à un profil (il faut un pseudo stable pour être trouvé). */
 var social = { friends:{}, presence:{}, reqs:{}, invites:{}, unsubs:[], started:false, addErr:'', addOk:'', open:false, sent:{} };
 var ONLINE_MS = 90000, INVITE_MS = 15*60000;
@@ -227,8 +229,15 @@ function socialStart(){
   presenceTimer = setInterval(presenceBeat, 40000);
   var mine = function(path, cb){ try{ social.unsubs.push(claudeDb.doc(path).onSnapshot(function(snap){ cb(snap.exists ? snap.data() : null); render(); }, function(e){ console.warn(path, e); })); }catch(e){ console.warn(e); } };
   mine('friends/'+myId, function(d){ social.friends = (d && d.list) || {}; watchFriendsPresence(); });
-  mine('friendReq/'+myId, function(d){ social.reqs = (d && d.from) || {}; });
-  mine('invites/'+myId, function(d){ social.invites = (d && d.list) || {}; });
+  var box = function(path, fill){ try{ social.unsubs.push(claudeDb.watchBox(path, 'to', currentProfile.key, function(list){ fill(list); render(); }, function(e){ console.warn(path, e); })); }catch(e){ console.warn(e); } };
+  box('friendReq2', function(list){
+    social.reqs = {};
+    list.forEach(function(x){ var d = x.data, f = d.__plain && d.__plain.from; if(f && /^[a-z0-9]{2,24}$/.test(f)) social.reqs[f] = { name: String(d.name||f).slice(0,40), at: d.at, doc: x.id }; });
+  });
+  box('invites2', function(list){
+    social.invites = {};
+    list.forEach(function(x){ var d = x.data, f = d.__plain && d.__plain.from; if(f && /^[a-z0-9]{2,24}$/.test(f) && /^[A-Z0-9]{4}$/.test(String(d.code||''))) social.invites[f] = { fromName: String(d.fromName||f).slice(0,40), code: d.code, at: d.at, doc: x.id }; });
+  });
 }
 var presenceWatch = {};
 function watchFriendsPresence(){
@@ -267,31 +276,38 @@ async function addFriend(pseudo){
     var snap = await claudeDb.doc('profiles/'+key).get();
     if(!snap.exists){ social.addErr = 'Aucun joueur « '+pseudo+' ». Il doit d\'abord créer son profil.'; render(); return; }
     var d = snap.data();
-    var p1 = { list:{} }; p1.list[d.playerId] = { name:d.pseudo, since:nowMs() };
+    var p1 = { list:{} }; p1.list[d.playerId] = { name:d.pseudo, since:nowMs(), pkey:key };
     await mergeDoc('friends/'+myId, withOwner(p1));
-    var p2 = { from:{} }; p2.from[myId] = { name: myProfile.name || currentProfile.pseudo, at: nowMs() };
-    await mergeDoc('friendReq/'+d.playerId, p2); // il ne l'affiche que s'il ne t'a pas déjà en ami
+    // v60 : un document par expéditeur (friendReq2/{destinataire}__{moi}) ; il ne l'affiche que s'il ne t'a pas déjà en ami
+    await claudeDb.doc('friendReq2/'+key+'__'+currentProfile.key).set({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), __plain:{ to:key, from:currentProfile.key } });
     social.addOk = d.pseudo+' ajouté ✓';
   }catch(e){ console.error(e); social.addErr = 'Impossible : '+dbErrorText(e); }
   render();
 }
+// fid = pseudo de profil de celui qui m'a ajouté. Son identifiant de joueur vient de son PROFIL, pas du message reçu.
 async function acceptFriend(fid){
   var r = social.reqs[fid]; if(!r) return;
-  var p1 = { list:{} }; p1.list[fid] = { name:r.name, since:nowMs() };
+  var snap = await claudeDb.doc('profiles/'+fid).get(); if(!snap.exists) return;
+  var d = snap.data();
+  var p1 = { list:{} }; p1.list[d.playerId] = { name:d.pseudo, since:nowMs(), pkey:fid };
   await mergeDoc('friends/'+myId, withOwner(p1));
-  var p2 = { from:{} }; p2.from[fid] = null; await mergeDoc('friendReq/'+myId, p2);
+  await claudeDb.doc('friendReq2/'+r.doc).delete();
 }
-async function ignoreFriend(fid){ var p = { from:{} }; p.from[fid] = null; await mergeDoc('friendReq/'+myId, p); }
+async function ignoreFriend(fid){ var r = social.reqs[fid]; if(r) await claudeDb.doc('friendReq2/'+r.doc).delete(); }
+function friendKey(f){ return (f && (f.pkey || profileKey(f.name))) || ''; }
 async function removeFriend(fid){ var p = { list:{} }; p.list[fid] = null; await mergeDoc('friends/'+myId, withOwner(p)); }
 async function inviteFriend(fid){
   if(!gameDoc) return;
   var id = nowMs().toString(36)+Math.random().toString(36).slice(2,5);
-  var p = { list:{} }; p.list[id] = { fromId: myId, fromName: myProfile.name || (currentProfile && currentProfile.pseudo) || 'Un ami', code: gameDoc.code, at: nowMs() };
-  try{ await mergeDoc('invites/'+fid, p); social.sent[fid] = nowMs(); showToast('Invitation envoyée ✓'); }
+  var rk = friendKey(social.friends[fid]);
+  try{
+    if(!rk || !currentProfile) throw new Error('ami sans pseudo');
+    await claudeDb.doc('invites2/'+rk+'__'+currentProfile.key).set({ fromName: myProfile.name || currentProfile.pseudo || 'Un ami', code: gameDoc.code, at: nowMs(), __plain:{ to:rk, from:currentProfile.key } });
+    social.sent[fid] = nowMs(); showToast('Invitation envoyée ✓'); }
   catch(e){ console.error(e); showToast('Invitation impossible'); }
   render();
 }
-async function dismissInvite(id){ var p = { list:{} }; p.list[id] = null; try{ await mergeDoc('invites/'+myId, p); }catch(e){} }
+async function dismissInvite(id){ var v = social.invites[id]; if(!v) return; try{ await claudeDb.doc('invites2/'+v.doc).delete(); }catch(e){ console.warn(e); } }
 function activeInvites(){
   return Object.keys(social.invites).map(function(k){ var v = social.invites[k]; return v ? Object.assign({ id:k }, v) : null; })
     .filter(function(v){ return v && nowMs() - v.at < INVITE_MS && !(gameDoc && gameDoc.code===v.code); })
@@ -322,6 +338,10 @@ function renderInviteBanner(){
     + '<span class="row" style="gap:6px;"><button class="btn small" data-action="invite-accept" data-id="'+esc(v.id)+'">Rejoindre</button>'
     + '<button class="btn ghost small" data-action="invite-dismiss" data-id="'+esc(v.id)+'" aria-label="Refuser">✕</button></span></div>';
 }
+function reqIdsToShow(){
+  var mine = {}; Object.keys(social.friends).forEach(function(k){ if(social.friends[k]) mine[friendKey(social.friends[k])] = 1; });
+  return Object.keys(social.reqs).filter(function(k){ return social.reqs[k] && !mine[k]; });
+}
 function friendIds(){
   return Object.keys(social.friends).filter(function(k){ return social.friends[k]; })
     .sort(function(a,b){ return (friendOnline(b)-friendOnline(a)) || String(social.friends[a].name).localeCompare(String(social.friends[b].name)); });
@@ -333,7 +353,7 @@ function renderFriendsPanel(){
     return html + '<div>👥 <strong>Amis</strong><div class="muted" style="font-size:12.5px;">Crée ou connecte ton profil pour ajouter des amis, les voir en ligne et les inviter.</div></div></div>';
   }
   var ids = friendIds(), online = ids.filter(friendOnline).length;
-  var reqIds = Object.keys(social.reqs).filter(function(k){ return social.reqs[k] && !social.friends[k]; });
+  var reqIds = reqIdsToShow();
   html += '<div class="row between"><div>👥 <strong>Amis</strong> <span class="muted" style="font-size:12.5px;">'+(ids.length ? online+' en ligne sur '+ids.length : 'aucun pour l\'instant')+'</span></div>'
     + '<button class="btn ghost small" data-action="friends-toggle">'+(social.open?'Masquer':'Voir')+(reqIds.length?' <span class="top-badge">'+reqIds.length+'</span>':'')+'</button></div>';
   if(social.open){
