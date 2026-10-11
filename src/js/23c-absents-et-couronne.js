@@ -80,14 +80,14 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
   var patch = { players:{} }; patch.players[myId] = { miss:0 };
   claudeDb.doc('games/'+g.code).update(patch).catch(function(e){ console.error(e); });
 }
-// rappel de la couleur demandée (1re carte du pli) : « On joue à Cœur » ; l'aide détaillée est activable (bouton, mémorisé sur l'appareil)
+// aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 function ledHint(g){
+  if(!ledHelpOn) return '';
   var led = g.currentTrick && g.currentTrick.length ? g.currentTrick[0].card.suit : null; if(!led) return '';
   var mine = (myHand && myHand.cards) || [], has = mine.some(function(c){ return c.suit===led; }), isMe = g.turnPlayerId===myId;
   return '<div class="led-hint"><span class="led-sym'+(RED_SUITS[led]?' red':'')+'">'+suitGlyph(led)+'</span> On joue à <strong>'+SUIT_NAME[led]+'</strong>'
-    + (ledHelpOn && isMe ? (has ? ' : tu dois jouer '+SUIT_NAME[led] : ' : tu n\'en as pas, joue ce que tu veux (un atout coupe)') : '')
-    + '<button class="led-help-btn" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Afficher ou masquer l\'aide détaillée">'+(ledHelpOn ? 'Aide ✓' : 'Aide ?')+'</button></div>';
+    + (isMe ? (has ? ' : tu dois jouer '+SUIT_NAME[led] : ' : tu n\'en as pas, joue ce que tu veux (un atout coupe)') : '')+'</div>';
 }
 
 /* ---- couronne : PREMIER du classement en ligne de la ligue (saison en cours ; s'il n'y a encore personne de classé : classement général) ---- */

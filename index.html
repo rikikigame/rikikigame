@@ -865,6 +865,17 @@
   :root[data-deck="hallo"] .intro{ background:var(--hallo-web-tl) left top/min(46vw,230px) no-repeat, var(--hallo-web-tr) right top/min(46vw,230px) no-repeat,
     var(--hallo-web-bl) left bottom/min(46vw,230px) no-repeat, var(--hallo-web-br) right bottom/min(46vw,230px) no-repeat,
     radial-gradient(120% 80% at 50% 0%, #5A0C1E 0, #1C0610 55%, #0A0206 100%); }
+  /* logo de la couleur plus grand sur les cartes à dessin (Valet, Dame, Roi, As de pique), pour qu'on le voie même en éventail */
+  :root[data-deck="hallo"] .card.has-art .corner .s{ font-size:1.5em; margin-top:1px; }
+  :root[data-deck="hallo"] .card.has-art .corner{ padding-bottom:calc(var(--w) * 0.02); }
+  /* petites cartes de la liste des joueurs (manche à 1 carte) : le logo de la couleur reste visible */
+  :root[data-deck="hallo"] .card.mini .corner .s{ display:block; font-size:1.25em; }
+  :root[data-deck="hallo"] .card.mini .pip.face .fl{ font-style:normal; }
+  .snd-btn.snd-off{ opacity:0.55; }
+  .hc-snd-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:6px; }
+  .hc-snd{ font:inherit; font-size:13px; font-weight:700; padding:8px 14px; border-radius:999px; border:1px solid #2A3247; background:#1A2133; color:#EEF0F6; cursor:pointer; }
+  .hc-snd.off{ opacity:0.55; }
+  :root[data-deck="hallo"] .hc-snd{ background:#241017; border-color:#4A2032; }
 </style>
 <div id="app"><div class="center-wrap"><span class="boot-suits" aria-label="Chargement">♠ ♥ ♣ ♦</span></div></div>
 <div id="chat-root"></div>
@@ -1962,8 +1973,8 @@ function cafeBack(){
     + '<path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="2.4" fill="none"/><path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="8" fill="none" opacity="0.18"/>'
     + '</svg>'; // le texte néon « Café Jacquet » est posé par le CSS (police Sacramento du jeu), pas dans l'image
 }
-var deckTheme = 'cafe'; // « Café Jacquet » par défaut ; « classic » = l'ancien jeu ; « hallo » = Halloween (v64)
-try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='hallo') ? storedDeck : 'cafe'; }catch(e){}
+var deckTheme = 'hallo'; // v64 : Halloween par défaut ; « cafe » = Café Jacquet ; « classic » = l'ancien jeu (un choix déjà fait sur l'appareil est gardé)
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='cafe') ? storedDeck : 'hallo'; }catch(e){}
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
 function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }
@@ -1993,8 +2004,8 @@ function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo') ? t : 'cafe
 function renderDeckChoice(){
   var peek = [{suit:'H',rank:'K'},{suit:'C',rank:'Q'},{suit:'S',rank:'J'},{suit:'S',rank:'A'}].map(function(c){ return cardHtml(Object.assign({ value:RANK_VALUE[c.rank] }, c), { size:'peek' }); }).join('') + '<div class="card back peek"></div>';
   return '<div class="deck-choice"><strong>Tes cartes</strong><span class="seg">'
-    + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
     + '<button data-action="deck-set" data-deck="hallo" aria-pressed="'+(deckTheme==='hallo')+'"'+(deckTheme==='hallo'?' class="on"':'')+'>🎃 Halloween</button>'
+    + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
     + '<button data-action="deck-set" data-deck="classic" aria-pressed="'+(deckTheme==='classic')+'"'+(deckTheme==='classic'?' class="on"':'')+'>Classique</button></span>'
     + '<span class="deck-peek" aria-hidden="true">'+peek+'</span></div>';
 }
@@ -5219,9 +5230,12 @@ function renderEntry(){
   // --- amis ---
   html += renderHomeFriends();
   // --- pied de page ---
+  // v64 : réglages du son, aussi à l'accueil
+  html += '<div class="hc-snd-row"><button class="hc-snd'+(sfxOn?'':' off')+'" data-action="sfx-toggle" aria-pressed="'+sfxOn+'">'+(sfxOn?'🔊':'🔇')+' Bruitages '+(sfxOn?'activés':'coupés')+'</button>'
+    + '<button class="hc-snd'+(musicOn?'':' off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'">🎵 Musique '+(musicOn?'activée':'coupée')+'</button></div>';
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
-    + '</span><span class="hc-ver">'+(deckTheme==='hallo' ? '<button class="hc-beer" data-action="music-toggle" aria-label="Musique" title="Musique" style="opacity:'+(musicOn?'0.9':'0.4')+'">🎵</button>' : '')+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
+    + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
     + '<button data-action="set-lang" data-lang="fr" aria-pressed="'+(LANG==='fr')+'"'+(LANG==='fr'?' class="on"':'')+'>FR</button>'
     + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> <button class="hc-vernum" data-action="notes-open" title="Notes de version">v'+APP_VERSION+'</button></span></div>';
   html += '</div>';
@@ -5852,7 +5866,8 @@ function toggleMusic(){
 }
 function renderSoundButtons(){
   return '<button class="btn ghost snd-btn" data-action="sfx-toggle" aria-pressed="'+sfxOn+'" title="Bruitages" aria-label="Bruitages">'+(sfxOn ? '🔊' : '🔇')+'<span class="chat-lbl"> Bruitages</span></button>'
-    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>';
+    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>'
+    + '<button class="btn ghost snd-btn'+(ledHelpOn ? '' : ' snd-off')+'" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Aide : rappelle la couleur demandée" aria-label="Aide">💡<span class="chat-lbl"> Aide</span></button>';
 }
 
 function renderTopbar(g){
@@ -7227,7 +7242,9 @@ var NEWS = {
   ],
   fixes: [
     'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
-    'La <strong>première carte du pli</strong> est mise en avant, avec un rappel de la couleur demandée (aide détaillée activable).',
+    'La <strong>première carte du pli</strong> est mise en avant. Une aide « couleur demandée » est disponible avec le bouton 💡 (désactivée par défaut).',
+    'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
+    'Les boutons <strong>bruitages et musique</strong> sont aussi sur l\'écran d\'accueil.',
     'Aux vraies cartes, les points se comptent comme en ligne (4 points + 4 par pli, −2 par pli d\'écart).'
   ]
 };
@@ -7441,14 +7458,14 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
   var patch = { players:{} }; patch.players[myId] = { miss:0 };
   claudeDb.doc('games/'+g.code).update(patch).catch(function(e){ console.error(e); });
 }
-// rappel de la couleur demandée (1re carte du pli) : « On joue à Cœur » ; l'aide détaillée est activable (bouton, mémorisé sur l'appareil)
+// aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 function ledHint(g){
+  if(!ledHelpOn) return '';
   var led = g.currentTrick && g.currentTrick.length ? g.currentTrick[0].card.suit : null; if(!led) return '';
   var mine = (myHand && myHand.cards) || [], has = mine.some(function(c){ return c.suit===led; }), isMe = g.turnPlayerId===myId;
   return '<div class="led-hint"><span class="led-sym'+(RED_SUITS[led]?' red':'')+'">'+suitGlyph(led)+'</span> On joue à <strong>'+SUIT_NAME[led]+'</strong>'
-    + (ledHelpOn && isMe ? (has ? ' : tu dois jouer '+SUIT_NAME[led] : ' : tu n\'en as pas, joue ce que tu veux (un atout coupe)') : '')
-    + '<button class="led-help-btn" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Afficher ou masquer l\'aide détaillée">'+(ledHelpOn ? 'Aide ✓' : 'Aide ?')+'</button></div>';
+    + (isMe ? (has ? ' : tu dois jouer '+SUIT_NAME[led] : ' : tu n\'en as pas, joue ce que tu veux (un atout coupe)') : '')+'</div>';
 }
 
 /* ---- couronne : PREMIER du classement en ligne de la ligue (saison en cours ; s'il n'y a encore personne de classé : classement général) ---- */

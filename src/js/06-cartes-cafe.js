@@ -157,8 +157,8 @@ function cafeBack(){
     + '<path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="2.4" fill="none"/><path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="8" fill="none" opacity="0.18"/>'
     + '</svg>'; // le texte néon « Café Jacquet » est posé par le CSS (police Sacramento du jeu), pas dans l'image
 }
-var deckTheme = 'cafe'; // « Café Jacquet » par défaut ; « classic » = l'ancien jeu ; « hallo » = Halloween (v64)
-try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='hallo') ? storedDeck : 'cafe'; }catch(e){}
+var deckTheme = 'hallo'; // v64 : Halloween par défaut ; « cafe » = Café Jacquet ; « classic » = l'ancien jeu (un choix déjà fait sur l'appareil est gardé)
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='cafe') ? storedDeck : 'hallo'; }catch(e){}
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
 function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }
@@ -188,8 +188,8 @@ function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo') ? t : 'cafe
 function renderDeckChoice(){
   var peek = [{suit:'H',rank:'K'},{suit:'C',rank:'Q'},{suit:'S',rank:'J'},{suit:'S',rank:'A'}].map(function(c){ return cardHtml(Object.assign({ value:RANK_VALUE[c.rank] }, c), { size:'peek' }); }).join('') + '<div class="card back peek"></div>';
   return '<div class="deck-choice"><strong>Tes cartes</strong><span class="seg">'
-    + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
     + '<button data-action="deck-set" data-deck="hallo" aria-pressed="'+(deckTheme==='hallo')+'"'+(deckTheme==='hallo'?' class="on"':'')+'>🎃 Halloween</button>'
+    + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
     + '<button data-action="deck-set" data-deck="classic" aria-pressed="'+(deckTheme==='classic')+'"'+(deckTheme==='classic'?' class="on"':'')+'>Classique</button></span>'
     + '<span class="deck-peek" aria-hidden="true">'+peek+'</span></div>';
 }

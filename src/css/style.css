@@ -858,3 +858,14 @@
   :root[data-deck="hallo"] .intro{ background:var(--hallo-web-tl) left top/min(46vw,230px) no-repeat, var(--hallo-web-tr) right top/min(46vw,230px) no-repeat,
     var(--hallo-web-bl) left bottom/min(46vw,230px) no-repeat, var(--hallo-web-br) right bottom/min(46vw,230px) no-repeat,
     radial-gradient(120% 80% at 50% 0%, #5A0C1E 0, #1C0610 55%, #0A0206 100%); }
+  /* logo de la couleur plus grand sur les cartes à dessin (Valet, Dame, Roi, As de pique), pour qu'on le voie même en éventail */
+  :root[data-deck="hallo"] .card.has-art .corner .s{ font-size:1.5em; margin-top:1px; }
+  :root[data-deck="hallo"] .card.has-art .corner{ padding-bottom:calc(var(--w) * 0.02); }
+  /* petites cartes de la liste des joueurs (manche à 1 carte) : le logo de la couleur reste visible */
+  :root[data-deck="hallo"] .card.mini .corner .s{ display:block; font-size:1.25em; }
+  :root[data-deck="hallo"] .card.mini .pip.face .fl{ font-style:normal; }
+  .snd-btn.snd-off{ opacity:0.55; }
+  .hc-snd-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:6px; }
+  .hc-snd{ font:inherit; font-size:13px; font-weight:700; padding:8px 14px; border-radius:999px; border:1px solid #2A3247; background:#1A2133; color:#EEF0F6; cursor:pointer; }
+  .hc-snd.off{ opacity:0.55; }
+  :root[data-deck="hallo"] .hc-snd{ background:#241017; border-color:#4A2032; }

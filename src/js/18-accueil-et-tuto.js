@@ -95,9 +95,12 @@ function renderEntry(){
   // --- amis ---
   html += renderHomeFriends();
   // --- pied de page ---
+  // v64 : réglages du son, aussi à l'accueil
+  html += '<div class="hc-snd-row"><button class="hc-snd'+(sfxOn?'':' off')+'" data-action="sfx-toggle" aria-pressed="'+sfxOn+'">'+(sfxOn?'🔊':'🔇')+' Bruitages '+(sfxOn?'activés':'coupés')+'</button>'
+    + '<button class="hc-snd'+(musicOn?'':' off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'">🎵 Musique '+(musicOn?'activée':'coupée')+'</button></div>';
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
-    + '</span><span class="hc-ver">'+(deckTheme==='hallo' ? '<button class="hc-beer" data-action="music-toggle" aria-label="Musique" title="Musique" style="opacity:'+(musicOn?'0.9':'0.4')+'">🎵</button>' : '')+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
+    + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
     + '<button data-action="set-lang" data-lang="fr" aria-pressed="'+(LANG==='fr')+'"'+(LANG==='fr'?' class="on"':'')+'>FR</button>'
     + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> <button class="hc-vernum" data-action="notes-open" title="Notes de version">v'+APP_VERSION+'</button></span></div>';
   html += '</div>';

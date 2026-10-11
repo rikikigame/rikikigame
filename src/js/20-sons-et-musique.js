@@ -354,7 +354,8 @@ function toggleMusic(){
 }
 function renderSoundButtons(){
   return '<button class="btn ghost snd-btn" data-action="sfx-toggle" aria-pressed="'+sfxOn+'" title="Bruitages" aria-label="Bruitages">'+(sfxOn ? '🔊' : '🔇')+'<span class="chat-lbl"> Bruitages</span></button>'
-    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>';
+    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>'
+    + '<button class="btn ghost snd-btn'+(ledHelpOn ? '' : ' snd-off')+'" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Aide : rappelle la couleur demandée" aria-label="Aide">💡<span class="chat-lbl"> Aide</span></button>';
 }
 
 function renderTopbar(g){
