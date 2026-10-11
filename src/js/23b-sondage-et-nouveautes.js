@@ -21,7 +21,7 @@ var NEWS = {
   ],
   fixes: [
     'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
-    'La <strong>première carte du pli</strong> est mise en avant. Une aide « couleur demandée » est disponible avec le bouton 💡 (désactivée par défaut).',
+    'Une <strong>aide au jeu</strong> optionnelle (bouton 💡, désactivée par défaut) : elle entoure la première carte du pli et rappelle la couleur demandée.',
     'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
     'Les boutons <strong>bruitages et musique</strong> sont aussi sur l\'écran d\'accueil.',
     'Aux vraies cartes, les points se comptent comme en ligne (4 points + 4 par pli, −2 par pli d\'écart).'

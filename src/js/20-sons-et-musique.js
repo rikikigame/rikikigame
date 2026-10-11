@@ -581,7 +581,7 @@ function renderTable(g){
       trickToShow.forEach(function(play, pi){
         var p = g.players[play.playerId];
         var win = showLast && g.lastTrick.winnerId===play.playerId;
-        html += '<div class="trick-slot'+(win?' win':'')+(pi===0?' lead':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+(pi===0?'<span class="lead-badge">1<sup>re</sup></span>':'')+'<div class="who">'+esc(p.name)+crownMark(play.playerId, p.name, p.uid)+'</div></div>';
+        html += '<div class="trick-slot'+(win?' win':'')+(pi===0 && ledHelpOn?' lead':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+(pi===0 && ledHelpOn?'<span class="lead-badge">1<sup>re</sup></span>':'')+'<div class="who">'+esc(p.name)+crownMark(play.playerId, p.name, p.uid)+'</div></div>';
       });
       html += '</div>';
       if(showTrick) html += ledHint(g); // v64 : on rappelle la couleur demandée

@@ -6093,7 +6093,7 @@ function renderTable(g){
       trickToShow.forEach(function(play, pi){
         var p = g.players[play.playerId];
         var win = showLast && g.lastTrick.winnerId===play.playerId;
-        html += '<div class="trick-slot'+(win?' win':'')+(pi===0?' lead':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+(pi===0?'<span class="lead-badge">1<sup>re</sup></span>':'')+'<div class="who">'+esc(p.name)+crownMark(play.playerId, p.name, p.uid)+'</div></div>';
+        html += '<div class="trick-slot'+(win?' win':'')+(pi===0 && ledHelpOn?' lead':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+(pi===0 && ledHelpOn?'<span class="lead-badge">1<sup>re</sup></span>':'')+'<div class="who">'+esc(p.name)+crownMark(play.playerId, p.name, p.uid)+'</div></div>';
       });
       html += '</div>';
       if(showTrick) html += ledHint(g); // v64 : on rappelle la couleur demandée
@@ -7242,7 +7242,7 @@ var NEWS = {
   ],
   fixes: [
     'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
-    'La <strong>première carte du pli</strong> est mise en avant. Une aide « couleur demandée » est disponible avec le bouton 💡 (désactivée par défaut).',
+    'Une <strong>aide au jeu</strong> optionnelle (bouton 💡, désactivée par défaut) : elle entoure la première carte du pli et rappelle la couleur demandée.',
     'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
     'Les boutons <strong>bruitages et musique</strong> sont aussi sur l\'écran d\'accueil.',
     'Aux vraies cartes, les points se comptent comme en ligne (4 points + 4 par pli, −2 par pli d\'écart).'
