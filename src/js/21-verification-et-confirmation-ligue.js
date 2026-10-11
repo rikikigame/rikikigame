@@ -110,7 +110,7 @@ function resultDigest(pairs){ // [[compte, score]] → texte comparable, indépe
 function attestTodos(){ try{ return JSON.parse(localStorage.getItem('rikiki_attest_todo_'+myId)||'{}') || {}; }catch(e){ return {}; } }
 function saveAttestTodos(t){ try{ localStorage.setItem('rikiki_attest_todo_'+myId, JSON.stringify(t)); }catch(e){} }
 function iPlayLeague(g){
-  return !!(g && g.settings && g.settings.league && g.players && g.players[myId] && !g.players[myId].isBot && g.status!=='lobby' && !onlineLeagueCheck(g));
+  return !!(g && g.settings && g.settings.league && g.players && g.players[myId] && !g.players[myId].isBot && !g.players[myId].excluded && g.status!=='lobby' && !onlineLeagueCheck(g));
 }
 // noté dès le lancement : si je quitte avant la fin, je confirmerai à la prochaine ouverture
 function rememberLeagueGame(g){
@@ -126,7 +126,7 @@ async function attestResult(g){
     var audit = await auditGameFull(g);
     if(audit.state==='bad'){ attestDone[gid] = 'bad'; return 'bad'; } // jamais de confirmation pour une partie suspecte
     if(audit.state!=='ok') return 'wait';                               // graines pas encore révélées : on réessaiera
-    var digest = resultDigest(g.playerOrder.map(function(id){ return [keyOfPlayer(g, id), audit.scores[id]||0]; }));
+    var digest = resultDigest(leagueIdsOf(g).map(function(id){ return [keyOfPlayer(g, id), audit.scores[id]||0]; })); // v64 : sans les joueurs remplacés / retirés
     try{ await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).set({ gid:gid, digest:digest, at:nowMs() }); }
     catch(e){ // déjà confirmé (les règles refusent de réécrire) : c'est bon aussi
       var ex = await claudeDb.doc('leagueAttest/'+gid+'__'+myKeyId()).get().catch(function(){ return null; });
@@ -192,15 +192,15 @@ function auditHtml(g){
 }
 
 function renderGameOver(g){
-  var order = g.playerOrder.filter(function(id){ return g.players[id]; }).sort(function(a,b){ return (g.scores[b]||0)-(g.scores[a]||0); });
+  var order = rankingIds(g); // v64 : les joueurs remplacés finissent derniers, les retirés disparaissent
   var html = '<div style="text-align:center; margin:6px 0 16px;"><div class="eyebrow">'+g.roundPlan.length+' manches jouées</div>';
   html += '<div class="display" style="font-size:32px; margin-top:4px;">Partie terminée</div></div>';
   order.forEach(function(id, i){
     var p = g.players[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
       + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
-      + '<div style="flex:1; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
-      + '<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
+      + '<div style="flex:1; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+afkTag(p)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
+      + friendAddBtn(p, id)+'<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
   html += auditHtml(g);
   if(g.settings && g.settings.league){

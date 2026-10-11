@@ -153,7 +153,7 @@ function onGameUpdate(){
     }
   }
   if(gameDoc.status === 'round_end' || gameDoc.status === 'game_over') maybeRevealSeed(gameDoc);
-  if(gameDoc.status === 'game_over'){ maybeRecordOnline(gameDoc); maybeRecordAnalysis(gameDoc); }
+  if(gameDoc.status === 'game_over'){ maybeRecordOnline(gameDoc); maybeRecordAnalysis(gameDoc); crownSoon(); }
 }
 
 async function handleDealing(){
@@ -242,6 +242,7 @@ function botDriverTick(){
   var g = gameDoc;
   hostWatchTick(); // v41 : si l'hôte est parti, un autre joueur reprend la main
   if(!g || g.hostId !== myId){ lastBotTurnKey=null; return; }
+  afkResolveTick(g); // v64 : vote « remplacer / retirer un joueur absent »
   if(g.status==='dealing'){
     // v41 : un joueur absent ne confirme jamais « servi » → au bout de 10 s l'hôte passe aux annonces
     // (l'absent a quand même sa main ; l'hôte jouera pour lui à la fin de son temps)
@@ -264,7 +265,7 @@ function botDriverTick(){
   }
   if(g.status!=='bidding' && g.status!=='playing'){ lastBotTurnKey=null; return; }
   var turnId = g.turnPlayerId;
-  if(!turnId || !g.players[turnId] || !g.players[turnId].isBot){ lastBotTurnKey=null; return; }
+  if(!turnId || !g.players[turnId] || !(g.players[turnId].isBot || isAfkPlayer(g.players[turnId]))){ lastBotTurnKey=null; return; } // v64 : un absent est joué comme un robot
   var key = g.status+'|'+g.round+'|'+turnId+'|'+(g.currentTrick?g.currentTrick.length:0)+'|'+Object.keys(g.bids||{}).length;
   if(key !== lastBotTurnKey){ lastBotTurnKey = key; lastBotTurnAt = nowMs(); return; }
   if(botActing) return;

@@ -90,7 +90,7 @@ function playedThisTrick(g, id){
 }
 /* ---- barème des points (réglable par l'hôte) ---- */
 // v42 : barèmes par défaut choisis par le propriétaire
-var DEFAULT_SCORING = { bonus:10, perTrick:5, missFixed:0, missPerTrick:5 };        // vraies cartes
+var DEFAULT_SCORING = { bonus:4, perTrick:4, missFixed:0, missPerTrick:2 };         // vraies cartes : v64, comme en ligne (avant : 10 + 5/pli, -5/pli d'écart)
 var ONLINE_DEFAULT_SCORING = { bonus:4, perTrick:4, missFixed:0, missPerTrick:2 };  // en ligne
 var SCORING_FIELDS = [
   { key:'bonus',        label:'Bonus contrat réussi',        min:0, max:100 },

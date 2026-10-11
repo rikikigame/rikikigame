@@ -133,8 +133,8 @@ function renderProfileBox(){
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Confirmer</button><button class="btn ghost" data-action="profile-logout">Ce n\'est pas moi</button></div>';
     if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   } else if(currentProfile){
-    html += '<div class="row between"><div>👤 Connecté : <strong>'+esc(currentProfile.pseudo)+'</strong><div class="muted" style="font-size:12px;">Tes parties comptent pour ton profil, sur n\'importe quel appareil.</div></div>'
-      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderProfileExtras();
+    html += '<div class="row between"><div>👤 Connecté : <strong>'+esc(currentProfile.pseudo)+crownMark(myId, currentProfile.pseudo, authUid())+'</strong><div class="muted" style="font-size:12px;">Tes parties comptent pour ton profil, sur n\'importe quel appareil.</div></div>'
+      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras();
   } else if(!profileUi.open){
     html += '<div class="row between"><div>👤 Tu joues en <strong>invité</strong><div class="muted" style="font-size:12px;">Crée un profil pour la ligue et pour te retrouver sur tous tes appareils.</div></div>'
       + '<button class="btn secondary small" data-action="profile-open">Profil</button></div>';

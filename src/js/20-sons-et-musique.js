@@ -27,6 +27,7 @@ function audioInit(){
 function audioUnlock(){
   if(!sfxOn && !musicOn) return;
   var c = audioInit(); if(c && c.state==='suspended') c.resume().then(musicSync).catch(function(){});
+  if(c && deckTheme==='hallo') halloLoadSamples(); // v64 : rire de sorcière, etc.
   musicSync();
 }
 ['pointerdown','touchend','keydown'].forEach(function(ev){ document.addEventListener(ev, audioUnlock, true); });
@@ -114,6 +115,53 @@ function aceTakesMasterKing(cards, winnerId, trump){
   }
   return false;
 }
+// --- v64 (thème Halloween) : trois sons possibles pour la coupe, après le bruit de lame (le rire était trop robotique) ---
+function sfxBell(t, bus, vol){ // cloche d'église / d'enterrement : deux coups graves, partiels inharmoniques, longue résonance
+  var c = audioCtx, out = bus || sfxBus, vv = vol==null ? 1 : vol;
+  [[0, 196, 1], [1.05, 164.8, 0.8]].forEach(function(s){
+    var st = t + s[0];
+    [[1, 0.5, 3.4], [2.0, 0.28, 2.6], [2.76, 0.3, 2.2], [4.07, 0.16, 1.6], [5.4, 0.12, 1.2], [8.93, 0.05, 0.7]].forEach(function(p){
+      var o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = s[1]*p[0];
+      sndEnv(g.gain, st, p[1]*0.5*s[2]*vv, 0.004, p[2]);
+      sndChain([o, g, out]); o.start(st); o.stop(st+p[2]+0.1);
+    });
+    var gn = c.createGain(); sndEnv(gn.gain, st, 0.12*s[2]*vv, 0.002, 0.05);   // « tong » du battant
+    sndChain([sndNoise(st, 0.08), sndFilter('bandpass', 1400, 1.2), gn, out]);
+  });
+}
+// ---- sons enregistrés (thème Halloween) : petits fichiers du site (dossier sons/), chargés à la demande ; s'ils manquent, on joue un son fabriqué ----
+var HALLO_SAMPLES = { witch:'sons/witch.m4a', scream:'sons/scream.m4a', creak:'sons/creak.m4a' }, halloBuf = {}, halloBufState = {};
+function halloLoadSamples(){
+  if(!audioCtx) return;
+  Object.keys(HALLO_SAMPLES).forEach(function(k){
+    if(halloBufState[k]) return; halloBufState[k] = 'chargement';
+    fetch(HALLO_SAMPLES[k]).then(function(r){ if(!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+      .then(function(ab){ return new Promise(function(ok, ko){ audioCtx.decodeAudioData(ab, ok, ko); }); }) // forme avec rappels : vieux Safari
+      .then(function(buf){ halloBuf[k] = buf; halloBufState[k] = 'ok'; })
+      .catch(function(){ halloBufState[k] = 'absent'; });
+  });
+}
+function sfxSample(name, t, vol, bus){ // false si le son n'est pas (encore) chargé
+  var b = halloBuf[name]; if(!b || !audioCtx) return false;
+  var s = audioCtx.createBufferSource(), g = audioCtx.createGain(); s.buffer = b; g.gain.value = vol==null ? 0.9 : vol; s.connect(g); g.connect(bus || sfxBus); s.start(t); return true;
+}
+// --- v64 (thème Halloween) : cri grave quand l'As prend le Roi ---
+function sfxRoar(t){
+  var c = audioCtx, dur = 1.15;
+  var lfo = c.createOscillator(), lg = c.createGain(), am = c.createGain(), env = c.createGain(), lp = sndFilter('lowpass', 1100, 1.2), ws = c.createWaveShaper();
+  lfo.frequency.value = 27; lg.gain.value = 0.38; am.gain.value = 0.62; lfo.connect(lg); lg.connect(am.gain);       // vibration rauque (grognement)
+  ws.curve = sfxShaper;
+  lp.frequency.setValueAtTime(1300, t); lp.frequency.exponentialRampToValueAtTime(380, t+dur);
+  sndEnv(env.gain, t, 0.55, 0.09, dur);
+  [94, 99, 47].forEach(function(f0){
+    var o = c.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0*1.35, t); o.frequency.exponentialRampToValueAtTime(f0*0.72, t+dur);
+    o.connect(ws); o.start(t); o.stop(t+dur+0.1);
+  });
+  sndChain([ws, lp, am, env, sfxBus]); lfo.start(t); lfo.stop(t+dur+0.1);
+  var gn = c.createGain(); sndEnv(gn.gain, t, 0.2, 0.08, dur*0.9);        // souffle rauque
+  sndChain([sndNoise(t, dur), sndFilter('bandpass', 520, 0.8), gn, sfxBus]);
+}
 function sfxOnGame(g){
   if(!g || !g.code) return;
   var first = sfxGame !== g.code;
@@ -150,8 +198,8 @@ function sfxOnGame(g){
   var t = audioCtx.currentTime + 0.03;
   ev.forEach(function(e){
     if(e.type==='deal'){ sfxDeal(t, e.n); }
-    else if(e.type==='ruff'){ sfxKatana(t); t += 0.45; }
-    else if(e.type==='impact'){ sfxImpact(t); t += 0.3; }
+    else if(e.type==='ruff'){ sfxKatana(t); if(deckTheme==='hallo'){ if(!sfxSample('witch', t+0.3, 0.95)) sfxBell(t+0.35); t += 1.7; } else t += 0.45; }
+    else if(e.type==='impact'){ sfxImpact(t); if(deckTheme==='hallo'){ sfxRoar(t+0.05); t += 1.3; } else t += 0.3; }
   });
 }
 
@@ -189,7 +237,84 @@ function musicVibes(t, m){
   lfo.connect(lg); lg.connect(g.gain); o.connect(g); g.connect(musicBus);
   o.start(t); lfo.start(t); o.stop(t+1.5); lfo.stop(t+1.5);
 }
+// --- v64 (thème Halloween) : musique d'horreur de l'accueil — orgue grave, piano clairsemé un peu faux, vent ---
+var horrorProg = 0, horrorFx = null;
+var HORROR_PROGS = [ // [basse, accord d'orgue] : La mineur · Si bémol (napolitaine) · Mi majeur · La mineur
+  [[33,[57,60,64]], [34,[58,62,65]], [28,[56,59,64]], [33,[57,60,64]]],
+  [[33,[57,60,64]], [29,[57,60,65]], [31,[55,59,62,65]], [28,[56,59,64]]],   // Am · F · G7 · E
+  [[38,[57,62,65]], [37,[56,61,64]], [33,[57,60,63]], [28,[56,59,62,65]]]    // Dm · C#dim7 · Adim · E7
+];
+var HORROR_NOTES = [76, 75, 72, 71, 69, 68, 64, 63]; // mi, mi bémol, do, si, la, sol dièse, mi, mi bémol : notes qui rampent
+function horrorEcho(){ // petit écho long (comme une grande salle vide), créé une seule fois
+  if(horrorFx && horrorFx.ctx===audioCtx) return horrorFx.input;
+  var c = audioCtx, d = c.createDelay(1.5), fb = c.createGain(), lp = sndFilter('lowpass', 1700), out = c.createGain();
+  d.delayTime.value = 0.46; fb.gain.value = 0.5; out.gain.value = 0.6;
+  d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(out); out.connect(musicBus);
+  horrorFx = { ctx:c, input:d }; return d;
+}
+function horrorOrgan(t, m, vol, dur){ // orgue : dents de scie douces filtrées, trémolo lent
+  var c = audioCtx, f = midiHz(m), o = c.createOscillator(), o2 = c.createOscillator(), lp = sndFilter('lowpass', 760, 0.8), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; o2.type = 'square'; o2.frequency.value = f*2.003;
+  lfo.frequency.value = 4.2; lg.gain.value = vol*0.18; lfo.connect(lg); lg.connect(g.gain);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+dur*0.35); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  var m2 = c.createGain(); m2.gain.value = 0.35;
+  o.connect(lp); o2.connect(m2); m2.connect(lp); sndChain([lp, g, musicBus]); g.connect(horrorEcho());
+  o.start(t); o2.start(t); lfo.start(t); [o, o2, lfo].forEach(function(n){ n.stop(t+dur+0.05); });
+}
+function horrorPiano(t, m, vol){ // piano clairsemé, légèrement désaccordé, qui résonne longtemps
+  var c = audioCtx, f = midiHz(m), g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+0.012); g.gain.exponentialRampToValueAtTime(vol*0.3, t+0.7); g.gain.exponentialRampToValueAtTime(0.0001, t+3.4);
+  [[1, 'sine', 1], [2, 'sine', 0.3], [3, 'triangle', 0.12], [4.01, 'sine', 0.08]].forEach(function(p){
+    var o = c.createOscillator(), pg = c.createGain(); o.type = p[1]; o.frequency.value = f*p[0]; o.detune.value = (Math.random()-0.5)*40; pg.gain.value = p[2];
+    o.connect(pg); pg.connect(g); o.start(t); o.stop(t+3.5);
+  });
+  g.connect(musicBus); g.connect(horrorEcho());
+}
+function horrorWind(t, dur, vol){ // souffle de vent qui monte et retombe
+  var bp = sndFilter('bandpass', 380, 1.4), g = audioCtx.createGain();
+  bp.frequency.setValueAtTime(260, t); bp.frequency.linearRampToValueAtTime(620, t+dur*0.5); bp.frequency.linearRampToValueAtTime(300, t+dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t+dur*0.5); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  sndChain([sndNoise(t, dur), bp, g, musicBus]);
+}
+// piano creepy (en partie) : note grave, phrase clairsemée qui descend en mineur, boîte à musique rare, accord dissonant, et de loin en loin une cloche d'église ou un cri
+var pianoMotif = null, pianoNextAmb = 0;
+var PIANO_BASS = [33, 33, 29, 28, 33, 31, 28, 33];
+var PIANO_MOTIFS = [[81, 80, 76, 72], [76, 75, 72, 71, 69], [88, 87, 84, 83], [69, 72, 71, 68], [84, 81, 80, 76, 75]];
+function musicBpm(){ return deckTheme==='hallo' ? ((screen==='game' && gameDoc) ? 54 : 46) : MUSIC_BPM; }
+function musicBeatPiano(t){
+  var beat = 60/54, b = musicStep % 4, bar = Math.floor(musicStep/4);
+  if(b===0){
+    var bass = PIANO_BASS[bar % PIANO_BASS.length]; horrorPiano(t, bass, 0.08); if(Math.random()<0.5) horrorPiano(t + beat*2, bass+7, 0.04);
+    pianoMotif = PIANO_MOTIFS[Math.floor(Math.random()*PIANO_MOTIFS.length)];
+  }
+  if(pianoMotif && b < pianoMotif.length && Math.random() < 0.72) horrorPiano(t + (Math.random()-0.3)*0.12, pianoMotif[b], 0.05 + Math.random()*0.02);
+  if(b===3 && pianoMotif && pianoMotif.length > 4 && Math.random() < 0.6) horrorPiano(t + beat*0.5, pianoMotif[4], 0.04);
+  if(Math.random() < 0.12) horrorPiano(t + beat*Math.random(), 91 + Math.floor(Math.random()*7), 0.025);
+  if(b===0 && bar > 0 && bar % 11 === 0) [64, 65, 70].forEach(function(m, i){ horrorPiano(t + i*0.03, m, 0.04); });
+  if(t >= pianoNextAmb){
+    var r = Math.random();
+    if(r < 0.55 || !halloBuf.scream) sfxBell(t + 0.3, musicBus, 0.5);
+    else if(r < 0.85) sfxSample('scream', t + 0.3, 0.3, musicBus);
+    else if(halloBuf.creak) sfxSample('creak', t + 0.3, 0.35, musicBus);
+    pianoNextAmb = t + 18 + Math.random()*30;
+  }
+  musicStep++;
+}
+function musicBeatHorror(t){
+  var b = musicStep % 4, bar = Math.floor(musicStep/4) % 4, beat = 60/46;
+  if(b===0 && bar===0 && musicStep>0 && Math.random()<0.6) horrorProg = Math.floor(Math.random()*HORROR_PROGS.length);
+  var ch = HORROR_PROGS[horrorProg][bar];
+  if(b===0){
+    ch[1].forEach(function(m, i){ horrorOrgan(t + i*0.04, m, 0.05, beat*4.2); });
+    horrorOrgan(t, ch[0], 0.07, beat*4.2); horrorOrgan(t, ch[0]+12, 0.03, beat*4.2);
+    if(Math.random()<0.55) horrorWind(t + beat, beat*3, 0.05);
+  }
+  if(Math.random()<0.34) horrorPiano(t + (Math.random()<0.4 ? beat*0.5 : 0), HORROR_NOTES[Math.floor(Math.random()*HORROR_NOTES.length)], 0.05 + Math.random()*0.02);
+  if(b===3 && bar===3 && Math.random()<0.45){ [76, 75, 76, 72].forEach(function(m, i){ horrorPiano(t + i*beat*0.9, m, 0.045); }); } // petit motif qui revient
+  musicStep++;
+}
 function musicBeat(t){
+  if(deckTheme==='hallo') return (screen==='game' && gameDoc) ? musicBeatPiano(t) : musicBeatHorror(t); // piano creepy en partie, orgue à l'accueil
   var beat = 60/MUSIC_BPM, b = musicStep % 4, bar = Math.floor(musicStep/4) % 4;
   if(b===0 && bar===0 && musicStep>0 && Math.random()<0.5) musicProg = Math.floor(Math.random()*MUSIC_PROGS.length);
   var ch = MUSIC_PROGS[musicProg][bar], sw = beat*2/3; // croches « swing »
@@ -204,12 +329,12 @@ function musicBeat(t){
 function musicTick(){
   if(!audioCtx) return;
   if(musicNext < audioCtx.currentTime) musicNext = audioCtx.currentTime + 0.05;
-  while(musicNext < audioCtx.currentTime + 0.5){ musicBeat(musicNext); musicNext += 60/MUSIC_BPM; }
+  while(musicNext < audioCtx.currentTime + 0.5){ musicBeat(musicNext); musicNext += 60/musicBpm(); }
 }
 function musicSync(){ // la musique tourne seulement pendant une partie en ligne, si elle est activée
-  var want = musicOn && screen==='game' && !!gameDoc && audioReady();
+  var want = musicOn && audioReady() && ((screen==='game' && !!gameDoc) || (deckTheme==='hallo' && screen==='entry')); // thème Halloween : aussi à l'accueil
   if(want && !musicTimer){
-    musicNext = audioCtx.currentTime + 0.1; musicStep = 0; musicProg = Math.floor(Math.random()*MUSIC_PROGS.length);
+    musicNext = audioCtx.currentTime + 0.1; musicStep = 0; musicProg = Math.floor(Math.random()*MUSIC_PROGS.length); pianoNextAmb = audioCtx.currentTime + 12;
     musicBus.gain.cancelScheduledValues(audioCtx.currentTime);
     musicBus.gain.setValueAtTime(0.0001, audioCtx.currentTime); musicBus.gain.exponentialRampToValueAtTime(0.5, audioCtx.currentTime + 2.5);
     musicTick(); musicTimer = setInterval(musicTick, 120);
@@ -285,14 +410,14 @@ function renderLobby(g){
   ids.forEach(function(id){
     var p = g.players[id];
     html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
-    html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
+    html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
     if(p.isBot){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';
       else html += '<span class="badge">Bot</span>';
     } else if(id===myId){
       html += '<button class="btn small '+(p.ready?'':'secondary')+'" data-action="toggle-ready">'+(p.ready?'Prêt ✓':'Je suis prêt')+'</button>';
     } else {
-      html += '<span class="badge '+(p.ready?'good':'bad')+'">'+(p.ready?'Prêt':'Pas prêt')+'</span>';
+      html += friendAddBtn(p, id)+'<span class="badge '+(p.ready?'good':'bad')+'">'+(p.ready?'Prêt':'Pas prêt')+'</span>';
     }
     html += '</div>';
   });
@@ -390,7 +515,7 @@ function renderIntroLayer(){
   if(el.getAttribute('data-key') === introKey && el.innerHTML) return; // ne pas relancer l'animation
   el.setAttribute('data-key', introKey);
   var d = introData;
-  el.innerHTML = '<div class="intro" data-action="skip-intro"><div><div class="suits" aria-hidden="true"><span>♠</span><span>♥</span><span>♣</span><span>♦</span></div>'
+  el.innerHTML = '<div class="intro" data-action="skip-intro"><div><div class="suits" aria-hidden="true"><span>'+suitGlyph('S')+'</span><span>'+suitGlyph('H')+'</span><span>'+suitGlyph('C')+'</span><span>'+suitGlyph('D')+'</span></div>'
     + '<h1>La partie commence</h1><p>'+d.rounds+' manche'+(d.rounds>1?'s':'')+' · '+esc(d.plan)+' cartes</p>'
     + '<div class="names">'+d.names.map(esc).join(' · ')+'</div></div></div>';
 }
@@ -414,6 +539,7 @@ function renderTable(g){
   var html = '<div class="play-head"><div><div class="eyebrow">'+((g.settings && g.settings.direction==='quick') ? '⚡ ' : '')+'Manche '+(g.round+1)+' / '+g.roundPlan.length+' · '+handSize+' carte'+(handSize>1?'s':'')+(bidding ? '' : ' · <strong>'+tricksLeft+' pli'+(tricksLeft>1?'s':'')+' restant'+(tricksLeft>1?'s':'')+'</strong>')+' · paquet : '+deckLeft(g.playerOrder.length, handSize)+' carte'+(deckLeft(g.playerOrder.length, handSize)>1?'s':'')+'</div>'
     + '<div class="status'+(isMe?' me':'')+'">'+status+'<span id="turn-timer" class="'+ts.cls+'">'+ts.text+'</span></div></div>';
   html += '<div class="trump">'+(g.trumpCard ? cardHtml(g.trumpCard, {size:'trump-size'}) : '<div class="none">Sans<br>atout</div>')+'<div class="eyebrow">Atout</div></div></div>';
+  html += renderAfkBanner(g); // v64 : joueur absent (vote)
 
   // colonne des joueurs en rouleau
   var rollKey = g.round+'|'+g.status+'|'+g.turnPlayerId;
@@ -428,7 +554,7 @@ function renderTable(g){
     html += '<li class="roll-row'+(active?' active':'')+'" data-flip="r-'+esc(id)+'">';
     html += '<span class="dot" style="background:'+safeColor(p.color)+';"></span>';
     html += '<div class="who">'+(active?'<div class="tag">'+(bidding?'annonce':'joue')+'</div>':'')
-      + '<div class="nm">'+esc(p.name)+(id===myId?' <span style="font-weight:400; opacity:0.7;">(toi)</span>':'')+(g.dealerId===id?' <span class="muted" title="Donneur" style="font-weight:400;">· D</span>':'')+'</div>'
+      + '<div class="nm">'+esc(p.name)+crownMark(id, p.name, p.uid)+afkTag(p)+(id===myId?' <span style="font-weight:400; opacity:0.7;">(toi)</span>':'')+(g.dealerId===id?' <span class="muted" title="Donneur" style="font-weight:400;">· D</span>':'')+'</div>'
       + '<div class="mt">'+meta+'</div></div>';
     if(blind && !playedThisTrick(g, id)){
       html += id===myId ? '<div class="card mini back"></div>' : (blindHands[id] && blindHands[id][0] ? cardHtml(blindHands[id][0], {mini:true}) : '');
@@ -451,12 +577,13 @@ function renderTable(g){
     if(trickToShow.length){
       // le pli terminé reste visible, puis part en douceur (délai calculé : pas de redémarrage à chaque rendu)
       html += '<div class="trick'+(showLast?' collect':'')+'"'+(showLast?' style="animation-delay:'+Math.round((ending?FINAL_TRICK_MS:LAST_TRICK_MS)-550-elapsed)+'ms"':'')+'>';
-      trickToShow.forEach(function(play){
+      trickToShow.forEach(function(play, pi){
         var p = g.players[play.playerId];
         var win = showLast && g.lastTrick.winnerId===play.playerId;
-        html += '<div class="trick-slot'+(win?' win':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+'<div class="who">'+esc(p.name)+'</div></div>';
+        html += '<div class="trick-slot'+(win?' win':'')+(pi===0?' lead':'')+'" data-flip="c-'+play.card.suit+play.card.rank+'" data-enter="0">'+cardHtml(play.card, {size:'trick-size'})+(pi===0?'<span class="lead-badge">1<sup>re</sup></span>':'')+'<div class="who">'+esc(p.name)+crownMark(play.playerId, p.name, p.uid)+'</div></div>';
       });
       html += '</div>';
+      if(showTrick) html += ledHint(g); // v64 : on rappelle la couleur demandée
       if(showLast) html += '<div class="hint"><strong style="color:var(--navy);">'+esc(g.players[g.lastTrick.winnerId].name)+'</strong> remporte le pli</div>';
     } else if(bidding){
       var total = 0; Object.keys(g.bids||{}).forEach(function(k){ total += (g.bids[k]||0); });

@@ -162,7 +162,7 @@ async function submitBidAs(actorId, value){
   else { patch.status='playing'; patch.turnPlayerId = g.leadPlayerId; }
   await ref.update(patch);
 }
-function submitBid(value){ return submitBidAs(myId, value); }
+function submitBid(value){ resetMiss(); return submitBidAs(myId, value); }
 
 async function playCardAs(actorId, card, handOverride){
   var g = gameDoc;
@@ -228,5 +228,5 @@ async function playCardAs(actorId, card, handOverride){
     if(!actorIsBot) await writeHandCards(actorId, handRound, newHandCards, seed);
   }
 }
-function playCard(card){ return playCardAs(myId, card); }
+function playCard(card){ resetMiss(); return playCardAs(myId, card); }
 

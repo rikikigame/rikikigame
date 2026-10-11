@@ -21,6 +21,7 @@ Jouer : https://rikikigame.github.io/rikikigame/
 4. `04-biere` — le lien discret « Offrir une bière ».
 5. `05-langues` — français / anglais.
 6. `06-cartes-cafe` — le jeu de cartes illustré « Café Jacquet ».
+   `06-cartes-halloween` — le jeu de cartes « Halloween » (Dracula, zombie, momie, Faucheuse), son fond de jeu et ses sons.
 7. `07-reseau-local-et-firebase` — stockage : mode local de test et base en ligne (Firebase).
 8. `08-etat-et-demarrage` — l'état du jeu et son initialisation.
 9. `09-actions-de-jeu` — créer, rejoindre, annoncer, jouer une carte.

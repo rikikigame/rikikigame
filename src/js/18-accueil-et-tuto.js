@@ -15,7 +15,7 @@ function homeIcon(name, size, color){
   return '<svg width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" fill="none" stroke="'+(color||'currentColor')+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+p+'</svg>';
 }
 function homeFanCard(rank, suit, red, cls){
-  var sym = { S:'♠︎', H:'♥︎', D:'♦︎', C:'♣︎' }[suit];
+  var sym = deckTheme==='hallo' ? halloSymInline(suit) : { S:'♠︎', H:'♥︎', D:'♦︎', C:'♣︎' }[suit];
   if(LANG==='en') rank = { D:'Q', R:'K', V:'J' }[rank] || rank; // figures anglaises
   return '<span class="hc-card '+cls+(red?' red':'')+'"><span class="hc-idx">'+rank+'<br>'+sym+'</span><span class="hc-mid">'+sym+'</span><span class="hc-idx hc-rot">'+rank+'<br>'+sym+'</span></span>';
 }
@@ -51,7 +51,7 @@ function renderEntry(){
   var pseudo = currentProfile ? currentProfile.pseudo : '';
   html += '<div class="hc-head">';
   if(currentProfile){
-    html += '<div class="hc-hello"><span class="hc-hi">Salut</span><span class="hc-name">'+esc(pseudo)+'</span></div>'
+    html += '<div class="hc-hello"><span class="hc-hi">Salut</span><span class="hc-name">'+esc(pseudo)+crownMark(myId, pseudo, authUid())+'</span></div>'
       + '<input type="hidden" id="nameInput" value="'+esc(myProfile.name || pseudo)+'">';
   } else {
     html += '<div class="hc-hello"><label class="hc-hi" for="nameInput">Salut, ton prénom ?</label>'
@@ -66,8 +66,9 @@ function renderEntry(){
   else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
     html += '<div class="home-panel"><div class="card-panel" style="margin-bottom:12px; padding:12px 16px;">'+renderClaimsList()+'</div></div>';
   // --- titre ---
-  html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true"><span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span></div>'
+  html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
+  html += renderPollBanner(); // v64 : sondage du nom du paquet
   if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
@@ -84,7 +85,7 @@ function renderEntry(){
     + '<button data-action="do-join">Rejoindre</button></div>';
   if(errorMsg) html += '<div class="error-text hc-error">'+esc(errorMsg)+'</div>';
   // --- modes ---
-  var tile = function(action, icon, title, sub){ return '<button class="hc-tile" data-action="'+action+'">'+homeIcon(icon, 22, '#7CC4FF')+'<span class="hc-tile-txt"><span class="hc-tile-title">'+title+'</span><span class="hc-tile-sub">'+sub+'</span></span></button>'; };
+  var tile = function(action, icon, title, sub){ return '<button class="hc-tile" data-action="'+action+'">'+homeIcon(icon, 22, deckTheme==='hallo' ? '#FF9A3C' : '#7CC4FF')+'<span class="hc-tile-txt"><span class="hc-tile-title">'+title+'</span><span class="hc-tile-sub">'+sub+'</span></span></button>'; };
   html += '<div class="hc-tiles">'
     + tile('do-create', 'plus', 'Créer une partie', 'Un code à partager')
     + tile('sheet-open', 'sheet', 'Vraies cartes', 'Le téléphone compte')
@@ -96,9 +97,9 @@ function renderEntry(){
   // --- pied de page ---
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
-    + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
+    + '</span><span class="hc-ver">'+(deckTheme==='hallo' ? '<button class="hc-beer" data-action="music-toggle" aria-label="Musique" title="Musique" style="opacity:'+(musicOn?'0.9':'0.4')+'">🎵</button>' : '')+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
     + '<button data-action="set-lang" data-lang="fr" aria-pressed="'+(LANG==='fr')+'"'+(LANG==='fr'?' class="on"':'')+'>FR</button>'
-    + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> v'+APP_VERSION+'</span></div>';
+    + '<button data-action="set-lang" data-lang="en" aria-pressed="'+(LANG==='en')+'"'+(LANG==='en'?' class="on"':'')+'>EN</button></span> <button class="hc-vernum" data-action="notes-open" title="Notes de version">v'+APP_VERSION+'</button></span></div>';
   html += '</div>';
   if(showRules) html += renderRulesModal();
   if(beerOpen) html += renderBeerModal();

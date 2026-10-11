@@ -307,10 +307,14 @@ async function inviteFriend(fid){
   catch(e){ console.error(e); showToast('Invitation impossible'); }
   render();
 }
-async function dismissInvite(id){ var v = social.invites[id]; if(!v) return; try{ await claudeDb.doc('invites2/'+v.doc).delete(); }catch(e){ console.warn(e); } }
+var dismissedInv = {}; // v64 : une invitation refusée disparaît tout de suite, même si l'effacement en base tarde
+async function dismissInvite(id){
+  var v = social.invites[id]; if(v){ dismissedInv[id] = v.at; delete social.invites[id]; } render();
+  if(!v) return; try{ await claudeDb.doc('invites2/'+v.doc).delete(); }catch(e){ console.warn(e); }
+}
 function activeInvites(){
   return Object.keys(social.invites).map(function(k){ var v = social.invites[k]; return v ? Object.assign({ id:k }, v) : null; })
-    .filter(function(v){ return v && nowMs() - v.at < INVITE_MS && !(gameDoc && gameDoc.code===v.code); })
+    .filter(function(v){ return v && nowMs() - v.at < INVITE_MS && !(gameDoc && gameDoc.code===v.code) && dismissedInv[v.id]!==v.at; })
     .sort(function(a,b){ return b.at - a.at; });
 }
 async function acceptInvite(id){
@@ -332,6 +336,7 @@ async function shareGameLink(code){
 // --- affichage ---
 function renderInviteBanner(){
   if(!socialOn()) return '';
+  if(screen==='game' && gameDoc && gameDoc.status!=='lobby') return ''; // v64 : jamais en pleine partie
   var list = activeInvites(); if(!list.length) return '';
   var v = list[0];
   return '<div class="invite-banner"><span>🃏 <strong>'+esc(v.fromName)+'</strong> t\'invite à une partie</span>'
@@ -362,11 +367,11 @@ function renderFriendsPanel(){
     });
     ids.forEach(function(fid){
       var on = friendOnline(fid), pr = social.presence[fid];
-      html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
+      html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
         + (on && pr && pr.status==='lobby' && pr.code ? '<button class="btn small" data-action="friend-join" data-code="'+esc(pr.code)+'">Rejoindre</button>' : '<button class="btn ghost small" data-action="friend-remove" data-id="'+esc(fid)+'" title="Retirer">✕</button>')
         + '</div>';
     });
-    html += '<div class="row" style="gap:6px; margin-top:10px;"><input type="text" id="friendPseudo" maxlength="24" placeholder="Pseudo de ton ami" style="flex:1; min-width:0;"><button class="btn secondary small" data-action="friend-add">Ajouter</button></div>';
+    html += '<div class="row" style="gap:6px; margin-top:10px;"><input type="text" id="friendPseudo" maxlength="24" placeholder="Pseudo de ton ami (tape 2 lettres)" list="friend-suggest" autocomplete="off" style="flex:1; min-width:0;">'+friendSuggestHtml()+'<button class="btn secondary small" data-action="friend-add">Ajouter</button></div>';
     if(social.addErr) html += '<div class="error-text">'+esc(social.addErr)+'</div>';
     if(social.addOk) html += '<div style="margin-top:6px; font-size:13px; font-weight:700; color:var(--good,#3F8F6B);">'+esc(social.addOk)+'</div>';
   }
@@ -380,7 +385,7 @@ function renderLobbyInvite(g){
     if(!ids.length) html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Ajoute des amis depuis l\'accueil pour les inviter en un clic.</div>';
     ids.forEach(function(fid){
       var on = friendOnline(fid), sent = social.sent[fid] && nowMs() - social.sent[fid] < 60000;
-      html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
+      html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
         + '<button class="btn small'+(sent?' secondary':'')+'" data-action="friend-invite" data-id="'+esc(fid)+'" '+(sent?'disabled':'')+'>'+(sent?'Invité ✓':'Inviter')+'</button></div>';
     });
   } else html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Envoie le lien : tes amis arrivent directement dans ce salon.</div>';
@@ -389,7 +394,7 @@ function renderLobbyInvite(g){
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;
   var a = el.getAttribute('data-action'), id = el.getAttribute('data-id');
-  if(a==='friends-toggle'){ social.open = !social.open; social.addErr=''; social.addOk=''; render(); }
+  if(a==='friends-toggle'){ social.open = !social.open; social.addErr=''; social.addOk=''; if(social.open && !league.loaded && !league.loading) loadLeague(); render(); }
   else if(a==='friend-add'){ var i = document.getElementById('friendPseudo'); addFriend(i ? i.value : ''); }
   else if(a==='friend-accept'){ acceptFriend(id).catch(console.error); }
   else if(a==='friend-ignore'){ ignoreFriend(id).catch(console.error); }

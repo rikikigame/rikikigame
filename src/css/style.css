@@ -714,3 +714,147 @@
   .boot-suits{ font-size:28px; letter-spacing:0.4em; color:#FF6B1A; animation:bootPulse 1.2s ease-in-out infinite; }
   @keyframes bootPulse{ 0%,100%{opacity:.35} 50%{opacity:1} }
   @media (prefers-reduced-motion:reduce){ .boot-suits{ animation:none; opacity:.8; } }
+
+  /* ===== v64 : thème « Halloween » (cartes + fond de jeu), au choix, mémorisé sur l'appareil ===== */
+  :root[data-deck="hallo"]{ --sand:#12030A; --sand-2:#1C0610; --paper:#241017; --line:#3E1828; --brick:#FF7A1A; --brass:#FFC27A; }
+  :root[data-deck="hallo"][data-look="dark"]{ background:#12030A radial-gradient(130% 80% at 50% -10%, #5A0C1E 0%, #2A0816 42%, #0E0207 100%) fixed; }
+  :root[data-deck="hallo"][data-look="dark"] body{ background:transparent; } /* le dégradé est sur <html> : les toiles (body::before, derrière le contenu) restent visibles */
+  :root[data-deck="hallo"] body::before{ content:""; position:fixed; inset:0; pointer-events:none; z-index:-1;
+    background:var(--hallo-web-tl) left top/min(46vw,230px) no-repeat, var(--hallo-web-tr) right top/min(46vw,230px) no-repeat,
+               var(--hallo-web-bl) left bottom/min(46vw,230px) no-repeat, var(--hallo-web-br) right bottom/min(46vw,230px) no-repeat; }
+  :root[data-deck="hallo"][data-look="dark"] .card-panel, :root[data-deck="hallo"][data-look="dark"] .modal, :root[data-deck="hallo"][data-look="dark"] .roll-row,
+  :root[data-deck="hallo"][data-look="dark"] .btn.secondary, :root[data-deck="hallo"][data-look="dark"] .bid-btn, :root[data-deck="hallo"][data-look="dark"] .code-pill{ background:#241017; border-color:#3E1828; }
+  :root[data-deck="hallo"][data-look="dark"] .felt{ background:#1A0910; border-color:#3E1828; box-shadow:inset 0 0 0 1px rgba(255,122,26,0.08); }
+  :root[data-deck="hallo"][data-look="dark"] input[type=text], :root[data-deck="hallo"][data-look="dark"] input[type=number], :root[data-deck="hallo"][data-look="dark"] input[type=password],
+  :root[data-deck="hallo"][data-look="dark"] select, :root[data-deck="hallo"][data-look="dark"] textarea{ background:#12030A; border-color:#4A2032; }
+  :root[data-deck="hallo"][data-look="dark"] .btn.secondary.active, :root[data-deck="hallo"][data-look="dark"] .bid-btn.picked{ background:#FF9A3C; border-color:#FF9A3C; color:#1B0E06; }
+  :root[data-deck="hallo"][data-look="dark"] .bid-btn:hover:not(:disabled), :root[data-deck="hallo"][data-look="dark"] input:focus, :root[data-deck="hallo"][data-look="dark"] select:focus{ border-color:#FF9A3C; }
+  :root[data-deck="hallo"] .card.back{ background:var(--hallo-back) center/cover no-repeat, #6B1223; border:3px solid #FBF4E6; overflow:hidden; }
+  :root[data-deck="hallo"] .card.back::before{ display:none; }
+  :root[data-deck="hallo"] .card.back::after{ content:var(--hallo-back-name, none); white-space:pre; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; pointer-events:none;
+    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#FFE9CC;
+    -webkit-text-stroke:calc(var(--w) * 0.004) #FFE9CC; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #FF9A3C, 0 0 calc(var(--w) * 0.1) rgba(255,106,0,0.75); }
+  :root[data-deck="hallo"] .card.mini.back::after{ display:none; }
+  :root[data-deck="hallo"] .card .cafe-neon span{ color:#FFE9CC; text-shadow:0 0 calc(var(--w) * 0.008) #FFFFFF, 0 0 calc(var(--w) * 0.03) #FF9A3C, 0 0 calc(var(--w) * 0.06) rgba(255,106,0,0.8); }
+
+  /* fond animé Halloween : chauves-souris qui volent, citrouilles et chauves-souris qui tombent (par-dessus, sans gêner : pointer-events none) */
+  #hallo-fx{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:3; }
+  #hallo-fx i{ position:absolute; display:block; opacity:0.85; will-change:transform; animation-timing-function:linear; animation-iteration-count:infinite; }
+  #hallo-fx b{ display:block; width:100%; height:100%; background:center/contain no-repeat; }
+  #hallo-fx .hfx-bat{ background-image:var(--hallo-bat); }
+  #hallo-fx .hfx-pum{ background-image:var(--hallo-pumpkin); }
+  #hallo-fx .hfx-fly{ left:0; animation-name:hFly; }
+  #hallo-fx .hfx-fly b{ animation:hFlap 0.42s ease-in-out infinite; }
+  #hallo-fx .hfx-fall{ top:0; animation-name:hFall; }
+  #hallo-fx .hfx-fall b{ animation:hSpin 6s ease-in-out infinite alternate; }
+  #hallo-fx .hfx-fallbat{ top:0; animation-name:hFall; }
+  #hallo-fx .hfx-fallbat b{ animation:hFlap 0.5s ease-in-out infinite; }
+  @keyframes hFly{ 0%{ transform:translate3d(-14vw,0,0); } 22%{ transform:translate3d(18vw,-6vh,0); } 48%{ transform:translate3d(46vw,5vh,0); } 74%{ transform:translate3d(76vw,-5vh,0); } 100%{ transform:translate3d(114vw,3vh,0); } }
+  @keyframes hFlap{ 0%,100%{ transform:scaleY(1); } 50%{ transform:scaleY(0.4); } }
+  @keyframes hFall{ 0%{ transform:translate3d(0,-14vh,0) rotate(0deg); } 50%{ transform:translate3d(var(--dx,0),48vh,0) rotate(180deg); } 100%{ transform:translate3d(calc(var(--dx,0) * -0.6),114vh,0) rotate(360deg); } }
+  @keyframes hSpin{ 0%{ transform:rotate(-14deg); } 100%{ transform:rotate(14deg); } }
+  @media (prefers-reduced-motion: reduce){ #hallo-fx{ display:none; } }
+
+  /* v64 : symboles Halloween (cœur brisé, pierre tombale, fourche, chauve-souris) */
+  .hsym{ display:inline-block; width:1em; height:1em; vertical-align:-0.14em; overflow:visible; }
+  .card .corner .s .hsym, .card .pips .hsym{ vertical-align:baseline; }
+  .card .pip .hsym{ width:1em; height:1em; }
+  .hsym.hs-H{ color:#C4223A; } .hsym.hs-D{ color:#6A6E86; } .hsym.hs-C{ color:#5A2E8A; } .hsym.hs-S{ color:#241230; }
+  .card.cafe-ace .hsym{ color:#E2B357; }
+  /* accueil Halloween */
+  :root[data-deck="hallo"] .hc-suits .hsym{ font-size:20px; } :root[data-deck="hallo"] .hc-suits span{ color:#E4DCEE; } :root[data-deck="hallo"] .hc-suits .r{ color:#FF7A1A; }
+  :root[data-deck="hallo"] .hc-suits .hsym.hs-H, :root[data-deck="hallo"] .hc-suits .hsym.hs-D, :root[data-deck="hallo"] .hc-suits .hsym.hs-C, :root[data-deck="hallo"] .hc-suits .hsym.hs-S{ color:inherit; }
+  :root[data-deck="hallo"] .hc-title{ color:#FFE9CC; text-shadow:0 0 22px rgba(255,122,26,0.55), 0 2px 0 rgba(0,0,0,0.5); }
+  :root[data-deck="hallo"] .hc-tag{ color:#E9B9A0; }
+  :root[data-deck="hallo"] .hc-hi{ color:#C79A92; }
+  :root[data-deck="hallo"] .hc-hero{ background:linear-gradient(150deg, #FF8A2B 0%, #FF6A10 55%, #C9440A 100%); box-shadow:0 14px 34px rgba(255,106,16,0.28); }
+  :root[data-deck="hallo"] .hc-hero::after{ content:""; position:absolute; left:0; top:0; width:96px; height:96px; background:var(--hallo-web-tl) left top/contain no-repeat; opacity:0.55; mix-blend-mode:multiply; pointer-events:none; }
+  :root[data-deck="hallo"] .hc-card .hsym{ font-size:inherit; }
+  :root[data-deck="hallo"] .hc-card.red .hsym, :root[data-deck="hallo"] .hc-card .hsym{ color:inherit; }
+  :root[data-deck="hallo"] .hc-join, :root[data-deck="hallo"] .hc-tile, :root[data-deck="hallo"] .tt-hello, :root[data-deck="hallo"] .hc-avatar,
+  :root[data-deck="hallo"] .home-c input.hc-name-input{ background:#241017; border-color:#4A2032; }
+  :root[data-deck="hallo"] .home-c .hc-join input[type=text]{ background:#12030A; }
+  :root[data-deck="hallo"] .hc-join button{ background:#FF9A3C; color:#1B0E06; }
+  :root[data-deck="hallo"] .hc-tile:hover{ filter:brightness(1.25); }
+  :root[data-deck="hallo"] .hc-tile-sub, :root[data-deck="hallo"] .hc-foot{ color:#C79A92; }
+  :root[data-deck="hallo"] .hc-foot{ border-top-color:#3E1828; }
+  :root[data-deck="hallo"] .hc-lang button{ border-color:#4A2032; } :root[data-deck="hallo"] .hc-lang button.on{ background:#4A2032; }
+  :root[data-deck="hallo"] .home-c input.hc-name-input:focus{ border-color:#FF9A3C; }
+  /* l'accueil impose son fond « Nuit » avec !important : on le remplace pour le thème Halloween */
+  :root.is-home[data-deck="hallo"]{ background:#12030A radial-gradient(130% 80% at 50% -10%, #5A0C1E 0%, #2A0816 42%, #0E0207 100%) fixed !important; }
+  :root.is-home[data-deck="hallo"] body{ background:transparent !important; }
+
+  /* v64 : fenêtre de nouveautés + sondage */
+  :root[data-deck="hallo"] .hc-brand{ }
+  .news-card{ max-width:440px; max-height:88vh; overflow:auto; text-align:left; }
+  .news-title{ margin:0 0 10px; font-size:24px; }
+  .news-list{ margin:4px 0 12px; padding-left:20px; font-size:14px; line-height:1.4; }
+  .news-list li{ margin-bottom:5px; }
+  .news-poll{ margin-top:12px; padding-top:12px; border-top:1px solid var(--line, #232B40); display:flex; flex-direction:column; gap:8px; }
+  .news-opt{ width:100%; justify-content:center; font-weight:800; }
+  .news-opt.picked{ background:#FF9A3C !important; border-color:#FF9A3C !important; color:#1B0E06 !important; }
+  .poll-res{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--line, #232B40); }
+  .poll-bar{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto; gap:8px; align-items:center; font-size:13px; margin-top:6px; }
+  .poll-lbl{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .poll-track{ height:10px; border-radius:6px; background:rgba(255,255,255,0.1); overflow:hidden; }
+  .poll-track i{ display:block; height:100%; background:#FF9A3C; border-radius:6px; }
+  .poll-n{ font-family:'DM Mono', ui-monospace, monospace; font-size:12px; }
+  .poll-banner{ display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box; border:1.5px dashed #FF9A3C; background:rgba(255,154,60,0.08); color:inherit; font:inherit; text-align:left; padding:12px 14px; border-radius:16px; cursor:pointer; }
+  .poll-banner strong{ display:block; font-size:14px; } .poll-banner small{ display:block; font-size:12px; opacity:0.75; margin-top:2px; }
+  .poll-ico{ font-size:22px; }
+
+  /* v64 : visite des nouveautés */
+  .news-fan{ display:flex; gap:6px; justify-content:center; }
+  .news-hcard{ position:relative; display:block; width:68px; aspect-ratio:140/196; border-radius:7px; overflow:hidden; background:#FBF4E6; box-shadow:0 6px 14px rgba(0,0,0,0.45); }
+  .news-hcard:nth-child(1){ transform:rotate(-8deg); } .news-hcard:nth-child(2){ transform:rotate(-2deg) translateY(-6px); } .news-hcard:nth-child(3){ transform:rotate(4deg) translateY(-6px); } .news-hcard:nth-child(4){ transform:rotate(10deg); }
+  .news-hcard i{ position:absolute; inset:0; background:center/100% 100% no-repeat; }
+  .news-seat{ padding:8px 14px; border-radius:12px; background:#1A2133; border:1px solid #2A3247; font-weight:800; font-size:14px; }
+  .news-seat.off{ opacity:0.6; border-style:dashed; }
+  .news-addbtn{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:#FF9A3C; color:#1B0E06; font-weight:800; }
+  .tt-scene .news-poll{ width:100%; display:flex; flex-direction:column; gap:8px; }
+  .hc-vernum{ font:inherit; background:transparent; border:none; color:inherit; padding:2px 4px; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; opacity:0.85; }
+  .hc-vernum:hover{ opacity:1; }
+  .news-pick{ width:auto !important; padding:0 12px !important; }
+
+  /* v64 : joueur absent, première carte du pli, couronne, ajout d'ami en un clic */
+  .afk-banner{ margin:10px 0; padding:12px 14px; border-radius:16px; background:rgba(255,154,60,0.10); border:1.5px solid #FF9A3C; font-size:14px; display:flex; flex-direction:column; gap:8px; }
+  .afk-banner.me{ background:rgba(124,196,255,0.10); border-color:#7CC4FF; }
+  .afk-btns{ display:flex; gap:8px; flex-wrap:wrap; }
+  .afk-tag{ font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; background:rgba(255,154,60,0.2); color:#FFB27A; white-space:nowrap; }
+  .trick-slot.lead .card{ outline:3px solid #FFC24A; outline-offset:2px; box-shadow:0 0 0 5px rgba(255,194,74,0.28), 0 0 22px rgba(255,194,74,0.65); }
+  .trick-slot{ position:relative; }
+  .lead-badge{ position:absolute; top:-9px; left:50%; transform:translateX(-50%); background:#FFC24A; color:#1B0E06; font-size:11px; font-weight:800; padding:1px 8px; border-radius:999px; white-space:nowrap; z-index:2; }
+  .lead-badge sup{ font-size:8px; vertical-align:super; }
+  .led-hint{ text-align:center; margin-top:8px; padding:6px 12px; border-radius:12px; background:rgba(255,194,74,0.14); border:1px solid rgba(255,194,74,0.5); font-size:14px; }
+  .led-sym{ font-size:20px; vertical-align:-0.18em; } .led-sym.red{ color:#FF6A4D; } .led-sym .hsym{ width:1.1em; height:1.1em; }
+  .crown{ font-size:0.9em; filter:drop-shadow(0 0 4px rgba(255,194,74,0.7)); }
+  .friend-add-btn{ padding:2px 8px !important; font-size:14px !important; min-width:0; margin-right:6px; }
+  .friend-add-done{ font-size:12px; opacity:0.8; margin-right:8px; white-space:nowrap; }
+  /* v64 : la ligne du joueur dont c'est le tour garde son fond orange et son texte foncé en thème Halloween (sinon texte sombre sur fond sombre) */
+  :root[data-deck="hallo"][data-look="dark"] .roll-row.active{ background:#FF7A3D; border-color:#FF7A3D; color:#1B0E06; }
+  :root[data-deck="hallo"][data-look="dark"] .roll-row.active .mt, :root[data-deck="hallo"][data-look="dark"] .roll-row.active .tag{ color:rgba(27,14,6,0.78); }
+  :root[data-deck="hallo"][data-look="dark"] .roll-row.active .afk-tag{ background:rgba(27,14,6,0.15); color:#1B0E06; }
+  /* v64 : écran « La partie commence » en Halloween (fond vin et noir, symboles clairs et colorés) */
+  :root[data-deck="hallo"] .intro{ background:radial-gradient(120% 80% at 50% 0%, #5A0C1E 0, #1C0610 55%, #0A0206 100%); }
+  :root[data-deck="hallo"] .intro .suits .hsym{ width:1em; height:1em; }
+  :root[data-deck="hallo"] .intro .suits .hs-S{ color:#E4DCEE; } :root[data-deck="hallo"] .intro .suits .hs-H{ color:#FF4F6D; }
+  :root[data-deck="hallo"] .intro .suits .hs-C{ color:#B58CFF; } :root[data-deck="hallo"] .intro .suits .hs-D{ color:#B9BDD3; }
+
+  /* v64 : coins des cartes Halloween (plus de signe sous le chiffre ; le chiffre prend la couleur de la carte), aide du pli, récompenses */
+  :root[data-deck="hallo"] .card .corner .s{ display:none; }
+  :root[data-deck="hallo"] .card[data-suit="H"] .corner{ color:#C4223A; } :root[data-deck="hallo"] .card[data-suit="D"] .corner{ color:#6A6E86; }
+  :root[data-deck="hallo"] .card[data-suit="C"] .corner{ color:#5A2E8A; } :root[data-deck="hallo"] .card[data-suit="S"] .corner{ color:#241230; }
+  :root[data-deck="hallo"] .card.cafe-ace .corner{ color:#E2B357 !important; }
+  .led-help-btn{ margin-left:10px; font:inherit; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; border:1px solid rgba(255,194,74,0.6); background:transparent; color:inherit; cursor:pointer; opacity:0.85; }
+  .led-help-btn[aria-pressed="true"]{ background:rgba(255,194,74,0.25); }
+  .badges{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--line, #232B40); display:flex; flex-direction:column; gap:6px; }
+  .badge-row{ display:flex; gap:10px; }
+  .bdg{ display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 10px; min-width:78px; border-radius:14px; background:rgba(255,255,255,0.05); opacity:0.4; filter:grayscale(1); }
+  .bdg.on{ opacity:1; filter:none; background:rgba(255,194,74,0.14); border:1px solid rgba(255,194,74,0.5); }
+  .bdg-i{ font-size:26px; line-height:1; } .bdg small{ font-size:11px; }
+  /* v64 : Valet, Dame, Roi et As de pique (cartes à dessin) gardent le logo de leur couleur dans le coin : le dessin ne la montre pas */
+  :root[data-deck="hallo"] .card.has-art .corner .s{ display:block; }
+  /* écran « La partie commence » : mêmes toiles d'araignée que le fond du jeu */
+  :root[data-deck="hallo"] .intro{ background:var(--hallo-web-tl) left top/min(46vw,230px) no-repeat, var(--hallo-web-tr) right top/min(46vw,230px) no-repeat,
+    var(--hallo-web-bl) left bottom/min(46vw,230px) no-repeat, var(--hallo-web-br) right bottom/min(46vw,230px) no-repeat,
+    radial-gradient(120% 80% at 50% 0%, #5A0C1E 0, #1C0610 55%, #0A0206 100%); }

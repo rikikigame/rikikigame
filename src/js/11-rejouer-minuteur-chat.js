@@ -33,8 +33,9 @@ function turnTick(){
   var el = document.getElementById('turn-timer');
   if(el){ el.textContent = ts.text; el.className = ts.cls; }
   if(!ts.lim || autoActing) return;
-  var mine = g.turnPlayerId===myId && ts.left<=0;
-  var forAbsent = g.hostId===myId && g.turnPlayerId!==myId && ts.elapsed > ts.lim + 5000; // joueur parti : l'hôte joue pour lui
+  var tp = g.players && g.players[g.turnPlayerId];
+  var mine = g.turnPlayerId===myId && ts.left<=0 && !(tp && tp.excluded);
+  var forAbsent = g.hostId===myId && g.turnPlayerId!==myId && ts.elapsed > ts.lim + 5000 && !isAfkPlayer(tp); // joueur parti : l'hôte joue pour lui (un absent « officiel » est joué par le robot, voir botDriverTick)
   if(!mine && !forAbsent) return;
   autoActing = true;
   autoPlayFor(g.turnPlayerId).catch(function(e){ console.error(e); })
@@ -49,6 +50,7 @@ async function autoPlayFor(id){
     var opts = allowedBids(g, id);
     if(id===myId) showToast('Temps écoulé : annonce jouée au hasard');
     await submitBidAs(id, pickRandom(opts));
+    noteAutoPlay(id);
     return;
   }
   var hand;
@@ -63,6 +65,7 @@ async function autoPlayFor(id){
   var legal = (led && hand.some(function(c){ return c.suit===led; })) ? hand.filter(function(c){ return c.suit===led; }) : hand;
   if(id===myId) showToast('Temps écoulé : carte jouée au hasard');
   await playCardAs(id, pickRandom(legal), hand);
+  noteAutoPlay(id);
 }
 async function replayGame(){
   var g = gameDoc;

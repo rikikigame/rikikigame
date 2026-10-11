@@ -157,26 +157,39 @@ function cafeBack(){
     + '<path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="2.4" fill="none"/><path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="8" fill="none" opacity="0.18"/>'
     + '</svg>'; // le texte néon « Café Jacquet » est posé par le CSS (police Sacramento du jeu), pas dans l'image
 }
-var deckTheme = 'cafe'; // « Café Jacquet » par défaut ; « classic » = l'ancien jeu
-try{ deckTheme = localStorage.getItem('rikiki_deck') === 'classic' ? 'classic' : 'cafe'; }catch(e){}
+var deckTheme = 'cafe'; // « Café Jacquet » par défaut ; « classic » = l'ancien jeu ; « hallo » = Halloween (v64)
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='hallo') ? storedDeck : 'cafe'; }catch(e){}
 var CAFE_IMG = {};
+// symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
+function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }
 function cafeUri(svg){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
 function cafeArt(card){
-  if(deckTheme !== 'cafe') return null;
-  var k = card.suit + card.rank;
+  if(deckTheme === 'classic') return null;
+  var k = deckTheme + card.suit + card.rank;
+  if(deckTheme === 'hallo'){ if(!(k in CAFE_IMG)) CAFE_IMG[k] = halloArt(card); return CAFE_IMG[k]; }
   if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : k==='SA' ? cafeUri(cafeAceSpade()) : null;
   return CAFE_IMG[k];
 }
 function applyDeckTheme(){
   var r = document.documentElement; r.setAttribute('data-deck', deckTheme);
+  if(typeof halloFx==='function') halloFx(deckTheme==='hallo'); // v64 : chauves-souris et citrouilles du fond animé
+  var tcm = document.querySelector('meta[name="theme-color"]'); if(tcm) tcm.setAttribute('content', deckTheme==='hallo' ? '#12030A' : '#0E1320'); // couleur de la barre du téléphone
   if(deckTheme==='cafe' && !applyDeckTheme.done){ applyDeckTheme.done = true; r.style.setProperty('--cafe-back', 'url("' + cafeUri(cafeBack()) + '")'); }
+  if(deckTheme==='hallo' && !applyDeckTheme.doneH && typeof halloBack==='function'){ // v64 : dos des cartes + toiles d'araignée du fond de jeu
+    applyDeckTheme.doneH = true;
+    r.style.setProperty('--hallo-back-name', HALLO_DECK_NAME ? '"'+HALLO_DECK_NAME.replace('|','\\A ')+'"' : 'none'); // nom au dos : rien tant qu'il n'y a pas de nom
+    r.style.setProperty('--hallo-back', 'url("' + cafeUri(halloBack()) + '")');
+    r.style.setProperty('--hallo-bat', 'url("' + halloBatSvg() + '")'); r.style.setProperty('--hallo-pumpkin', 'url("' + halloPumpkinSvg() + '")');
+    [['tl',0,0],['tr',1,0],['bl',0,1],['br',1,1]].forEach(function(w){ r.style.setProperty('--hallo-web-'+w[0], 'url("' + halloWebCorner(w[1], w[2]) + '")'); });
+  }
 }
 applyDeckTheme();
-function setDeckTheme(t){ deckTheme = t==='classic' ? 'classic' : 'cafe'; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
+function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo') ? t : 'cafe'; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
 function renderDeckChoice(){
   var peek = [{suit:'H',rank:'K'},{suit:'C',rank:'Q'},{suit:'S',rank:'J'},{suit:'S',rank:'A'}].map(function(c){ return cardHtml(Object.assign({ value:RANK_VALUE[c.rank] }, c), { size:'peek' }); }).join('') + '<div class="card back peek"></div>';
   return '<div class="deck-choice"><strong>Tes cartes</strong><span class="seg">'
     + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
+    + '<button data-action="deck-set" data-deck="hallo" aria-pressed="'+(deckTheme==='hallo')+'"'+(deckTheme==='hallo'?' class="on"':'')+'>🎃 Halloween</button>'
     + '<button data-action="deck-set" data-deck="classic" aria-pressed="'+(deckTheme==='classic')+'"'+(deckTheme==='classic'?' class="on"':'')+'>Classique</button></span>'
     + '<span class="deck-peek" aria-hidden="true">'+peek+'</span></div>';
 }
@@ -187,13 +200,14 @@ document.addEventListener('click', function(e){
 function cardHtml(card, opts){
   opts = opts || {};
   var cls = 'card' + (RED_SUITS[card.suit] ? ' red' : '') + (opts.mini ? ' mini' : '') + (opts.size ? ' '+opts.size : '') + (opts.disabled ? ' disabled' : '') + (opts.trump ? ' trump' : '');
-  var sym = SUIT_SYMBOL[card.suit], r = esc(rankLabel(card.rank)), face = {J:1,Q:1,K:1}[card.rank];
+  var sym = suitGlyph(card.suit), r = esc(rankLabel(card.rank)), face = {J:1,Q:1,K:1}[card.rank];
   var corner = '<span>'+r+'</span><span class="s">'+sym+'</span>';
   var small = !!opts.mini, cafe = !small && cafeArt(card), art = cafe || (face && !small && FACE_IMG[card.suit+card.rank]);
   var middle;
   if(cafe && face){
-    CAFE_IMG.wall = CAFE_IMG.wall || cafeUri(cafeWall());
-    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG.wall+'\')"></div><div class="cafe-neon" data-noi18n><span>'+CAFE_NEON[card.rank]+'</span></div>'
+    var hl = deckTheme==='hallo';
+    CAFE_IMG[hl?'hwall':'wall'] = CAFE_IMG[hl?'hwall':'wall'] || cafeUri(hl ? halloWall() : cafeWall());
+    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n><span>'+(hl ? HALLO_NEON : CAFE_NEON)[card.rank]+'</span></div>'
       + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   }
   else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';
@@ -201,7 +215,7 @@ function cardHtml(card, opts){
   else middle = '<div class="pip'+(face?' face':'')+'">'+(face ? '<span class="fl">'+r+'</span><span class="fs">'+sym+'</span>' : sym)+'</div>';
   if(cafe) cls += ' cafe-art' + (card.rank==='A' ? ' cafe-ace' : '');
   if(art) cls += ' has-art'; else if(!small && !face && PIP_LAYOUT[card.rank]) cls += ' has-pips';
-  return '<div class="'+cls+'">'+(art ? middle : '')+'<div class="corner tl">'+corner+'</div>'
+  return '<div class="'+cls+'" data-suit="'+esc(card.suit)+'">'+(art ? middle : '')+'<div class="corner tl">'+corner+'</div>'
     + (art ? '' : middle)
     + '<div class="corner br">'+corner+'</div></div>';
 }

@@ -29,7 +29,7 @@ function canonMember(id){
 function myMember(){ return myId ? (league.members.filter(function(m){ return m.userId===myId; })[0] || null) : null; }
 function normName(s){ return (s||'').trim().toLowerCase(); }
 
-async function loadLeague(force){
+async function loadLeague(force, quiet){
   if(league.loading || (league.loaded && !force)) return;
   league.loading = true; league.error = '';
   try{
@@ -68,7 +68,7 @@ async function loadLeague(force){
     league.loaded = true;
   }catch(e){ console.error(e); league.error = dbErrorText(e); }
   league.loading = false;
-  render();
+  if(!quiet) render();
 }
 
 // Trouve ou crée le membre d'un joueur en ligne (par son compte) ou d'un joueur en vraies cartes (par son prénom).
@@ -148,8 +148,9 @@ async function maybeRecordOnline(g){
     var audit = await auditGameFull(g);
     if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
-    for(var i=0;i<g.playerOrder.length;i++){
-      var uid = g.playerOrder[i], p = g.players[uid];
+    var lids = leagueIdsOf(g); // v64 : les joueurs remplacés / retirés n'ont aucun point de ligue
+    for(var i=0;i<lids.length;i++){
+      var uid = lids[i], p = g.players[uid];
       var mid = await ensureMember({ userId: uid, name: p.name });
       var st = statsFromLog(g.roundLog||[], uid);
       rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid) }); // scores recalculés, pas ceux affichés
