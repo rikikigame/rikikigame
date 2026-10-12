@@ -8,7 +8,11 @@
 var sfxOn = true, musicOn = true;
 try{ sfxOn = localStorage.getItem('rikiki_sfx') !== '0'; musicOn = localStorage.getItem('rikiki_music') !== '0'; }catch(e){}
 var audioCtx = null, sfxBus = null, musicBus = null, noiseBuf = null, sfxShaper = null;
+// v68 : dans l'appli iPhone (window.__RIKIKI_APP, posé par l'appli), le son joue même en mode silencieux.
+// Pas dans Safari : là, « playback » couperait la musique écoutée à côté.
+function audioSessionForApp(){ try{ if(window.__RIKIKI_APP && navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; }catch(e){} }
 function audioInit(){
+  audioSessionForApp();
   if(audioCtx) return audioCtx;
   var AC = window.AudioContext || window.webkitAudioContext; if(!AC) return null;
   try{
