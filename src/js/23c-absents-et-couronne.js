@@ -82,6 +82,10 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 }
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
+// v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
+var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
+function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
+applyBigText();
 function ledHint(g){
   if(!ledHelpOn) return '';
   var led = g.currentTrick && g.currentTrick.length ? g.currentTrick[0].card.suit : null; if(!led) return '';
@@ -169,4 +173,5 @@ document.addEventListener('click', function(e){
   if(a==='afk-vote') afkVote(el.getAttribute('data-id'), el.getAttribute('data-choice'));
   else if(a==='friend-add-from') friendAddFrom(el.getAttribute('data-name'));
   else if(a==='led-help-toggle'){ ledHelpOn = !ledHelpOn; try{ localStorage.setItem('rikiki_led_help', ledHelpOn ? '1' : '0'); }catch(err){} render(); }
+  else if(a==='big-text-toggle'){ bigTextOn = !bigTextOn; try{ localStorage.setItem('rikiki_big_text', bigTextOn ? '1' : '0'); }catch(err){} applyBigText(); render(); }
 });

@@ -41,6 +41,7 @@ document.addEventListener('click', function(e){
   else if(action==='toggle-scores'){ showScores = !showScores; render(); }
   else if(action==='sfx-toggle'){ toggleSfx(); }
   else if(action==='music-toggle'){ toggleMusic(); }
+  else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
   else if(action==='leave'){ leaveToEntry(); }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }

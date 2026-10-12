@@ -352,10 +352,28 @@ function toggleMusic(){
   musicOn = !musicOn; try{ localStorage.setItem('rikiki_music', musicOn ? '1' : '0'); }catch(e){}
   audioUnlock(); musicSync(); render();
 }
+// v67 : un seul bouton ⚙️ dans la barre du haut (avant : 🔊 🎵 💡 Aa côte à côte, trop chargé) — les réglages sont dans la fenêtre « Paramètres »
+var showPrefs = false;
 function renderSoundButtons(){
-  return '<button class="btn ghost snd-btn" data-action="sfx-toggle" aria-pressed="'+sfxOn+'" title="Bruitages" aria-label="Bruitages">'+(sfxOn ? '🔊' : '🔇')+'<span class="chat-lbl"> Bruitages</span></button>'
-    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>'
-    + '<button class="btn ghost snd-btn'+(ledHelpOn ? '' : ' snd-off')+'" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Aide : rappelle la couleur demandée" aria-label="Aide">💡<span class="chat-lbl"> Aide</span></button>';
+  return '<button class="btn ghost snd-btn" data-action="prefs-toggle" title="Paramètres" aria-label="Paramètres">⚙️<span class="chat-lbl"> Paramètres</span></button>';
+}
+var PREF_ROWS = [
+  { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
+  { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
+  { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
+  { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' }
+];
+function renderPrefsModal(){
+  var html = '<div class="modal-backdrop" data-action="prefs-toggle"><div class="card-panel modal prefs-modal">'
+    + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>';
+  PREF_ROWS.forEach(function(r){
+    var on = r.on();
+    html += '<button class="pref-row" data-action="'+r.action+'" aria-pressed="'+on+'">'
+      + '<span class="pref-ico">'+r.icon()+'</span>'
+      + '<span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span>'
+      + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
+  });
+  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p></div></div>';
 }
 
 function renderTopbar(g){
@@ -383,6 +401,7 @@ function renderGame(){
   else if(g.status==='round_end') html += renderRoundEnd(g);
   else if(g.status==='game_over') html += renderGameOver(g);
   if(showScores && g.status!=='lobby') html += renderScoresModal(g);
+  if(showPrefs) html += renderPrefsModal();
   if(showRules) html += renderRulesModal();
   return html;
 }

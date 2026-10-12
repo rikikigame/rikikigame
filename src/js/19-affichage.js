@@ -21,7 +21,8 @@ function flipPlay(before, screenChanged){
   document.querySelectorAll('#app [data-flip]').forEach(function(el){
     var k = el.getAttribute('data-flip'), b = before[k], a = el.getBoundingClientRect();
     if(b){
-      var dx = b.left - a.left, dy = b.top - a.top;
+      var z = el.currentCSSZoom || 1; // v67 : « Grand texte » (zoom) — le déplacement se compte dans l'échelle de l'élément
+      var dx = (b.left - a.left) / z, dy = (b.top - a.top) / z;
       if(Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       el.animate([{ transform:'translate('+dx+'px,'+dy+'px)' }, { transform:'none' }], { duration:420, easing:'cubic-bezier(.2,.75,.2,1)' });
     } else if(el.hasAttribute('data-enter') && !screenChanged){

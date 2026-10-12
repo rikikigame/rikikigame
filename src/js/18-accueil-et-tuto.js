@@ -96,8 +96,9 @@ function renderEntry(){
   html += renderHomeFriends();
   // --- pied de page ---
   // v64 : réglages du son, aussi à l'accueil
-  html += '<div class="hc-snd-row"><button class="hc-snd'+(sfxOn?'':' off')+'" data-action="sfx-toggle" aria-pressed="'+sfxOn+'">'+(sfxOn?'🔊':'🔇')+' Bruitages '+(sfxOn?'activés':'coupés')+'</button>'
-    + '<button class="hc-snd'+(musicOn?'':' off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'">🎵 Musique '+(musicOn?'activée':'coupée')+'</button></div>';
+  // v67 : un seul bouton « Paramètres » (son, musique, aide, grand texte)
+  html += '<div class="hc-snd-row"><button class="hc-snd" data-action="prefs-toggle">⚙️ Paramètres</button></div>';
+  if(showPrefs) html += renderPrefsModal();
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
     + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'

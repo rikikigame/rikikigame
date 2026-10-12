@@ -876,6 +876,22 @@
   .hc-snd{ font:inherit; font-size:13px; font-weight:700; padding:8px 14px; border-radius:999px; border:1px solid #2A3247; background:#1A2133; color:#EEF0F6; cursor:pointer; }
   .hc-snd.off{ opacity:0.55; }
   :root[data-deck="hallo"] .hc-snd{ background:#241017; border-color:#4A2032; }
+  /* v67 : « Grand texte » — textes et boutons grossissent de 20 %, les cartes gardent leur taille
+     (sinon la main de cartes sort de l'écran du téléphone) ; la mise en page s'adapte à la largeur restante */
+  html.big-text body{ zoom:1.2; }
+  html.big-text .card{ zoom:0.8334; }
+  /* v67 : fenêtre « Paramètres » */
+  .prefs-modal{ max-width:420px; }
+  .pref-row{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; font:inherit; color:inherit; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); border-radius:14px; padding:12px 14px; margin-top:8px; cursor:pointer; }
+  .pref-ico{ font-size:22px; width:30px; text-align:center; flex:none; }
+  .pref-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .pref-txt b{ font-size:15px; }
+  .pref-txt small{ font-size:12.5px; opacity:0.7; line-height:1.35; }
+  .pref-sw{ flex:none; width:42px; height:24px; border-radius:999px; background:rgba(255,255,255,0.18); position:relative; transition:background .2s; }
+  .pref-sw::after{ content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform .2s; }
+  .pref-sw.on{ background:#E8823A; }
+  .pref-sw.on::after{ transform:translateX(18px); }
+  .pref-note{ font-size:12px !important; opacity:0.6; text-align:center; margin:12px 0 0 !important; }
 </style>
 <div id="app"><div class="center-wrap"><span class="boot-suits" aria-label="Chargement">♠ ♥ ♣ ♦</span></div></div>
 <div id="chat-root"></div>
@@ -906,7 +922,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '66';
+var APP_VERSION = '67';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -5239,8 +5255,9 @@ function renderEntry(){
   html += renderHomeFriends();
   // --- pied de page ---
   // v64 : réglages du son, aussi à l'accueil
-  html += '<div class="hc-snd-row"><button class="hc-snd'+(sfxOn?'':' off')+'" data-action="sfx-toggle" aria-pressed="'+sfxOn+'">'+(sfxOn?'🔊':'🔇')+' Bruitages '+(sfxOn?'activés':'coupés')+'</button>'
-    + '<button class="hc-snd'+(musicOn?'':' off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'">🎵 Musique '+(musicOn?'activée':'coupée')+'</button></div>';
+  // v67 : un seul bouton « Paramètres » (son, musique, aide, grand texte)
+  html += '<div class="hc-snd-row"><button class="hc-snd" data-action="prefs-toggle">⚙️ Paramètres</button></div>';
+  if(showPrefs) html += renderPrefsModal();
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
     + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'
@@ -5437,7 +5454,8 @@ function flipPlay(before, screenChanged){
   document.querySelectorAll('#app [data-flip]').forEach(function(el){
     var k = el.getAttribute('data-flip'), b = before[k], a = el.getBoundingClientRect();
     if(b){
-      var dx = b.left - a.left, dy = b.top - a.top;
+      var z = el.currentCSSZoom || 1; // v67 : « Grand texte » (zoom) — le déplacement se compte dans l'échelle de l'élément
+      var dx = (b.left - a.left) / z, dy = (b.top - a.top) / z;
       if(Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       el.animate([{ transform:'translate('+dx+'px,'+dy+'px)' }, { transform:'none' }], { duration:420, easing:'cubic-bezier(.2,.75,.2,1)' });
     } else if(el.hasAttribute('data-enter') && !screenChanged){
@@ -5872,10 +5890,28 @@ function toggleMusic(){
   musicOn = !musicOn; try{ localStorage.setItem('rikiki_music', musicOn ? '1' : '0'); }catch(e){}
   audioUnlock(); musicSync(); render();
 }
+// v67 : un seul bouton ⚙️ dans la barre du haut (avant : 🔊 🎵 💡 Aa côte à côte, trop chargé) — les réglages sont dans la fenêtre « Paramètres »
+var showPrefs = false;
 function renderSoundButtons(){
-  return '<button class="btn ghost snd-btn" data-action="sfx-toggle" aria-pressed="'+sfxOn+'" title="Bruitages" aria-label="Bruitages">'+(sfxOn ? '🔊' : '🔇')+'<span class="chat-lbl"> Bruitages</span></button>'
-    + '<button class="btn ghost snd-btn'+(musicOn ? '' : ' snd-off')+'" data-action="music-toggle" aria-pressed="'+musicOn+'" title="Musique" aria-label="Musique">🎵<span class="chat-lbl"> Musique</span></button>'
-    + '<button class="btn ghost snd-btn'+(ledHelpOn ? '' : ' snd-off')+'" data-action="led-help-toggle" aria-pressed="'+ledHelpOn+'" title="Aide : rappelle la couleur demandée" aria-label="Aide">💡<span class="chat-lbl"> Aide</span></button>';
+  return '<button class="btn ghost snd-btn" data-action="prefs-toggle" title="Paramètres" aria-label="Paramètres">⚙️<span class="chat-lbl"> Paramètres</span></button>';
+}
+var PREF_ROWS = [
+  { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
+  { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
+  { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
+  { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' }
+];
+function renderPrefsModal(){
+  var html = '<div class="modal-backdrop" data-action="prefs-toggle"><div class="card-panel modal prefs-modal">'
+    + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>';
+  PREF_ROWS.forEach(function(r){
+    var on = r.on();
+    html += '<button class="pref-row" data-action="'+r.action+'" aria-pressed="'+on+'">'
+      + '<span class="pref-ico">'+r.icon()+'</span>'
+      + '<span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span>'
+      + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
+  });
+  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p></div></div>';
 }
 
 function renderTopbar(g){
@@ -5903,6 +5939,7 @@ function renderGame(){
   else if(g.status==='round_end') html += renderRoundEnd(g);
   else if(g.status==='game_over') html += renderGameOver(g);
   if(showScores && g.status!=='lobby') html += renderScoresModal(g);
+  if(showPrefs) html += renderPrefsModal();
   if(showRules) html += renderRulesModal();
   return html;
 }
@@ -7472,6 +7509,10 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 }
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
+// v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
+var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
+function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
+applyBigText();
 function ledHint(g){
   if(!ledHelpOn) return '';
   var led = g.currentTrick && g.currentTrick.length ? g.currentTrick[0].card.suit : null; if(!led) return '';
@@ -7559,6 +7600,7 @@ document.addEventListener('click', function(e){
   if(a==='afk-vote') afkVote(el.getAttribute('data-id'), el.getAttribute('data-choice'));
   else if(a==='friend-add-from') friendAddFrom(el.getAttribute('data-name'));
   else if(a==='led-help-toggle'){ ledHelpOn = !ledHelpOn; try{ localStorage.setItem('rikiki_led_help', ledHelpOn ? '1' : '0'); }catch(err){} render(); }
+  else if(a==='big-text-toggle'){ bigTextOn = !bigTextOn; try{ localStorage.setItem('rikiki_big_text', bigTextOn ? '1' : '0'); }catch(err){} applyBigText(); render(); }
 });
 /* ===================== events ===================== */
 // clic à l'intérieur d'une fenêtre : ne pas la fermer (sauf via un vrai bouton à l'intérieur, ex. « Fermer »)
@@ -7603,6 +7645,7 @@ document.addEventListener('click', function(e){
   else if(action==='toggle-scores'){ showScores = !showScores; render(); }
   else if(action==='sfx-toggle'){ toggleSfx(); }
   else if(action==='music-toggle'){ toggleMusic(); }
+  else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
   else if(action==='leave'){ leaveToEntry(); }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }
