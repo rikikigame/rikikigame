@@ -2537,6 +2537,17 @@ function fbEncode(obj){
   if(plain){ body = Object.assign({}, obj); delete body.__plain; }
   var out = { __json: JSON.stringify(body), __at: (body && typeof body.at==='number') ? body.at : nowMs() };
   if(plain) Object.keys(plain).forEach(function(k){ if(k!=='__json' && k!=='__at') out[k] = plain[k]; });
+  // v65 : pour une partie (`games/{code}`), on recopie en clair à CHAQUE écriture — jamais les cartes, seulement
+  // qui est l'hôte et qui est reconnu comme joueur — pour que les RÈGLES Firebase puissent vérifier qui a le droit
+  // d'écrire, sans jamais lire le contenu de __json (impossible pour les règles, qui ne parsent pas le JSON).
+  // Calculé automatiquement ici : aucun des ~25 endroits du code qui écrivent une partie n'a besoin d'y penser.
+  if(body && typeof body.status==='string' && body.players && typeof body.hostId==='string'){
+    out.status = body.status;
+    var uids = Object.keys(body.players).map(function(id){ return body.players[id] && body.players[id].uid; }).filter(Boolean);
+    if(uids.length) out.uids = '|'+uids.join('|')+'|';
+    var hostUid = body.players[body.hostId] && body.players[body.hostId].uid;
+    if(hostUid) out.host = hostUid;
+  }
   return out;
 }
 function fbSnap(path, data){ return { id: path.split('/').pop(), exists: data!=null, data: function(){ return data==null ? undefined : JSON.parse(JSON.stringify(data)); } }; }
