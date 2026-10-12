@@ -6,7 +6,9 @@ var sheetDraft = null;     // brouillon de l'écran de configuration
 var sheetSaving = false, sheetSavePending = false;
 var sheetConfirmNew = false;
 
-function sheetRef(){ return claudeDb.doc('data/users/'+myId+'/sheet'); }
+// v66 : rangée sous le compte Firebase (myKeyId), seul autorisé à l'écrire ; avant, sous l'identifiant de joueur (myId)
+function sheetRef(){ return claudeDb.doc('data/users/'+myKeyId()+'/sheet'); }
+function legacySheetRef(){ return myId && myId !== myKeyId() ? claudeDb.doc('data/users/'+myId+'/sheet') : null; }
 function saveSheet(){
   if(!sheet) return;
   if(sheetSaving){ sheetSavePending = true; return; }
@@ -22,6 +24,8 @@ async function openSheet(){
   try{
     var snap = await sheetRef().get();
     var d = snap.exists ? snap.data() : null;
+    var old = (!d && legacySheetRef()) ? await legacySheetRef().get() : null;
+    if(old && old.exists){ d = old.data(); sheetRef().set(d).catch(function(e){ console.warn('reprise de la feuille', e); }); } // reprise d'une feuille d'avant la v66
     if(d && d.phase && d.phase !== 'over'){ sheet = JSON.parse(JSON.stringify(d)); screen='sheet'; render(); return; }
     if(d && d.phase==='over' && d.league && !d.leagueRecorded){ sheet = JSON.parse(JSON.stringify(d)); screen='sheet'; render(); maybeRecordSheet(); return; }
   }catch(e){ console.error(e); }

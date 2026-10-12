@@ -226,16 +226,13 @@ function getHandCards(actorId){
 async function writeHandCards(actorId, round, cards, seed){
   if(isSecretDeal(gameDoc)) return; // v37 : la main courante = main distribuée − cartes jouées, rien à écrire
   var ap = gameDoc && gameDoc.players ? gameDoc.players[actorId] : null;
-  if(actorId===myId || (ap && !ap.isBot)){
-    var handRef = claudeDb.doc('data/users/'+actorId+'/hand');
-    // la graine de la manche où le coup a été joué : une écriture en retard ne peut plus écraser la main de la manche suivante
-    await handRef.set({ round: round, cards: cards, dealSeed: seed || gameDoc.dealSeed });
-  } else {
-    var ref = claudeDb.doc('games/'+gameDoc.code);
-    var patch = { botHands:{} };
-    patch.botHands[actorId] = cards;
-    await ref.update(patch);
-  }
+  // v66 : la main d'un humain se déduit de la donne (computedHand) ; l'ancienne copie privée data/users/{id}/hand
+  // n'était plus jamais relue et était écrivable par n'importe qui : supprimée (règles fermées).
+  if(actorId===myId || (ap && !ap.isBot)) return;
+  var ref = claudeDb.doc('games/'+gameDoc.code);
+  var patch = { botHands:{} };
+  patch.botHands[actorId] = cards;
+  await ref.update(patch);
 }
 
 function botDriverTick(){
