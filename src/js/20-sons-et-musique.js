@@ -10,7 +10,27 @@ try{ sfxOn = localStorage.getItem('rikiki_sfx') !== '0'; musicOn = localStorage.
 var audioCtx = null, sfxBus = null, musicBus = null, noiseBuf = null, sfxShaper = null;
 // v68 : dans l'appli iPhone (window.__RIKIKI_APP, posé par l'appli), le son joue même en mode silencieux.
 // Pas dans Safari : là, « playback » couperait la musique écoutée à côté.
-function audioSessionForApp(){ try{ if(window.__RIKIKI_APP && navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; }catch(e){} }
+var unmuteAudio = null, unmuteState = 'pas encore';
+// Astuce connue (iOS) : un petit son MUET joué en boucle par un vrai lecteur audio fait passer toute la page en mode « lecture »,
+// donc le Web Audio (bruitages, musique) sort aussi quand l'iPhone est en mode silencieux. Seulement dans l'appli.
+function unmuteForApp(){
+  if(!window.__RIKIKI_APP || unmuteAudio) return;
+  try{
+    var n = 4000, bytes = new Uint8Array(44 + n), dv = new DataView(bytes.buffer);
+    var str = function(o, t){ for(var i=0;i<t.length;i++) dv.setUint8(o+i, t.charCodeAt(i)); };
+    str(0,'RIFF'); dv.setUint32(4, 36+n, true); str(8,'WAVE'); str(12,'fmt '); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+    dv.setUint32(24,8000,true); dv.setUint32(28,8000,true); dv.setUint16(32,1,true); dv.setUint16(34,8,true); str(36,'data'); dv.setUint32(40,n,true);
+    for(var i=0;i<n;i++) bytes[44+i] = 128; // silence (8 bits non signés)
+    var a = new Audio(URL.createObjectURL(new Blob([bytes], { type:'audio/wav' })));
+    a.loop = true; a.setAttribute('playsinline', ''); unmuteAudio = a;
+    var pr = a.play();
+    if(pr && pr.then) pr.then(function(){ unmuteState = 'ok'; }).catch(function(){ unmuteState = 'refusé'; unmuteAudio = null; }); // refusé = pas de geste : on réessaiera au prochain toucher
+  }catch(e){ unmuteState = 'erreur'; unmuteAudio = null; }
+}
+function audioSessionForApp(){
+  try{ if(window.__RIKIKI_APP && navigator.audioSession && navigator.audioSession.type !== 'playback') navigator.audioSession.type = 'playback'; }catch(e){}
+  unmuteForApp();
+}
 function audioInit(){
   audioSessionForApp();
   if(audioCtx) return audioCtx;
@@ -377,7 +397,8 @@ function renderPrefsModal(){
       + '<span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span>'
       + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
   });
-  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p></div></div>';
+  var diag = window.__RIKIKI_APP ? '<p class="pref-note">Appli iPhone · session audio : '+(navigator.audioSession ? navigator.audioSession.type : 'absente')+' · lecteur muet : '+unmuteState+'</p>' : '';
+  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p>'+diag+'</div></div>';
 }
 
 function renderTopbar(g){
