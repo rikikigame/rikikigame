@@ -170,6 +170,8 @@ function cafeArt(card){
   if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : k==='SA' ? cafeUri(cafeAceSpade()) : null;
   return CAFE_IMG[k];
 }
+// v69 : un texte de néon long (ex. « Le Cimetière d'Albert ») est réduit pour tenir dans le cadre au lieu d'être coupé
+function neonSpan(t){ var n = String(t||'').length; return '<span'+(n>14 ? ' style="font-size:calc(var(--w) * '+(0.09*14/n).toFixed(4)+')"' : '')+'>'+t+'</span>'; }
 function applyDeckTheme(){
   var r = document.documentElement; r.setAttribute('data-deck', deckTheme);
   if(typeof halloFx==='function') halloFx(deckTheme==='hallo'); // v64 : chauves-souris et citrouilles du fond animé
@@ -207,7 +209,7 @@ function cardHtml(card, opts){
   if(cafe && face){
     var hl = deckTheme==='hallo';
     CAFE_IMG[hl?'hwall':'wall'] = CAFE_IMG[hl?'hwall':'wall'] || cafeUri(hl ? halloWall() : cafeWall());
-    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n><span>'+(hl ? HALLO_NEON : CAFE_NEON)[card.rank]+'</span></div>'
+    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n>'+neonSpan((hl ? HALLO_NEON : CAFE_NEON)[card.rank])+'</div>'
       + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   }
   else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';

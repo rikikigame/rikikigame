@@ -6,7 +6,8 @@
      de l'option. Seul l'organisateur peut lire tous les votes (règles Firebase) : il voit les résultats dans cette même fenêtre.
    - Pour un nouveau sondage : changer POLL.id, POLL.options, POLL.end (fin en millisecondes ; 0 = jamais fermé, pour les tests)
      ET la règle pollVotes dans regles-firebase.json (identifiant + date de fin). */
-var POLL = { id:'deck1', title:'Quel nom pour le paquet Halloween ?', options:['Minuit au Café', 'Café des Damnés', 'Le Cimetière d\'Albert'], end:1791906939843 };
+var POLL = { id:'deck1', title:'Quel nom pour le paquet Halloween ?', options:['Minuit au Café', 'Café des Damnés', 'Le Cimetière d\'Albert'], end:1791906939843,
+  final:[29, 0, 71] }; // v69 : résultat final PUBLIC, en % seulement (13/10/2026) — les votes eux-mêmes restent lisibles par l'organisateur seul
 var NEWS = {
   version: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
@@ -20,6 +21,7 @@ var NEWS = {
     'Ajouter un ami est plus simple : un bouton <strong>➕</strong> à côté des joueurs de la partie, et des suggestions de pseudos.'
   ],
   fixes: [
+    'Le <strong>paquet Halloween s\'appelle « Le Cimetière d\'Albert »</strong> : c\'est le nom choisi par vos votes (71 %). Il est maintenant écrit au dos des cartes et sur le néon des Rois et des Valets.',
     'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
     'Une <strong>aide au jeu</strong> optionnelle (bouton 💡, désactivée par défaut) : elle entoure la première carte du pli et rappelle la couleur demandée.',
     'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
@@ -58,8 +60,15 @@ async function pollVote(i){
   }catch(e){ console.error(e); pollState.msg = 'Impossible d\'enregistrer ton vote : '+dbErrorText(e); }
   pollState.busy = false; renderPoll();
 }
+function pollFinalHtml(){ // résultat final : pourcentages seulement, le gagnant en évidence
+  var best = POLL.final.indexOf(Math.max.apply(null, POLL.final));
+  return '<div class="poll-res final">'
+    + POLL.options.map(function(o, i){
+      return '<div class="poll-bar'+(i===best?' win':'')+'"><span class="poll-lbl">'+(i===best?'🏆 ':'')+esc(o)+'</span><span class="poll-track"><i style="width:'+POLL.final[i]+'%"></i></span><span class="poll-n">'+POLL.final[i]+' %</span></div>';
+    }).join('') + '</div>';
+}
 function pollResultsHtml(){
-  if(!isAdmin()) return '';
+  if(!isAdmin() || !pollIsOpen()) return '';
   var r = pollState.results; if(!r) return '<div class="muted" style="font-size:12.5px; margin-top:10px;">Résultats (organisateur) : chargement…</div>';
   var max = Math.max.apply(null, r.counts.concat([1]));
   return '<div class="poll-res"><div class="eyebrow">📊 Résultats (visibles par toi seul) · '+r.total+' vote'+(r.total>1?'s':'')+'</div>'
@@ -87,9 +96,10 @@ var NEWS_SLIDES = [
       + '<div class="tt-res tt-a"'+ttD(350)+'><span>Tom</span><span class="muted">fin de partie</span><span class="news-addbtn">➕</span></div>'
       + '<div class="tt-res tt-a"'+ttD(700)+'><span>Max</span><span class="muted">salon</span><span class="news-addbtn">➕</span></div></div>'; } },
   { t:'Un nom pour le paquet ?', poll:true,
-    d:function(){ return pollIsOpen() ? ('Les cartes se jouent déjà sans nom au dos : c\'est toi qui le choisis ! Sondage ouvert'+(pollLeftText() ? ', '+pollLeftText() : '')+'.') : 'Le sondage est terminé, merci à tous !'; },
+    d:function(){ return pollIsOpen() ? ('Les cartes se jouent déjà sans nom au dos : c\'est toi qui le choisis ! Sondage ouvert'+(pollLeftText() ? ', '+pollLeftText() : '')+'.') : 'Le sondage est terminé : le paquet s\'appelle « Le Cimetière d\'Albert », choisi par 71 % des votes. Merci à tous !'; },
     s:function(){
       var open = pollIsOpen(), canVote = !!claudeDb && (usingFirebase || usingMock);
+      if(!open) return pollFinalHtml();
       if(!canVote) return '<div class="tt-label">Le vote est disponible quand tu es connecté en ligne.</div>';
       return '<div class="news-poll">'+POLL.options.map(function(o, i){
           return '<button class="btn secondary news-opt'+(pollState.mine===i?' picked':'')+'" data-action="poll-vote" data-i="'+i+'"'+((open && !pollState.busy)?'':' disabled')+'>'+(pollState.mine===i?'✓ ':'')+esc(o)+'</button>';
@@ -135,8 +145,7 @@ function pollClose(){
 function renderPollBanner(){
   if(!(usingFirebase || usingMock)) return '';
   if(pollIsOpen()) return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">🗳️</span><span><strong>Vote pour le nom du prochain paquet</strong><small>'+(pollLeftText() || 'sondage ouvert')+' · nouveautés</small></span></button>';
-  if(isAdmin()) return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">📊</span><span><strong>Résultats du sondage</strong><small>sondage terminé</small></span></button>';
-  return '';
+  return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">🏆</span><span><strong>Résultat du sondage</strong><small>Le Cimetière d\'Albert · '+POLL.final[POLL.final.indexOf(Math.max.apply(null, POLL.final))]+' %</small></span></button>';
 }
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;

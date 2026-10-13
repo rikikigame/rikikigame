@@ -701,7 +701,7 @@
   :root[data-deck="cafe"] .card.back{ background:var(--cafe-back) center/cover no-repeat, #2346A8; border:3px solid #FBF4E6; overflow:hidden; }
   :root[data-deck="cafe"] .card.back::before{ display:none; }
   :root[data-deck="cafe"] .card.back::after{ content:"Café\A Jacquet"; white-space:pre; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; pointer-events:none;
-    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#F4FBFF;
+    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.19); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#F4FBFF;
     -webkit-text-stroke:calc(var(--w) * 0.004) #F4FBFF; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #8FE6FF, 0 0 calc(var(--w) * 0.1) rgba(47,184,255,0.75); }
   :root[data-deck="cafe"] .card.mini.back::after{ display:none; }
   /* le néon reste dans la niche (mêmes proportions que dans cafeWall : x 30–110, y 22–174 sur 140 × 196) */
@@ -739,7 +739,7 @@
   :root[data-deck="hallo"] .card.back{ background:var(--hallo-back) center/cover no-repeat, #6B1223; border:3px solid #FBF4E6; overflow:hidden; }
   :root[data-deck="hallo"] .card.back::before{ display:none; }
   :root[data-deck="hallo"] .card.back::after{ content:var(--hallo-back-name, none); white-space:pre; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; pointer-events:none;
-    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#FFE9CC;
+    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.19); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#FFE9CC;
     -webkit-text-stroke:calc(var(--w) * 0.004) #FFE9CC; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #FF9A3C, 0 0 calc(var(--w) * 0.1) rgba(255,106,0,0.75); }
   :root[data-deck="hallo"] .card.mini.back::after{ display:none; }
   :root[data-deck="hallo"] .card .cafe-neon span{ color:#FFE9CC; text-shadow:0 0 calc(var(--w) * 0.008) #FFFFFF, 0 0 calc(var(--w) * 0.03) #FF9A3C, 0 0 calc(var(--w) * 0.06) rgba(255,106,0,0.8); }
@@ -803,6 +803,12 @@
   .poll-res{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--line, #232B40); }
   .poll-bar{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto; gap:8px; align-items:center; font-size:13px; margin-top:6px; }
   .poll-lbl{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .poll-res.final{ border-top:none; margin-top:0; padding-top:0; width:100%; }
+  .poll-res.final .poll-bar{ grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto; font-size:15px; margin-top:12px; }
+  .poll-res.final .poll-lbl{ white-space:normal; line-height:1.2; }
+  .poll-res.final .poll-track{ height:12px; }
+  .poll-bar.win{ font-weight:800; }
+  .poll-bar.win .poll-track i{ background:#FFC247; }
   .poll-track{ height:10px; border-radius:6px; background:rgba(255,255,255,0.1); overflow:hidden; }
   .poll-track i{ display:block; height:100%; background:#FF9A3C; border-radius:6px; }
   .poll-n{ font-family:'DM Mono', ui-monospace, monospace; font-size:12px; }
@@ -922,7 +928,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '68';
+var APP_VERSION = '69';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2002,6 +2008,8 @@ function cafeArt(card){
   if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : k==='SA' ? cafeUri(cafeAceSpade()) : null;
   return CAFE_IMG[k];
 }
+// v69 : un texte de néon long (ex. « Le Cimetière d'Albert ») est réduit pour tenir dans le cadre au lieu d'être coupé
+function neonSpan(t){ var n = String(t||'').length; return '<span'+(n>14 ? ' style="font-size:calc(var(--w) * '+(0.09*14/n).toFixed(4)+')"' : '')+'>'+t+'</span>'; }
 function applyDeckTheme(){
   var r = document.documentElement; r.setAttribute('data-deck', deckTheme);
   if(typeof halloFx==='function') halloFx(deckTheme==='hallo'); // v64 : chauves-souris et citrouilles du fond animé
@@ -2039,7 +2047,7 @@ function cardHtml(card, opts){
   if(cafe && face){
     var hl = deckTheme==='hallo';
     CAFE_IMG[hl?'hwall':'wall'] = CAFE_IMG[hl?'hwall':'wall'] || cafeUri(hl ? halloWall() : cafeWall());
-    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n><span>'+(hl ? HALLO_NEON : CAFE_NEON)[card.rank]+'</span></div>'
+    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n>'+neonSpan((hl ? HALLO_NEON : CAFE_NEON)[card.rank])+'</div>'
       + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   }
   else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';
@@ -2064,7 +2072,8 @@ var HALLO_PAL = {
   poison:     { name:'Poison',       H:'#FF4FA3', D:'#B6FF3B', S:'#9B6BFF', C:'#3DE0FF' }  // rose néon, vert toxique, violet, cyan fantôme
 };
 var halloPal = 'citrouille';
-var HALLO_DECK_NAME = ''; // nom du paquet (dos des cartes + néon des Rois et Valets) : VIDE tant que le sondage n'est pas terminé ; ex. 'Minuit|au Café' (« | » = retour à la ligne sur le dos)
+var HALLO_DECK_NAME = 'Le Cimetière|d\'Albert'; // nom du paquet (dos des cartes + néon des Rois et Valets), choisi par sondage le 13/10/2026 : 5 votes sur 7 (« | » = retour à la ligne sur le dos)
+try{ document.documentElement.style.setProperty('--hallo-back-name', HALLO_DECK_NAME ? '"'+HALLO_DECK_NAME.replace('|','\\A ')+'"' : 'none'); }catch(e){} // nom au dos (posé ici : applyDeckTheme peut s'exécuter avant que ce fichier soit chargé)
 var HALLO_NEON = { K:HALLO_DECK_NAME.replace('|',' '), J:HALLO_DECK_NAME.replace('|',' '), Q:'Chez Monique' }; // texte néon des figures
 // image d'une carte pour le thème Halloween (Roi, Dame, Valet, As de pique) ; null = carte classique
 function halloArt(card){
@@ -7280,7 +7289,8 @@ document.addEventListener('change', function(e){
      de l'option. Seul l'organisateur peut lire tous les votes (règles Firebase) : il voit les résultats dans cette même fenêtre.
    - Pour un nouveau sondage : changer POLL.id, POLL.options, POLL.end (fin en millisecondes ; 0 = jamais fermé, pour les tests)
      ET la règle pollVotes dans regles-firebase.json (identifiant + date de fin). */
-var POLL = { id:'deck1', title:'Quel nom pour le paquet Halloween ?', options:['Minuit au Café', 'Café des Damnés', 'Le Cimetière d\'Albert'], end:1791906939843 };
+var POLL = { id:'deck1', title:'Quel nom pour le paquet Halloween ?', options:['Minuit au Café', 'Café des Damnés', 'Le Cimetière d\'Albert'], end:1791906939843,
+  final:[29, 0, 71] }; // v69 : résultat final PUBLIC, en % seulement (13/10/2026) — les votes eux-mêmes restent lisibles par l'organisateur seul
 var NEWS = {
   version: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
@@ -7294,6 +7304,7 @@ var NEWS = {
     'Ajouter un ami est plus simple : un bouton <strong>➕</strong> à côté des joueurs de la partie, et des suggestions de pseudos.'
   ],
   fixes: [
+    'Le <strong>paquet Halloween s\'appelle « Le Cimetière d\'Albert »</strong> : c\'est le nom choisi par vos votes (71 %). Il est maintenant écrit au dos des cartes et sur le néon des Rois et des Valets.',
     'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
     'Une <strong>aide au jeu</strong> optionnelle (bouton 💡, désactivée par défaut) : elle entoure la première carte du pli et rappelle la couleur demandée.',
     'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
@@ -7332,8 +7343,15 @@ async function pollVote(i){
   }catch(e){ console.error(e); pollState.msg = 'Impossible d\'enregistrer ton vote : '+dbErrorText(e); }
   pollState.busy = false; renderPoll();
 }
+function pollFinalHtml(){ // résultat final : pourcentages seulement, le gagnant en évidence
+  var best = POLL.final.indexOf(Math.max.apply(null, POLL.final));
+  return '<div class="poll-res final">'
+    + POLL.options.map(function(o, i){
+      return '<div class="poll-bar'+(i===best?' win':'')+'"><span class="poll-lbl">'+(i===best?'🏆 ':'')+esc(o)+'</span><span class="poll-track"><i style="width:'+POLL.final[i]+'%"></i></span><span class="poll-n">'+POLL.final[i]+' %</span></div>';
+    }).join('') + '</div>';
+}
 function pollResultsHtml(){
-  if(!isAdmin()) return '';
+  if(!isAdmin() || !pollIsOpen()) return '';
   var r = pollState.results; if(!r) return '<div class="muted" style="font-size:12.5px; margin-top:10px;">Résultats (organisateur) : chargement…</div>';
   var max = Math.max.apply(null, r.counts.concat([1]));
   return '<div class="poll-res"><div class="eyebrow">📊 Résultats (visibles par toi seul) · '+r.total+' vote'+(r.total>1?'s':'')+'</div>'
@@ -7361,9 +7379,10 @@ var NEWS_SLIDES = [
       + '<div class="tt-res tt-a"'+ttD(350)+'><span>Tom</span><span class="muted">fin de partie</span><span class="news-addbtn">➕</span></div>'
       + '<div class="tt-res tt-a"'+ttD(700)+'><span>Max</span><span class="muted">salon</span><span class="news-addbtn">➕</span></div></div>'; } },
   { t:'Un nom pour le paquet ?', poll:true,
-    d:function(){ return pollIsOpen() ? ('Les cartes se jouent déjà sans nom au dos : c\'est toi qui le choisis ! Sondage ouvert'+(pollLeftText() ? ', '+pollLeftText() : '')+'.') : 'Le sondage est terminé, merci à tous !'; },
+    d:function(){ return pollIsOpen() ? ('Les cartes se jouent déjà sans nom au dos : c\'est toi qui le choisis ! Sondage ouvert'+(pollLeftText() ? ', '+pollLeftText() : '')+'.') : 'Le sondage est terminé : le paquet s\'appelle « Le Cimetière d\'Albert », choisi par 71 % des votes. Merci à tous !'; },
     s:function(){
       var open = pollIsOpen(), canVote = !!claudeDb && (usingFirebase || usingMock);
+      if(!open) return pollFinalHtml();
       if(!canVote) return '<div class="tt-label">Le vote est disponible quand tu es connecté en ligne.</div>';
       return '<div class="news-poll">'+POLL.options.map(function(o, i){
           return '<button class="btn secondary news-opt'+(pollState.mine===i?' picked':'')+'" data-action="poll-vote" data-i="'+i+'"'+((open && !pollState.busy)?'':' disabled')+'>'+(pollState.mine===i?'✓ ':'')+esc(o)+'</button>';
@@ -7409,8 +7428,7 @@ function pollClose(){
 function renderPollBanner(){
   if(!(usingFirebase || usingMock)) return '';
   if(pollIsOpen()) return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">🗳️</span><span><strong>Vote pour le nom du prochain paquet</strong><small>'+(pollLeftText() || 'sondage ouvert')+' · nouveautés</small></span></button>';
-  if(isAdmin()) return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">📊</span><span><strong>Résultats du sondage</strong><small>sondage terminé</small></span></button>';
-  return '';
+  return '<button class="poll-banner" data-action="poll-open"><span class="poll-ico">🏆</span><span><strong>Résultat du sondage</strong><small>Le Cimetière d\'Albert · '+POLL.final[POLL.final.indexOf(Math.max.apply(null, POLL.final))]+' %</small></span></button>';
 }
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;

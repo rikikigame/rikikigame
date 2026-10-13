@@ -9,7 +9,8 @@ var HALLO_PAL = {
   poison:     { name:'Poison',       H:'#FF4FA3', D:'#B6FF3B', S:'#9B6BFF', C:'#3DE0FF' }  // rose néon, vert toxique, violet, cyan fantôme
 };
 var halloPal = 'citrouille';
-var HALLO_DECK_NAME = ''; // nom du paquet (dos des cartes + néon des Rois et Valets) : VIDE tant que le sondage n'est pas terminé ; ex. 'Minuit|au Café' (« | » = retour à la ligne sur le dos)
+var HALLO_DECK_NAME = 'Le Cimetière|d\'Albert'; // nom du paquet (dos des cartes + néon des Rois et Valets), choisi par sondage le 13/10/2026 : 5 votes sur 7 (« | » = retour à la ligne sur le dos)
+try{ document.documentElement.style.setProperty('--hallo-back-name', HALLO_DECK_NAME ? '"'+HALLO_DECK_NAME.replace('|','\\A ')+'"' : 'none'); }catch(e){} // nom au dos (posé ici : applyDeckTheme peut s'exécuter avant que ce fichier soit chargé)
 var HALLO_NEON = { K:HALLO_DECK_NAME.replace('|',' '), J:HALLO_DECK_NAME.replace('|',' '), Q:'Chez Monique' }; // texte néon des figures
 // image d'une carte pour le thème Halloween (Roi, Dame, Valet, As de pique) ; null = carte classique
 function halloArt(card){

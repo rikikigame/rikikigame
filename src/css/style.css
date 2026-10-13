@@ -694,7 +694,7 @@
   :root[data-deck="cafe"] .card.back{ background:var(--cafe-back) center/cover no-repeat, #2346A8; border:3px solid #FBF4E6; overflow:hidden; }
   :root[data-deck="cafe"] .card.back::before{ display:none; }
   :root[data-deck="cafe"] .card.back::after{ content:"Café\A Jacquet"; white-space:pre; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; pointer-events:none;
-    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#F4FBFF;
+    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.19); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#F4FBFF;
     -webkit-text-stroke:calc(var(--w) * 0.004) #F4FBFF; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #8FE6FF, 0 0 calc(var(--w) * 0.1) rgba(47,184,255,0.75); }
   :root[data-deck="cafe"] .card.mini.back::after{ display:none; }
   /* le néon reste dans la niche (mêmes proportions que dans cafeWall : x 30–110, y 22–174 sur 140 × 196) */
@@ -732,7 +732,7 @@
   :root[data-deck="hallo"] .card.back{ background:var(--hallo-back) center/cover no-repeat, #6B1223; border:3px solid #FBF4E6; overflow:hidden; }
   :root[data-deck="hallo"] .card.back::before{ display:none; }
   :root[data-deck="hallo"] .card.back::after{ content:var(--hallo-back-name, none); white-space:pre; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; text-align:center; pointer-events:none;
-    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.25); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#FFE9CC;
+    transform:rotate(-10deg); font-family:'Sacramento', cursive; font-weight:400; font-size:calc(var(--w) * 0.19); line-height:1.25; padding-top:calc(var(--w) * 0.04); color:#FFE9CC;
     -webkit-text-stroke:calc(var(--w) * 0.004) #FFE9CC; text-shadow:0 0 calc(var(--w) * 0.012) #FFFFFF, 0 0 calc(var(--w) * 0.05) #FF9A3C, 0 0 calc(var(--w) * 0.1) rgba(255,106,0,0.75); }
   :root[data-deck="hallo"] .card.mini.back::after{ display:none; }
   :root[data-deck="hallo"] .card .cafe-neon span{ color:#FFE9CC; text-shadow:0 0 calc(var(--w) * 0.008) #FFFFFF, 0 0 calc(var(--w) * 0.03) #FF9A3C, 0 0 calc(var(--w) * 0.06) rgba(255,106,0,0.8); }
@@ -796,6 +796,12 @@
   .poll-res{ margin-top:8px; padding-top:8px; border-top:1px dashed var(--line, #232B40); }
   .poll-bar{ display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto; gap:8px; align-items:center; font-size:13px; margin-top:6px; }
   .poll-lbl{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .poll-res.final{ border-top:none; margin-top:0; padding-top:0; width:100%; }
+  .poll-res.final .poll-bar{ grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto; font-size:15px; margin-top:12px; }
+  .poll-res.final .poll-lbl{ white-space:normal; line-height:1.2; }
+  .poll-res.final .poll-track{ height:12px; }
+  .poll-bar.win{ font-weight:800; }
+  .poll-bar.win .poll-track i{ background:#FFC247; }
   .poll-track{ height:10px; border-radius:6px; background:rgba(255,255,255,0.1); overflow:hidden; }
   .poll-track i{ display:block; height:100%; background:#FF9A3C; border-radius:6px; }
   .poll-n{ font-family:'DM Mono', ui-monospace, monospace; font-size:12px; }
