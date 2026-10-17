@@ -167,7 +167,7 @@ function cafeArt(card){
   if(deckTheme === 'classic') return null;
   var k = deckTheme + card.suit + card.rank;
   if(deckTheme === 'hallo'){ if(!(k in CAFE_IMG)) CAFE_IMG[k] = halloArt(card); return CAFE_IMG[k]; }
-  if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : k==='SA' ? cafeUri(cafeAceSpade()) : null;
+  if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : (card.suit+card.rank)==='SA' ? cafeUri(cafeAceSpade()) : null; // v71 : « k » porte le nom du thème (cafeSA) — l'ancien test k==='SA' ne réussissait plus depuis le thème Halloween
   return CAFE_IMG[k];
 }
 // v69 : un texte de néon long (ex. « Le Cimetière d'Albert ») est réduit pour tenir dans le cadre au lieu d'être coupé
