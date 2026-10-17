@@ -891,3 +891,5 @@
   .pref-sw.on{ background:#E8823A; }
   .pref-sw.on::after{ transform:translateX(18px); }
   .pref-note{ font-size:12px !important; opacity:0.6; text-align:center; margin:12px 0 0 !important; }
+  .daily-stat{ margin:18px 0 6px; padding:10px 12px; border-radius:12px; font-size:13.5px; line-height:1.45; background:rgba(255,255,255,0.05); border:1px dashed var(--line, #232B40); }
+  .daily-stat .muted{ font-size:12px; }

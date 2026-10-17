@@ -57,7 +57,7 @@ async function loadLeague(force, quiet){
     var all = gs.docs.map(function(d){
       var g = Object.assign({ id:d.id }, d.data());
       g.hidden = !!league.hidden[d.id];
-      g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId) }); });
+      g.players = (g.players||[]).map(function(p){ return Object.assign({}, p, { memberId: canonMember(p.memberId), origMemberId: p.memberId }); }); // origMemberId : fiche d'origine (avant fusion), pour l'historique des coupes
       g.attest = attestStatus(g);
       return g;
     }).filter(function(g){ return g.players.length; }); // v58 : entrées vides ignorées
@@ -113,7 +113,7 @@ function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo
 async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   // rows: [{ memberId, name, score, contracts, absDiff }]
   var ranks = ranksFromScores(rows.map(function(r){ return { key:r.memberId, score:r.score }; }));
-  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; return p; });
+  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; if(typeof r.cuts==='number'){ p.cuts = r.cuts; p.cutWins = r.cutWins||0; } return p; });
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
@@ -126,6 +126,26 @@ function statsFromLog(roundLog, key){
   var ok=0, abs=0;
   roundLog.forEach(function(r){ var b=r.bids[key], w=r.tricksWon[key]; if(b===w) ok++; abs += Math.abs((b||0)-(w||0)); });
   return { contracts: ok, absDiff: abs };
+}
+
+// v72 : « coupes » = jouer de l'atout quand la couleur demandée n'est pas l'atout (on reconstitue chaque pli depuis les cartes jouées, dans l'ordre).
+// Renvoie { idJoueur : { cuts, cutWins } } ; cutWins = coupes qui ont fait gagner le pli. Vérifié sur 308 manches réelles : plis recalculés = plis gagnés.
+function cutStatsFromLog(roundLog){
+  var out = {};
+  (roundLog||[]).forEach(function(r){
+    var order = r.bidOrder || [], n = order.length, played = r.played || [], trump = r.trump && r.trump.suit ? r.trump.suit : null;
+    order.forEach(function(id){ if(!out[id]) out[id] = { cuts:0, cutWins:0 }; });
+    if(!n || played.length % n) return;
+    var leader = order[0];
+    for(var t=0; t*n<played.length; t++){
+      var trick = played.slice(t*n, (t+1)*n), start = order.indexOf(leader), led = trick[0].suit;
+      var plays = trick.map(function(card, k){ return { playerId: order[(start+k)%n], card: card }; });
+      var winner = trickWinner(plays, led, trump);
+      if(trump && led!==trump) plays.forEach(function(pl, k){ if(k>0 && pl.card.suit===trump){ out[pl.playerId].cuts++; if(winner===pl.playerId) out[pl.playerId].cutWins++; } });
+      leader = winner;
+    }
+  });
+  return out;
 }
 
 // Partie en ligne terminée : l'hôte l'enregistre une seule fois.
@@ -148,12 +168,14 @@ async function maybeRecordOnline(g){
     var audit = await auditGameFull(g);
     if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
+    var cutsOfGame = cutStatsFromLog(g.roundLog||[]);
     var lids = leagueIdsOf(g); // v64 : les joueurs remplacés / retirés n'ont aucun point de ligue
     for(var i=0;i<lids.length;i++){
       var uid = lids[i], p = g.players[uid];
       var mid = await ensureMember({ userId: uid, name: p.name });
       var st = statsFromLog(g.roundLog||[], uid);
-      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid) }); // scores recalculés, pas ceux affichés
+      var cs = cutsOfGame[uid] || { cuts:0, cutWins:0 };
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid), cuts: cs.cuts, cutWins: cs.cutWins }); // scores recalculés, pas ceux affichés
     }
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
@@ -174,11 +196,18 @@ async function maybeRecordSheet(){
 }
 
 // ---- calcul du classement ----
+// v72 : coupes des parties DÉJÀ jouées (avant que le jeu les compte lui-même), reconstituées depuis les cartes jouées de chaque partie
+// (analysisGames, 13/10–17/10/2026 ; plis recalculés = plis gagnés sur 368 manches). Clé : id de partie sans « o_ » ; valeur : { id de membre sans « m_ » : [coupes, coupes gagnantes] }.
+var CUTS_HISTORY = {"49KW_1790851103662":{"mul5tnvlb5fa":[12,12],"mullwg9wk8qw":[11,8],"mulmpz0lcgvx":[14,11],"muo82azxw149":[9,9]},"6H47_1791717816430":{"mv3qidur16zh":[7,6],"mul5tnvlb5fa":[4,3],"mulmpz0lcgvx":[9,8],"muo82azxw149":[5,5]},"9JWU_1791400833947":{"mullwg9wk8qw":[7,7],"muo82azxw149":[5,4],"mulmpz0lcgvx":[4,2],"mus91lbcyzol":[6,6]},"9REB_1791452951554":{"mulmpz0lcgvx":[5,4],"muo82azxw149":[4,4],"mus6yenkw9mg":[6,5],"mus91lbcyzol":[8,2],"mullwg9wk8qw":[3,3]},"AS3X_1791232068148":{"mullwg9wk8qw":[3,3],"mus6yenkw9mg":[5,4],"mulmpz0lcgvx":[3,1],"mul5tnvlb5fa":[8,8],"muo82azxw149":[4,4]},"AWK4_1791287683570":{"muo82azxw149":[11,9],"mullwg9wk8qw":[10,9],"mus91lbcyzol":[9,9]},"D5Y6_1792057554534":{"muy6un9tpvqs":[5,5],"mullwg9wk8qw":[9,8],"mul5tnvlb5fa":[9,7],"muo82azxw149":[2,2]},"EN8F_1791544970129":{"mus91lbcyzol":[3,2],"muo82azxw149":[5,5],"mullwg9wk8qw":[6,5],"mul5tnvlb5fa":[5,4],"muzwnxfkhrnb":[5,4]},"FVZM_1791486386451":{"mul5tnvlb5fa":[3,0],"muzwnxfkhrnb":[5,4],"mullwg9wk8qw":[2,2],"muzxdyfiai6d":[2,1],"muo82azxw149":[2,1],"mulmpz0lcgvx":[4,2],"mus6yenkw9mg":[1,1]},"G25V_1791229274505":{"mus6yenkw9mg":[5,4],"mul5tnvlb5fa":[4,2],"mullwg9wk8qw":[2,2],"mulmpz0lcgvx":[4,4],"muo82azxw149":[3,1]},"GPDA_1791220833884":{"mullwg9wk8qw":[16,16],"muo82azxw149":[13,11],"mulmpz0lcgvx":[8,8]},"JJTR_1791230585833":{"mulmpz0lcgvx":[8,5],"muo82azxw149":[8,7],"mul5tnvlb5fa":[8,5],"mullwg9wk8qw":[9,9],"mus6yenkw9mg":[5,5]},"LRF8_1791402654119":{"muo82azxw149":[3,3],"mullwg9wk8qw":[6,6],"mus91lbcyzol":[7,6],"mulmpz0lcgvx":[6,4]},"NSJF_1791907334672":{"mulmpz0lcgvx":[2,2],"mv6tny12xktd":[4,3],"mullwg9wk8qw":[3,1],"mus91lbcyzol":[2,2],"mus6yenkw9mg":[3,3],"muo82azxw149":[2,2]},"NVG2_1792008054895":{"munzmoujhcka":[6,6],"mulmpz0lcgvx":[4,3],"muo82azxw149":[5,5],"mullwg9wk8qw":[3,3],"mus91lbcyzol":[4,3]},"NZVD_1791398831365":{"mulmpz0lcgvx":[6,4],"mus91lbcyzol":[6,5],"muo82azxw149":[5,5],"mullwg9wk8qw":[4,4]},"PM9A_1791397328532":{"mus91lbcyzol":[7,6],"mullwg9wk8qw":[4,2],"mulmpz0lcgvx":[4,3],"muo82azxw149":[3,1],"muygkt0v6yfc":[4,4]},"QKYX_1791023752333":{"mul5tnvlb5fa":[11,9],"mullwg9wk8qw":[5,3],"mus6yenkw9mg":[4,3],"mus91lbcyzol":[6,5]},"RSE4_1790622175174":{"mul5tnvlb5fa":[2,1],"mullwg9wk8qw":[4,3],"mulmpz0lcgvx":[1,1],"mulm3599ra5u":[2,1]},"S3HH_1791488624457":{"mulmpz0lcgvx":[5,3],"muzwnxfkhrnb":[3,3],"muo82azxw149":[6,5],"mul5tnvlb5fa":[6,5],"mullwg9wk8qw":[5,5]},"SG6Z_1791473356912":{"muo82azxw149":[12,10],"mullwg9wk8qw":[7,6],"mul5tnvlb5fa":[6,3],"mulmpz0lcgvx":[12,10]},"T6Z3_1792005816559":{"mulmpz0lcgvx":[4,3],"munzmoujhcka":[7,6],"mus91lbcyzol":[7,4],"mullwg9wk8qw":[6,5],"muo82azxw149":[5,4],"muu6gkr5fssv":[3,2]},"TUWX_1791203323756":{"mus6yenkw9mg":[7,7],"muo82azxw149":[8,8],"mul5tnvlb5fa":[8,7]},"XAT6_1791484769464":{"mulmpz0lcgvx":[6,5],"muzwnxfkhrnb":[6,5],"muo82azxw149":[5,4],"mullwg9wk8qw":[6,5],"mul5tnvlb5fa":[8,5]},"Y2VG_1791454147320":{"mullwg9wk8qw":[2,2],"mus91lbcyzol":[4,3],"mulmpz0lcgvx":[2,2],"muo82azxw149":[2,2]},"Z85P_1791385316485":{"mulmpz0lcgvx":[7,6],"muy6un9tpvqs":[4,3],"mullwg9wk8qw":[8,7],"muo82azxw149":[6,5]},"Z9CB_1792055949912":{"mul5tnvlb5fa":[9,8],"muo82azxw149":[10,8],"muy6un9tpvqs":[4,3],"mullwg9wk8qw":[2,1]},"ZH9X_1791138257358":{"munzmoujhcka":[9,5],"muu6gkr5fssv":[6,3],"mus91lbcyzol":[7,7],"mus6yenkw9mg":[6,4],"muu6gkpu2gv5":[5,5],"muo82azxw149":[7,5]},"ZXDD_1790875775080":{"muo82azxw149":[5,4],"mullwg9wk8qw":[4,4],"mulmpz0lcgvx":[6,6],"mul5tnvlb5fa":[6,6]}};
+function historicCuts(gameId, memberId){
+  var h = CUTS_HISTORY[String(gameId).replace(/^o_/,'')]; var v = h && h[String(memberId).replace(/^m_/,'')];
+  return v ? { cuts:v[0], cutWins:v[1] } : null;
+}
 function computeLeague(seasonKey, mode){
   var games = league.games.filter(function(g){ return (seasonKey==='all' || g.season===seasonKey) && (!mode || g.mode===mode); });
   var S = {};
   function st(id, name){
-    if(!S[id]) S[id] = { id:id, name:name, elo:ELO_START, games:0, wins:0, contracts:0, rounds:0, absDiff:0, history:[], eloHistory:[ELO_START], streak:0, bestStreak:0 };
+    if(!S[id]) S[id] = { id:id, name:name, elo:ELO_START, games:0, wins:0, contracts:0, rounds:0, absDiff:0, history:[], eloHistory:[ELO_START], streak:0, bestStreak:0, cuts:0, cutWins:0, cutGames:0 };
     return S[id];
   }
   games.forEach(function(g){
@@ -193,6 +222,8 @@ function computeLeague(seasonKey, mode){
         d += score - exp;
       });
       d = ELO_K/(n-1) * d;
+      var hc = (typeof p.cuts==='number') ? { cuts:p.cuts, cutWins:(p.cutWins||0) } : historicCuts(g.id, p.origMemberId || p.memberId);
+      if(hc){ s.cuts += hc.cuts; s.cutWins += hc.cutWins; s.cutGames++; }
       s.elo += d; s.games++; s.rounds += (g.rounds||0); s.contracts += (p.contracts||0); s.absDiff += (p.absDiff||0);
       var won = p.rank===1;
       if(won){ s.wins++; s.streak++; s.bestStreak = Math.max(s.bestStreak, s.streak); } else s.streak = 0;
@@ -237,7 +268,7 @@ function renderLeagueRow(s, i, ranked){
   var html = '<div class="league-row'+(open?' open':'')+(ranked && i===0?' first':'')+'">';
   html += '<button class="league-main" data-action="league-open" data-id="'+esc(s.id)+'" aria-expanded="'+(open?'true':'false')+'">'
     + '<span class="rank-num">'+(ranked ? (i+1) : '–')+'</span>'
-    + '<span class="lg-who"><span class="lg-name">'+esc(s.name)+(isMe?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</span>'
+    + '<span class="lg-who"><span class="lg-name">'+esc(s.name)+(ranked && crown.holder && crown.holder.memberId===s.id ? ' <span class="crown" title="Premier de la ligue">👑</span>' : '')+(isMe?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</span>'
     + '<span class="lg-meta">'+s.games+' partie'+(s.games>1?'s':'')+' · '+s.wins+' V · '+pct(s.contractRate)+' contrats</span></span>'
     + '<span class="lg-elo">'+Math.round(s.elo)+'</span></button>';
   if(open){
@@ -247,7 +278,8 @@ function renderLeagueRow(s, i, ranked){
       + '<div><b>'+s.wins+' / '+s.games+'</b><span>victoires</span></div>'
       + '<div><b>'+pct(s.contractRate)+'</b><span>contrats réussis</span></div>'
       + '<div><b>'+s.precision.toFixed(2).replace('.',',')+'</b><span>écart moyen / manche</span></div>'
-      + '<div><b>'+s.bestStreak+'</b><span>meilleure série</span></div></div>';
+      + '<div><b>'+s.bestStreak+'</b><span>meilleure série</span></div>'
+      + (s.cutGames ? '<div><b>'+s.cuts+' ✂️</b><span>coupes en '+s.cutGames+' parties ('+pct(s.cuts ? s.cutWins/s.cuts : 0)+' gagnantes)</span></div>' : '') + '</div>';
     html += '<div class="lg-spark">'+sparkline(s.eloHistory)+'<div class="muted" style="font-size:11.5px;">Évolution de la cote (pointillés = 1000)</div></div>';
     html += '<div class="eyebrow" style="margin:10px 0 4px;">Dernières parties</div><table class="score-table"><tbody>';
     s.history.slice(-8).reverse().forEach(function(h){
@@ -259,6 +291,18 @@ function renderLeagueRow(s, i, ranked){
   }
   html += '</div>';
   return html;
+}
+// v72 : « stat du jour » sur les coupes — elle change chaque jour (3 stats en rotation) ; discrète, tout en bas de l'écran
+function leagueDailyStat(){
+  if(leagueView.mode!=='online') return '';
+  var res = computeLeague('all', 'online'), L = res.ranked.concat(res.unranked).filter(function(s){ return s.cutGames>=LEAGUE_MIN_GAMES && s.cuts>0; });
+  if(!L.length) return '';
+  var by = function(f){ return L.slice().sort(function(a,b){ return f(b)-f(a); })[0]; }, one = function(x){ return x.toFixed(1).replace('.',','); }, txt;
+  var k = Math.floor(nowMs()/86400000) % 3;
+  if(k===0){ var a = by(function(s){ return s.cuts/s.cutGames; }); txt = '<b>'+esc(a.name)+'</b> est le roi de la coupe : '+one(a.cuts/a.cutGames)+' coupes par partie en moyenne.'; }
+  else if(k===1){ var e = by(function(s){ return s.cuts>=20 ? s.cutWins/s.cuts : 0; }); txt = '<b>'+esc(e.name)+'</b> coupe avec précision : '+Math.round(100*e.cutWins/e.cuts)+' % de ses coupes font gagner le pli.'; }
+  else { var t = by(function(s){ return s.cuts; }); txt = '<b>'+esc(t.name)+'</b> a coupé '+t.cuts+' fois en '+t.cutGames+' parties : personne n\'a plus d\'atouts à son actif.'; }
+  return '<div class="daily-stat"><b>✂️ Stat du jour</b> · '+txt+'</div>';
 }
 function renderLeague(){
   var html = '<div class="topbar"><div class="brand"><span class="display">Rikiki</span><span class="badge">Ligue</span></div>'
@@ -304,6 +348,7 @@ function renderLeague(){
     if(isAdmin()) html += '<p class="muted" style="font-size:11.5px; margin:8px 0 0;">Organisateur : valide à la main seulement si tu es sûr du résultat (tu as joué, ou tu as vu la partie).</p>';
     html += '</div>';
   }
+  html += leagueDailyStat();
   if(leagueView.help){
     html += '<div class="modal-backdrop" data-action="league-help"><div class="card-panel modal">'
       + '<button class="btn ghost close-x" data-action="league-help">Fermer</button><h3>Comment marche le classement</h3>'
