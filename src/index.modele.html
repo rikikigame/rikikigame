@@ -1,15 +1,29 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0E1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Rikiki"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0E1320;color:#EEF0F6}html{background:#0E1320}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add('is-home')</script></head><body>
-<title>Rikiki</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Karla:wght@400;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Bodoni+Moda:ital,opsz,wght@0,6..96,800;1,6..96,500&family=DM+Mono:wght@500&family=Sacramento&display=swap" rel="stylesheet">
+<!doctype html><html lang="fr"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Rikiki"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0E1320;color:#EEF0F6}html{background:#0E1320}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add('is-home')</script><title>Rikiki · jeu de cartes à plis et annonces, gratuit en ligne</title>
+<meta name="description" content="Rikiki : jeu de cartes à plis et annonces (famille des « Oh Hell »), gratuit, dans le navigateur. Parties en ligne entre amis, robots, ligue et classement, mode vraies cartes. Sans publicité ni cookie de suivi.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://rikikigame.github.io/rikikigame/">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Rikiki"><meta property="og:locale" content="fr_BE">
+<meta property="og:title" content="Rikiki · jeu de cartes à plis et annonces"><meta property="og:description" content="Gratuit, en ligne entre amis, avec robots, ligue et classement. Sans publicité ni cookie de suivi.">
+<meta property="og:url" content="https://rikikigame.github.io/rikikigame/">
+<!-- v73 : les images ne peuvent venir que du site, de données intégrées et de KLIPY (GIF) : un lien d'image piégé ne peut plus espionner les joueurs -->
+<meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob: https://static.klipy.com">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rikiki","url":"https://rikikigame.github.io/rikikigame/","applicationCategory":"GameApplication","operatingSystem":"Tout navigateur récent","inLanguage":["fr","en"],"isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"description":"Jeu de cartes à plis et annonces, gratuit, jouable en ligne entre amis ou contre des robots, avec ligue et classement."}</script>
+</head><body>
 <style>
 /*@CSS@*/
 </style>
-<div id="app"><div class="center-wrap"><span class="boot-suits" aria-label="Chargement">♠ ♥ ♣ ♦</span></div></div>
-<div id="chat-root"></div>
-<div id="invite-root"></div>
+<a class="skip-link" href="#app">Aller au jeu</a>
+<main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
+<noscript><section style="max-width:640px;margin:24px auto;padding:0 18px;font:17px/1.6 system-ui,sans-serif">
+<h1>Rikiki</h1>
+<p>Rikiki est un jeu de cartes à plis et annonces, gratuit, qui se joue dans le navigateur : parties en ligne entre amis, robots, ligue et classement, et mode « vraies cartes » (feuille de score). À chaque manche, chaque joueur annonce combien de plis il va faire ; réussir son annonce rapporte des points.</p>
+<p><strong>JavaScript est nécessaire pour jouer.</strong> Active-le dans ton navigateur, puis recharge cette page.</p>
+<!-- liens vers les pages légales à remettre ici quand LEGAL_READY passe à true -->
+</section></noscript>
+<div id="chat-root" role="region" aria-label="Chat de la partie"></div>
+<div id="invite-root" role="status" aria-live="polite"></div>
+<div id="consent-root"></div>
 
 <!-- ===================== Firebase (mode 100% en ligne, sans compte Claude) =====================
      Colle ici l'objet firebaseConfig obtenu depuis la console Firebase (Paramètres du projet > tes applis > icône Web).

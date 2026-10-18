@@ -46,7 +46,7 @@ function renderHomeFriends(){
   return html + '</div>';
 }
 function renderEntry(){
-  var html = '<div class="home-c">';
+  var html = '<div class="home-c">' + renderProfileFlash();
   // --- en-tête ---
   var pseudo = currentProfile ? currentProfile.pseudo : '';
   html += '<div class="hc-head">';
@@ -61,6 +61,7 @@ function renderEntry(){
   html += '<button class="hc-avatar'+(currentProfile?'':' guest')+'" data-action="home-profile" aria-label="'+(currentProfile ? 'Mon profil' : 'Créer ou connecter mon profil')+'" aria-expanded="'+(homeProfileOpen?'true':'false')+'">'
     + (currentProfile ? esc(init) : '<span class="hc-avatar-txt">Profil</span>') + '</button>';
   html += '</div>';
+  html += currentProfile ? '<div class="hc-state ok">✅ Profil connecté</div>' : '<div class="hc-state">Invité · tu n\'as pas de profil connecté. <button class="linkish" data-action="home-profile">Créer un profil ou me connecter</button></div>';
   var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
   if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
   else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
@@ -99,6 +100,7 @@ function renderEntry(){
   // v67 : un seul bouton « Paramètres » (son, musique, aide, grand texte)
   html += '<div class="hc-snd-row"><button class="hc-snd" data-action="prefs-toggle">⚙️ Paramètres</button></div>';
   if(showPrefs) html += renderPrefsModal();
+  if(LEGAL_READY) html += '<nav class="hc-legal" aria-label="Informations légales">'+legalLinksHtml()+'</nav>';
   html += '<div class="hc-foot"><span class="hc-status">'
     + (usingFirebase ? '<span class="hc-dot"></span>En ligne' : (usingMock ? 'Mode local : synchronisé entre les onglets de ce navigateur' : ''))
     + '</span><span class="hc-ver">'+(BEER_URL ? '<button class="hc-beer" data-action="beer-open" aria-label="Offrir une bière au créateur">🍺</button>' : '')+'<span class="hc-lang" data-noi18n>'

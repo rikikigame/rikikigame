@@ -385,12 +385,15 @@ var PREF_ROWS = [
   { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
-  { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' }
+  { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
+  { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
+  { action:'sec-consent-toggle', on:function(){ return securityConsent()===true; }, icon:function(){ return '🔒'; }, title:'Vérification Google reCAPTCHA', hint:'Sécurité. Google voit ton adresse IP. Refuser ne change rien au jeu.' }
 ];
 function renderPrefsModal(){
   var html = '<div class="modal-backdrop" data-action="prefs-toggle"><div class="card-panel modal prefs-modal">'
     + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>';
   PREF_ROWS.forEach(function(r){
+    if(r.action==='sec-consent-toggle' && !LEGAL_READY) return; // reCAPTCHA n'est pas chargé tant que la partie légale est en veille
     var on = r.on();
     html += '<button class="pref-row" data-action="'+r.action+'" aria-pressed="'+on+'">'
       + '<span class="pref-ico">'+r.icon()+'</span>'
@@ -398,7 +401,7 @@ function renderPrefsModal(){
       + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
   });
   var diag = window.__RIKIKI_APP ? '<p class="pref-note">Appli iPhone · session audio : '+(navigator.audioSession ? navigator.audioSession.type : 'absente')+' · lecteur muet : '+unmuteState+'</p>' : '';
-  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p>'+diag+'</div></div>';
+  return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p>'+diag+(LEGAL_READY ? '<p class="pref-note pref-legal">'+legalLinksHtml()+'</p>' : '')+'</div></div>';
 }
 
 function renderTopbar(g){
@@ -454,7 +457,7 @@ function renderLobby(g){
   html += '<div class="player-list">';
   ids.forEach(function(id){
     var p = g.players[id];
-    html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
+    html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+'; color:'+inkOn(safeColor(p.color))+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
     html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
     if(p.isBot){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';

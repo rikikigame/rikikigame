@@ -43,10 +43,42 @@ function screenKey(){
   if(screen==='sheet' && sheet) k += '|' + sheet.round + '|' + (sheet.phase==='tricks' ? 'bid' : sheet.phase);
   return k;
 }
+// v73 : accessibilité (lecteurs d'écran, agents) — étiquettes des champs, description des cartes, boutons-icônes
+var CARD_RANK_NAME = { fr:{A:'As', K:'Roi', Q:'Dame', J:'Valet'}, en:{A:'Ace', K:'King', Q:'Queen', J:'Jack'} };
+var CARD_SUIT_NAME = { fr:{S:'pique', H:'cœur', D:'carreau', C:'trèfle'}, en:{S:'spades', H:'hearts', D:'diamonds', C:'clubs'} };
+function cardAriaLabel(suit, rank){
+  var l = (typeof LANG!=='undefined' && LANG==='en') ? 'en' : 'fr', r = (CARD_RANK_NAME[l][rank] || rank), s = CARD_SUIT_NAME[l][suit] || '';
+  return l==='en' ? (r+' of '+s) : (r+' de '+s);
+}
+function a11yPass(){
+  var app = document.getElementById('app'); if(!app) return;
+  var l = (typeof LANG!=='undefined' && LANG==='en') ? 'en' : 'fr';
+  app.querySelectorAll('.card').forEach(function(c){
+    if(c.closest('button[aria-label]')){ c.setAttribute('aria-hidden', 'true'); return; }
+    if(c.getAttribute('aria-label')) return;
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', c.classList.contains('back') ? (l==='en' ? 'Face-down card' : 'Carte face cachée') : cardAriaLabel(c.getAttribute('data-suit'), c.getAttribute('data-rank')));
+  });
+  document.querySelectorAll('#app input:not([type=hidden]), #app select, #app textarea, #chat-root input').forEach(function(f){
+    if(f.getAttribute('aria-label') || f.getAttribute('aria-labelledby') || f.closest('label')) return;
+    if(f.id && document.querySelector('label[for="'+f.id+'"]')) return;
+    var t = f.getAttribute('placeholder') || f.getAttribute('title') || '', p = f.previousElementSibling;
+    if(!t && p && p.textContent) t = p.textContent;
+    if(!t){ var wrap = f.closest('div,section,label'); var h = wrap && wrap.querySelector('strong,b,h3,h2,span.muted'); if(h) t = h.textContent; }
+    t = String(t||'').replace(/\s+/g,' ').trim().slice(0, 80);
+    if(t) f.setAttribute('aria-label', t);
+  });
+  app.querySelectorAll('button:not([aria-label])').forEach(function(b){
+    var t = (b.textContent||'').replace(/\s+/g,'').trim();
+    if(t==='✕' || t==='×') b.setAttribute('aria-label', l==='en' ? 'Close' : 'Fermer');
+    else if(t==='➕' || t==='+') b.setAttribute('aria-label', l==='en' ? 'Add' : 'Ajouter');
+  });
+}
 function render(){
   var before = flipCapture();
   var sk = screenKey(), changed = sk !== lastScreenKey; lastScreenKey = sk;
   renderInner();
+  try{ renderConsent(); a11yPass(); }catch(e){ console.error(e); }
   flipPlay(before, changed);
   try{ renderChat(); }catch(e){ console.error(e); }
   try{ var ir = document.getElementById('invite-root'); if(ir) ir.innerHTML = renderInviteBanner(); presenceTick(); }catch(e){ console.error(e); }

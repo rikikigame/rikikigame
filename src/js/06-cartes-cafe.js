@@ -217,9 +217,16 @@ function cardHtml(card, opts){
   else middle = '<div class="pip'+(face?' face':'')+'">'+(face ? '<span class="fl">'+r+'</span><span class="fs">'+sym+'</span>' : sym)+'</div>';
   if(cafe) cls += ' cafe-art' + (card.rank==='A' ? ' cafe-ace' : '');
   if(art) cls += ' has-art'; else if(!small && !face && PIP_LAYOUT[card.rank]) cls += ' has-pips';
-  return '<div class="'+cls+'" data-suit="'+esc(card.suit)+'">'+(art ? middle : '')+'<div class="corner tl">'+corner+'</div>'
+  return '<div class="'+cls+'" data-suit="'+esc(card.suit)+'" data-rank="'+esc(card.rank)+'">'+(art ? middle : '')+'<div class="corner tl">'+corner+'</div>'
     + (art ? '' : middle)
     + '<div class="corner br">'+corner+'</div></div>';
+}
+// v73 : couleur d'écriture (blanc ou noir) qui reste lisible sur la couleur de fond choisie par le joueur (contraste d'au moins 4,5:1)
+function inkOn(hex){
+  var m = /^#?([0-9a-f]{6})$/i.exec(String(hex||'')); if(!m) return '#FFFFFF';
+  var n = parseInt(m[1], 16), f = function(v){ v /= 255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+  var L = 0.2126*f((n>>16)&255) + 0.7152*f((n>>8)&255) + 0.0722*f(n&255);
+  return (1.05/(L+0.05)) >= ((L+0.05)/0.05) ? '#FFFFFF' : '#000000'; // noir pur : le pire cas (couleur moyenne) reste à 4,58:1
 }
 function initials(name){ name=(name||'?').trim(); return name ? name[0].toUpperCase() : '?'; }
 

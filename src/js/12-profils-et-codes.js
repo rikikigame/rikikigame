@@ -3,7 +3,19 @@
    Le profil fixe l'identité du joueur (playerId) sur n'importe quel appareil : même cote de ligue partout.
    Sécurité volontairement simple (jeu entre amis) : PIN haché, jamais stocké en clair. */
 var currentProfile = null;
-var profileUi = { open:false, err:'', busy:false, fails:0, lockUntil:0 };
+var profileUi = { open:false, tab:null, err:'', busy:false, fails:0, lockUntil:0 };
+// v73 : après « Créer mon profil » / « Se connecter », la page se recharge : on garde un message de confirmation pour l'afficher ensuite
+var profileFlash = null;
+try{ var pf0 = JSON.parse(localStorage.getItem('rikiki_flash') || 'null'); localStorage.removeItem('rikiki_flash'); if(pf0 && Date.now()-pf0.at < 120000) profileFlash = pf0; }catch(e){}
+function setFlash(kind, pseudo){ try{ localStorage.setItem('rikiki_flash', JSON.stringify({ kind:kind, pseudo:pseudo||'', at:Date.now() })); }catch(e){} }
+function renderProfileFlash(){
+  if(!profileFlash) return '';
+  var f = profileFlash, nm = esc(f.pseudo||'');
+  var msg = f.kind==='created' ? '<strong>✅ Profil créé !</strong> Tu es connecté en tant que « '+nm+' ». Garde bien ton pseudo et ton code : ils te permettent de te reconnecter sur un autre appareil.'
+    : f.kind==='login' ? '<strong>✅ Connecté</strong> en tant que « '+nm+' ». Tes parties comptent pour ton profil.'
+    : '<strong>Tu es déconnecté.</strong> Tu joues maintenant en invité. Pour retrouver ton profil : « Me connecter ».';
+  return '<div class="flash" role="status"><span>'+msg+'</span><button class="flash-x" data-action="flash-close" aria-label="Fermer ce message">✕</button></div>';
+}
 function loadProfileLocal(){ try{ return JSON.parse(localStorage.getItem('rikiki_profile')||'null'); }catch(e){ return null; } }
 function saveProfileLocal(p){ try{ if(p) localStorage.setItem('rikiki_profile', JSON.stringify(p)); else localStorage.removeItem('rikiki_profile'); }catch(e){} }
 function profileKey(pseudo){
@@ -29,15 +41,18 @@ function applyProfileIdentity(){
 function readProfileForm(){
   var ps = document.getElementById('profilePseudo'), pn = document.getElementById('profilePin');
   if(ps) profileUi.pseudo = ps.value; // garde la saisie si l'écran se redessine (message d'erreur)
-  return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '' };
+  var tm = document.getElementById('profileTerms'); if(tm) profileUi.terms = !!tm.checked; // v73 : la case survit à un réaffichage
+  return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '', terms: !!profileUi.terms };
 }
 function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); } // connexion : les anciens codes (4 à 6 chiffres) restent valables
-// v60 : tout NOUVEAU code fait 6 chiffres (1 000 000 de possibilités au lieu de 10 000) et n'est pas trop simple
+// v73 : tout NOUVEAU code fait 4 chiffres (choix du propriétaire : simple à retenir) et n'est pas trop simple.
+// (v60 l'avait mis à 6 chiffres : 1 000 000 de possibilités au lieu de 10 000. Les codes de 6 chiffres déjà créés continuent de marcher à la connexion.)
+// Le mot de passe Firebase est « rikiki: » + code : il dépasse toujours les 6 caractères minimum exigés par Firebase.
 function validNewPin(pin){
-  if(!/^[0-9]{6}$/.test(pin)) return false;
-  if(/^(\d)\1{5}$/.test(pin)) return false;                       // 000000, 111111…
-  if('0123456789012345'.indexOf(pin)>=0 || '9876543210987654'.indexOf(pin)>=0) return false; // 123456, 654321…
-  return ['121212','696969','112233','123123'].indexOf(pin)<0;
+  if(!/^[0-9]{4}$/.test(pin)) return false;
+  if(/^(\d)\1{3}$/.test(pin)) return false;                                                    // 0000, 1111…
+  if('01234567890123'.indexOf(pin)>=0 || '98765432109876'.indexOf(pin)>=0) return false;       // 1234, 4321, 6789…
+  return ['1212','2121','6969','1122','2580','1313','2000'].indexOf(pin)<0;
 }
 // v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
 function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
@@ -57,8 +72,9 @@ function similarProfiles(pseudo){
 async function profileCreate(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
+  if(LEGAL_READY && !f.terms){ profileUi.err = 'Pour créer ton profil, coche la case : tu as 13 ans ou plus et tu acceptes les conditions.'; render(); return; }
   if(key.length < 2){ profileUi.err = 'Choisis un pseudo d\'au moins 2 lettres ou chiffres.'; render(); return; }
-  if(!validNewPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
+  if(!validNewPin(f.pin)){ profileUi.err = 'Le code PIN doit faire 4 chiffres, pas trop simples (ni 1234, ni 0000…).'; render(); return; }
   if(profileUi.similarOk !== key){
     try{ await loadLeague(); }catch(e){}
     var sim = similarProfiles(f.pseudo);
@@ -84,7 +100,7 @@ async function profileCreate(){
     try{ await ensureMember({ userId: myId, name: f.pseudo, pkey: key }); }catch(e){ console.error(e); } // relie un membre IRL du même prénom
     saveProfileLocal({ key:key, pseudo:f.pseudo, playerId:myId, color:doc.color });
     try{ localStorage.setItem('rikiki_fb_name', f.pseudo); }catch(e){}
-    location.reload();
+    setFlash('created', f.pseudo); location.reload();
   }catch(e){ console.error(e); profileUi.busy=false; profileUi.err = 'Impossible de créer le profil : '+dbErrorText(e); render(); }
 }
 async function profileLogin(){
@@ -110,7 +126,7 @@ async function profileLogin(){
     if(d.mergedInto){ var ts = await claudeDb.doc('profiles/'+d.mergedInto).get(); if(ts.exists){ key = d.mergedInto; d = ts.data(); } } // doublon fusionné
     saveProfileLocal({ key:key, pseudo:d.pseudo, playerId:d.playerId, color:d.color });
     try{ localStorage.setItem('rikiki_fb_name', d.pseudo); localStorage.setItem('rikiki_fb_uid', d.playerId); localStorage.removeItem('rikiki_last'); }catch(e){}
-    location.reload();
+    setFlash('login', d.pseudo); location.reload();
   }catch(e){ console.error(e); profileUi.busy=false; profileUi.err = 'Connexion impossible : '+dbErrorText(e); render(); }
 }
 async function profileLogout(){
@@ -121,7 +137,7 @@ async function profileLogout(){
     localStorage.removeItem('rikiki_fb_name'); localStorage.removeItem('rikiki_last');
     sessionStorage.removeItem('rikiki_mock_uid');
   }catch(e){}
-  location.reload();
+  setFlash('logout', ''); location.reload();
 }
 function renderProfileBox(){
   if(!(usingFirebase || usingMock)) return '';
@@ -135,19 +151,38 @@ function renderProfileBox(){
   } else if(currentProfile){
     html += '<div class="row between"><div>👤 Connecté : <strong>'+esc(currentProfile.pseudo)+crownMark(myId, currentProfile.pseudo, authUid())+'</strong><div class="muted" style="font-size:12px;">Tes parties comptent pour ton profil, sur n\'importe quel appareil.</div></div>'
       + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras();
-  } else if(!profileUi.open){
-    html += '<div class="row between"><div>👤 Tu joues en <strong>invité</strong><div class="muted" style="font-size:12px;">Crée un profil pour la ligue et pour te retrouver sur tous tes appareils.</div></div>'
-      + '<button class="btn secondary small" data-action="profile-open">Profil</button></div>';
+  } else if(!profileUi.tab){
+    // v73 : un choix clair dès l'ouverture, au lieu d'un seul formulaire avec deux boutons
+    html += '<div class="row between" style="margin-bottom:6px;"><strong>👤 Tu joues en invité</strong><button class="btn ghost" data-action="profile-close" aria-label="Fermer">✕</button></div>'
+      + '<p class="muted" style="font-size:13px; margin:0 0 12px;">Un profil (pseudo + code) te permet de te retrouver sur tous tes appareils et de compter dans la ligue. Sans profil, tu peux jouer quand même.</p>'
+      + '<div class="profile-choice"><button class="btn" data-action="profile-tab" data-tab="create">Créer mon profil<small>Je n\'en ai pas encore</small></button>'
+      + '<button class="btn secondary" data-action="profile-tab" data-tab="login">Me connecter<small>J\'ai déjà un profil</small></button></div>';
   } else {
-    html += '<div class="row between" style="margin-bottom:8px;"><strong>Mon profil</strong><button class="btn ghost" data-action="profile-close">✕</button></div>';
+    var creating = profileUi.tab==='create';
+    html += '<div class="row between" style="margin-bottom:8px;"><strong>'+(creating ? 'Créer mon profil' : 'Me connecter')+'</strong><button class="btn ghost" data-action="profile-close" aria-label="Fermer">✕</button></div>';
+    html += '<div class="toggle-row profile-tabs" role="tablist" aria-label="Profil"><button class="btn secondary small'+(creating?' active':'')+'" role="tab" aria-selected="'+creating+'" data-action="profile-tab" data-tab="create">Nouveau profil</button>'
+      + '<button class="btn secondary small'+(!creating?' active':'')+'" role="tab" aria-selected="'+(!creating)+'" data-action="profile-tab" data-tab="login">J\'ai déjà un profil</button></div>';
+    html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">'+(creating
+      ? 'Choisis un pseudo et un code à 4 chiffres que tu retiendras (ni 1234, ni 0000). Tu en auras besoin pour te reconnecter.'
+      : 'Entre le pseudo et le code de ton profil.')+'</p>';
     html += '<label for="profilePseudo">Pseudo</label><input type="text" id="profilePseudo" maxlength="24" autocomplete="username" placeholder="Ton pseudo" value="'+esc(profileUi.pseudo!=null ? profileUi.pseudo : (myProfile.name||''))+'" style="margin-bottom:10px;">';
-    html += '<label for="profilePin">Code PIN (6 chiffres)</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:12px;">';
-    html += '<div class="row"><button class="btn" style="flex:1;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Se connecter</button>'
-      + '<button class="btn secondary" style="flex:1;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button></div>';
-    if(authOn()){
+    html += '<label for="profilePin">'+(creating ? 'Code (4 chiffres)' : 'Code PIN')+'</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="'+(creating?'4':'6')+'" autocomplete="'+(creating?'new-password':'current-password')+'" placeholder="••••" style="margin-bottom:12px;">';
+    if(creating){
+      if(LEGAL_READY) html += '<label class="terms-row"><input type="checkbox" id="profileTerms"'+(profileUi.terms?' checked':'')+'> <span>J\'ai 13 ans ou plus et j\'accepte les <a href="conditions.html" target="_blank" rel="noopener">conditions d\'utilisation</a> et la <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>.</span></label>';
+      html += '<button class="btn" style="width:100%;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button>';
+    } else {
+      html += '<button class="btn" style="width:100%;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Se connecter</button>';
+    }
+    if(profileUi.err){
+      html += '<div class="error-text" role="alert">'+esc(profileUi.err)+'</div>';
+      // v73 : la bonne porte est proposée tout de suite
+      if(/^Pseudo inconnu/.test(profileUi.err)) html += '<button class="btn secondary small" style="margin-top:6px;" data-action="profile-tab" data-tab="create">Créer ce profil</button>';
+      else if(/déjà pris/.test(profileUi.err)) html += '<button class="btn secondary small" style="margin-top:6px;" data-action="profile-tab" data-tab="login">C\'est moi : me connecter</button>';
+    }
+    if(authOn() && !creating){
       if(profileUi.mode==='forgot'){
         html += '<div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--line);"><strong style="font-size:14px;">Code oublié</strong><p class="muted" style="font-size:12.5px; margin:4px 0 8px;">Écris ton pseudo en haut, puis choisis un nouveau code : l\'organisateur validera que tu reprends ton profil (ta cote et ton historique sont gardés).</p>'
-          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Nouveau code (6 chiffres)" style="margin-bottom:8px;">'
+          + '<input type="password" id="forgotPin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Nouveau code (4 chiffres)" style="margin-bottom:8px;">'
           + '<div class="row"><button class="btn secondary small" style="flex:1;" data-action="profile-forgot-send" '+(profileUi.busy?'disabled':'')+'>Envoyer la demande</button><button class="btn ghost small" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
       } else if(profileUi.suggestForgot){ // v42 : après un mauvais code, on propose tout de suite la bonne porte (au lieu de recréer un profil)
         html += '<div style="margin-top:12px; padding:10px 12px; border:1.5px solid var(--line); border-radius:12px;"><strong style="font-size:14px;">Tu ne retrouves plus ton code ?</strong>'
@@ -157,7 +192,6 @@ function renderProfileBox(){
       if(profileUi.ok) html += '<div style="margin-top:8px; font-size:13.5px; font-weight:700; color:var(--good, #3F8F6B);">'+esc(profileUi.ok)+'</div>';
     }
     html += '<p class="muted" style="font-size:11.5px; margin:8px 0 0;">'+(authOn() ? 'Ton code est vérifié par Google et n\'est stocké nulle part dans le jeu.' : 'Code oublié ? Demande à l\'organisateur de t\'en générer un nouveau.')+' Sécurité simple, entre amis : n\'utilise pas le code de ta carte bancaire 😉</p>';
-    if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   }
   html += '</div>';
   return html;
@@ -165,14 +199,16 @@ function renderProfileBox(){
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action]') : null; if(!el) return;
   var a = el.getAttribute('data-action');
-  if(a==='profile-open'){ profileUi.open=true; profileUi.err=''; render(); var i=document.getElementById('profilePseudo'); if(i) i.focus(); }
-  else if(a==='profile-close'){ profileUi.open=false; profileUi.err=''; render(); }
+  if(a==='profile-open'){ profileUi.open=true; profileUi.err=''; profileUi.tab=el.getAttribute('data-tab')||profileUi.tab; render(); var i=document.getElementById('profilePseudo'); if(i) i.focus(); }
+  else if(a==='profile-tab'){ readProfileForm(); profileUi.pseudo = (document.getElementById('profilePseudo')||{}).value != null ? document.getElementById('profilePseudo').value : profileUi.pseudo; profileUi.tab = el.getAttribute('data-tab'); profileUi.err=''; profileUi.mode=null; render(); var i2=document.getElementById('profilePseudo'); if(i2) i2.focus(); }
+  else if(a==='flash-close'){ profileFlash = null; render(); }
+  else if(a==='profile-close'){ if(profileUi.tab){ profileUi.tab=null; } else { profileUi.open=false; } profileUi.err=''; render(); }
   else if(a==='profile-create'){ profileCreate(); }
   else if(a==='profile-login'){ profileLogin(); }
   else if(a==='profile-logout'){ profileLogout(); }
 });
 document.addEventListener('keydown', function(e){
-  if(e.key==='Enter' && e.target && (e.target.id==='profilePin' || e.target.id==='profilePseudo')){ e.preventDefault(); profileLogin(); }
+  if(e.key==='Enter' && e.target && (e.target.id==='profilePin' || e.target.id==='profilePseudo')){ e.preventDefault(); if(profileUi.tab==='create') profileCreate(); else profileLogin(); } // v73 : Entrée fait l'action de l'écran (créer OU se connecter)
 });
 
 /* ===================== v19 : code oublié, changement de code, déménagement du site ===================== */
@@ -220,7 +256,7 @@ function migrationImportIfPresent(){
 async function profileChangePin(){
   var cur = (document.getElementById('pinCurrent')||{}).value || '', nw = (document.getElementById('pinNew')||{}).value || '';
   profileUi.err = ''; profileUi.ok = '';
-  if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
+  if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 4 chiffres, pas trop simples (ni 1234, ni 0000…).'; render(); return; }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authChangePin(cur.trim(), nw.trim()); profileUi.busy=false; profileUi.mode=null; profileUi.ok='Code changé ✓'; }
@@ -268,7 +304,7 @@ function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
     html += '<div style="margin-top:10px;"><label for="pinCurrent">Code actuel</label><input type="password" id="pinCurrent" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:8px;">'
-      + '<label for="pinNew">Nouveau code (6 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:10px;">'
+      + '<label for="pinNew">Nouveau code (4 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="4" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-change-pin" '+(profileUi.busy?'disabled':'')+'>Enregistrer</button><button class="btn secondary" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
@@ -327,7 +363,7 @@ document.addEventListener('click', function(e){
     var f = readProfileForm(), key = profileKey(f.pseudo), np = ((document.getElementById('forgotPin')||{}).value||'').trim();
     profileUi.err=''; profileUi.ok='';
     if(key.length<2){ profileUi.err='Entre ton pseudo.'; render(); return; }
-    if(!validNewPin(np)){ profileUi.err='Le nouveau code doit faire 6 chiffres, pas trop simples (ni 123456, ni 000000…).'; render(); return; }
+    if(!validNewPin(np)){ profileUi.err='Le nouveau code doit faire 4 chiffres, pas trop simples (ni 1234, ni 0000…).'; render(); return; }
     profileUi.busy = true; render();
     authForgot({ pseudo:f.pseudo, pin:np }, key).then(function(){ profileUi.busy=false; profileUi.mode=null; profileUi.suggestForgot=false; profileUi.ok='Demande envoyée ✓ L\'organisateur la voit sur son accueil. Dès qu\'il valide, connecte-toi avec ton pseudo et ton NOUVEAU code.'; render(); })
       .catch(function(e){ console.error(e); profileUi.busy=false; profileUi.err = e.ui || ('Demande impossible : '+authErrText(e)); render(); });

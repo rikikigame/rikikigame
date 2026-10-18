@@ -29,7 +29,7 @@ async function init(){
     if(firebaseConfigured()){
       firebase.initializeApp(window.FIREBASE_CONFIG);
       // v55 : App Check — seul le vrai site (et pas un programme qui imite le jeu) peut parler à la base
-      if(APPCHECK_SITE_KEY && firebase.appCheck){ try{ firebase.appCheck().activate(new firebase.appCheck.ReCaptchaV3Provider(APPCHECK_SITE_KEY), true); }catch(e){ console.warn('App Check', e); } }
+      startAppCheckIfAllowed(); // v73 : reCAPTCHA (Google) ne se charge que si l'utilisateur a accepté (voir 08b-consentement.js)
       try{ firebase.database().ref('.info/serverTimeOffset').on('value', function(snap){ serverOffset = Number(snap.val()) || 0; }); }catch(e){ console.error(e); }
       claudeDb = firebaseDbFactory();
       claudeUser = firebaseUserFactory();

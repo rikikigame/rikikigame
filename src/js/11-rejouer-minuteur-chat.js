@@ -101,7 +101,10 @@ function unsubscribeChat(){
   if(chatUnsub){ chatUnsub(); chatUnsub=null; }
   chatCode=null; chatMsgs=[]; chatOpen=false; gifOpen=false; renderChat();
 }
-function looksLikeGifUrl(t){ return /^https:\/\/\S+$/i.test(t) && /(\.gif(\?|$)|giphy\.com|tenor\.com|klipy\.com)/i.test(t); }
+// v73 : seuls les GIF hébergés par KLIPY (static.klipy.com) sont envoyés ou affichés. Avant, n'importe quel lien « .gif » passait :
+// le site du lien voyait alors l'adresse IP de tous les joueurs du salon.
+function gifHostOk(u){ try{ var x = new URL(u); return x.protocol==='https:' && x.hostname==='static.klipy.com'; }catch(e){ return false; } }
+function looksLikeGifUrl(t){ return /^https:\/\/\S+$/i.test(t) && gifHostOk(t); }
 async function sendChat(payload){
   if(!chatCode) return;
   var me = gameDoc && gameDoc.players ? gameDoc.players[myId] : null;
@@ -122,6 +125,15 @@ function fitChatToKeyboard(){
 }
 if(window.visualViewport){ window.visualViewport.addEventListener('resize', fitChatToKeyboard); window.visualViewport.addEventListener('scroll', fitChatToKeyboard); }
 function chatUnread(){ return chatMsgs.filter(function(m){ return m.at>chatSeenAt && m.uid!==myId; }).length; }
+// corps d'un message : texte, GIF affiché (seulement si l'utilisateur a autorisé KLIPY) ou bouton pour l'autoriser
+function chatBodyHtml(m){
+  if(m.gif && looksLikeGifUrl(String(m.gif))){
+    return gifConsent() ? '<img src="'+esc(m.gif)+'" alt="GIF envoyé par '+esc(m.name||'un joueur')+'" loading="lazy">'
+      : '<button class="gif-ask" data-chat="gif-allow">🖼️ GIF · toucher pour afficher<small>Le service KLIPY verra ton adresse IP</small></button>';
+  }
+  if(m.gif) return '<span class="bb gif-off">GIF non affiché (source non autorisée)</span>';
+  return '<span class="bb">'+esc(m.text||'')+'</span>';
+}
 function renderChat(){
   var root = document.getElementById('chat-root'); if(!root) return;
   var visible = screen==='game' && !!gameDoc && !!chatCode;
@@ -145,13 +157,13 @@ function renderChat(){
   if(key==='closed'){ var b = document.getElementById('chat-badge'); if(b) b.textContent = ut; }
   if(key==='open'){
     chatSeenAt = nowMs();
-    var sig = chatMsgs.length+'|'+(chatMsgs.length ? chatMsgs[chatMsgs.length-1].at : 0);
+    var sig = chatMsgs.length+'|'+(chatMsgs.length ? chatMsgs[chatMsgs.length-1].at : 0)+'|'+gifConsent();
     var list = document.getElementById('chat-list');
     if(list && sig!==chatListSig){
       chatListSig = sig;
       list.innerHTML = chatMsgs.length ? chatMsgs.map(function(m){
         var mine = m.uid===myId;
-        var body = (m.gif && looksLikeGifUrl(String(m.gif))) ? '<img src="'+esc(m.gif)+'" alt="GIF" loading="lazy">' : '<span class="bb">'+esc(m.text||'')+'</span>';
+        var body = chatBodyHtml(m);
         return '<div class="chat-msg'+(mine?' mine':'')+'">'+(mine?'':'<div class="nm" style="color:'+esc(safeColor(m.color||'#1F2E4A'))+';">'+esc(m.name||'?')+'</div>')+body+'</div>';
       }).join('') : '<div class="chat-empty">Aucun message pour l\'instant.<br>Dis bonjour à la table 👋</div>';
       list.scrollTop = list.scrollHeight;
@@ -159,18 +171,24 @@ function renderChat(){
     var box = document.getElementById('gif-box');
     if(box){
       box.hidden = !gifOpen;
-      var gsig = gifOpen+'|'+gifLoading+'|'+gifResults.length+'|'+(gifResults[0]||{}).id;
+      var gsig = gifOpen+'|'+gifLoading+'|'+gifResults.length+'|'+(gifResults[0]||{}).id+'|'+gifConsent();
       if(gsig!==gifSig){
         gifSig = gsig;
         var grid = document.getElementById('gif-grid'), note = document.getElementById('gif-note');
-        if(grid) grid.innerHTML = gifResults.map(function(r){ return '<img src="'+esc(r.preview)+'" data-chat="pick" data-url="'+esc(r.url)+'" alt="GIF" loading="lazy">'; }).join('');
-        if(note) note.textContent = !KLIPY_API_KEY ? 'Colle un lien de GIF puis Entrée.' : (gifLoading ? 'Recherche…' : (gifResults.length ? 'Touche un GIF pour l\'envoyer' : 'Aucun résultat'));
+        var gq = document.getElementById('gif-q'); if(gq) gq.hidden = !gifConsent();
+        if(!gifConsent()){
+          if(grid) grid.innerHTML = '<div class="gif-consent"><p>Les GIF viennent du service <b>KLIPY</b>. Il voit ton adresse IP et ce que tu cherches. Autoriser ?</p><button class="btn secondary" data-chat="gif-allow">Autoriser les GIF</button>'+(LEGAL_READY ? ' <a href="confidentialite.html" target="_blank" rel="noopener">En savoir plus</a>' : '')+'</div>';
+          if(note) note.textContent = '';
+        } else {
+          if(grid) grid.innerHTML = gifResults.map(function(r, i){ return '<img src="'+esc(r.preview)+'" data-chat="pick" data-url="'+esc(r.url)+'" alt="GIF proposé n° '+(i+1)+'" loading="lazy" tabindex="0">'; }).join('');
+          if(note) note.textContent = !KLIPY_API_KEY ? 'Colle un lien de GIF puis Entrée.' : (gifLoading ? 'Recherche…' : (gifResults.length ? 'Touche un GIF pour l\'envoyer' : 'Aucun résultat'));
+        }
       }
     }
   }
 }
 async function searchGifs(q){
-  if(!KLIPY_API_KEY) return;
+  if(!KLIPY_API_KEY || !gifConsent()) return; // v73 : pas de requête vers KLIPY sans l'accord de l'utilisateur
   gifLoading = true; renderChat();
   try{
     var url = 'https://api.klipy.com/api/v1/'+encodeURIComponent(KLIPY_API_KEY)+'/gifs/'+(q ? 'search' : 'trending')+'?per_page=18&locale=fr_FR'+(q ? '&q='+encodeURIComponent(q) : '');
@@ -196,7 +214,8 @@ document.addEventListener('click', function(e){
   else if(a==='close'){ chatOpen=false; gifOpen=false; renderChat(); }
   else if(a==='send'){ sendChatInput(); }
   else if(a==='emoji'){ sendChat({ text: el.getAttribute('data-v') }); }
-  else if(a==='gif'){ gifOpen=!gifOpen; gifSig=null; renderChat(); if(gifOpen){ var q=document.getElementById('gif-q'); if(q) q.focus(); if(KLIPY_API_KEY && !gifResults.length) searchGifs(''); } }
+  else if(a==='gif-allow'){ gifConsentSet(true); chatListSig=null; gifSig=null; renderChat(); if(gifOpen && KLIPY_API_KEY && !gifResults.length) searchGifs(''); }
+  else if(a==='gif'){ gifOpen=!gifOpen; gifSig=null; renderChat(); if(gifOpen){ var q=document.getElementById('gif-q'); if(q && gifConsent()) q.focus(); if(KLIPY_API_KEY && gifConsent() && !gifResults.length) searchGifs(''); } }
   else if(a==='pick'){ sendChat({ gif: el.getAttribute('data-url') }); gifOpen=false; gifSig=null; renderChat(); }
 });
 document.addEventListener('keydown', function(e){

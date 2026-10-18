@@ -39,6 +39,7 @@ async function authCreateOrLink(email, pw){
 }
 function stripLegacy(d){ var o = Object.assign({}, d); delete o.pinHash; delete o.salt; delete o.__plain; return o; }
 function finishLogin(key, d){
+  setFlash(profileUi.tab==='create' ? 'created' : 'login', d.pseudo); // v73 : message de confirmation après le rechargement
   saveProfileLocal({ key:key, pseudo:d.pseudo, playerId:d.playerId, color:d.color });
   try{ localStorage.setItem('rikiki_fb_name', d.pseudo); localStorage.setItem('rikiki_fb_uid', d.playerId); localStorage.removeItem('rikiki_last'); }catch(e){}
   location.reload();
