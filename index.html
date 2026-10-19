@@ -968,6 +968,11 @@
   .state-pill{ display:inline-flex; align-items:center; gap:7px; padding:3px 11px 3px 9px; border-radius:999px; font-size:12.5px; font-weight:700; color:#C9F2DA; background:rgba(74,222,128,.12); border:1px solid rgba(74,222,128,.38); }
   .state-dot{ width:8px; height:8px; border-radius:50%; background:#4ADE80; box-shadow:0 0 0 3px rgba(74,222,128,.22); flex:none; }
   .hc-state.ok{ opacity:1; }
+
+.rival-line{margin:8px 0 0;font-size:15px;line-height:1.4}
+.rival-card b{overflow-wrap:anywhere}
+.name-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.name-chips .chip{border:1px solid var(--line,#ffffff33);background:transparent;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+.drag-handle{flex:none;width:38px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;color:var(--cream-dim,#aaa);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:10px}.drag-handle:hover{color:inherit;background:#ffffff14}.sheet-row.dragging{opacity:.55}.sheet-row.drop{outline:2px dashed var(--orange,#f08040);outline-offset:3px;border-radius:12px}
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1006,7 +1011,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '73';
+var APP_VERSION = '74';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1581,6 +1586,10 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Déplacer ce joueur (glisser)': 'Move this player (drag)',
+  'Duels de la partie': 'Duels of the game',
+  'Contrat ruiné = tu rates ton annonce parce que cette personne t\'a pris le plus de plis.': 'Ruined contract = you miss your bid because this person took the most tricks from you.',
+  '🕊️ Personne ne t\'a vraiment ruiné cette partie.': '🕊️ Nobody really ruined you this game.',
   /* v73 : parcours de profil, Paramètres, consentement */
   "Tu joues en invité":"You're playing as a guest",
   "Un profil (pseudo + code) te permet de te retrouver sur tous tes appareils et de compter dans la ligue. Sans profil, tu peux jouer quand même.":"A profile (username + code) lets you find yourself on all your devices and count in the league. You can still play without one.",
@@ -6828,6 +6837,7 @@ function renderGameOver(g){
     + (g.hostId===myId ? '<button class="btn" data-action="replay">↻ Rejouer (mêmes joueurs, mêmes règles)</button>'
                        : '<p class="muted" style="font-size:13.5px;">L\'hôte peut relancer une partie avec les mêmes joueurs.</p>')
     + '</div>';
+  html += rivalsHtml(g);
   html += coachReviewHtml(g, (g.roundLog||[])[(g.roundLog||[]).length-1]);
   html += renderGameRecap(g);
   html += coachReviewsListHtml(g);
@@ -6959,6 +6969,27 @@ function readDraftFromDom(){
 }
 function draftMaxStart(n){ return Math.max(1, Math.floor(52/Math.max(n,2))); }
 var sheetStarting = false;
+// v74 : suggestions de prénoms quand on tape (« k » -> « K.vroom ») : derniers noms utilisés + membres de la ligue + mon profil
+var RECENT_NAMES_KEY = 'rikiki_recent_names', RECENT_NAMES_MAX = 40;
+function recentNames(){ try{ var a = JSON.parse(localStorage.getItem(RECENT_NAMES_KEY) || '[]'); return Array.isArray(a) ? a.filter(function(x){ return typeof x==='string'; }) : []; }catch(e){ return []; } }
+function rememberNames(names){
+  var merged = names.concat(recentNames()), seen = {}, out = [];
+  merged.forEach(function(n){ var k = normName(n); if(n && !seen[k]){ seen[k] = 1; out.push(n); } });
+  try{ localStorage.setItem(RECENT_NAMES_KEY, JSON.stringify(out.slice(0, RECENT_NAMES_MAX))); }catch(e){}
+}
+function knownNames(){
+  var friends = Object.keys(social.friends||{}).filter(function(k){ return social.friends[k]; }).map(function(k){ return social.friends[k].name; });
+  var all = [(myProfile && myProfile.name) || ''].concat(friends, recentNames(), (league.members||[]).map(function(m){ return m.name; })), seen = {}, out = [];
+  all.forEach(function(n){ n = (n||'').trim(); var k = normName(n); if(n && !seen[k]){ seen[k] = 1; out.push(n); } });
+  return { all: out, friends: friends };
+}
+function knownNamesHtml(d){
+  var kn = knownNames(), used = {};
+  d.names.forEach(function(n){ used[normName(n||'')] = 1; });
+  var chips = kn.all.filter(function(n){ return !used[normName(n)]; }).slice(0, 8);
+  return '<datalist id="leagueMemberList">'+kn.all.map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join('')+'</datalist>'
+    + (chips.length && d.names.length < MAX_PLAYERS+1 ? '<div class="name-chips" aria-label="Ajouter en un clic">'+chips.map(function(n){ return '<button class="chip" data-action="sheet-pick-name" data-name="'+esc(n)+'">+ '+esc(n)+'</button>'; }).join('')+'</div>' : '');
+}
 async function startSheet(){
   readDraftFromDom();
   if(sheetStarting) return;
@@ -6967,6 +6998,7 @@ async function startSheet(){
   if(names.length > MAX_PLAYERS){ errorMsg = 'Maximum '+MAX_PLAYERS+' joueurs.'; render(); return; }
   var seen = {}, dup = names.filter(function(n){ var k=normName(n); if(seen[k]) return true; seen[k]=1; return false; });
   if(dup.length){ errorMsg = 'Deux joueurs ont le même prénom : '+dup[0]+'.'; render(); return; }
+  rememberNames(names);
   if(sheetDraft.league && names.length < LEAGUE_MIN_HUMANS){ errorMsg = 'Une partie de ligue demande au moins '+LEAGUE_MIN_HUMANS+' joueurs.'; render(); return; }
   var maxStart = draftMaxStart(names.length);
   var startSize = Math.max(1, Math.min(sheetDraft.startSize || maxStart, maxStart));
@@ -7062,13 +7094,14 @@ function renderSheetSetup(){
   html += '<div style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">';
   d.names.forEach(function(name, i){
     var hint = '<span id="sheetHint'+i+'">'+memberHint(name, d.league)+'</span>';
-    html += '<div class="row"><input type="text" maxlength="24" placeholder="Joueur '+(i+1)+'" value="'+esc(name)+'" data-sheet-name="'+i+'" id="sheetName'+i+'"'+(d.league?' list="leagueMemberList"':'')+'>'+hint
+    html += '<div class="row sheet-row" data-row="'+i+'"><input type="text" maxlength="24" placeholder="Joueur '+(i+1)+'" value="'+esc(name)+'" data-sheet-name="'+i+'" id="sheetName'+i+'" list="leagueMemberList" autocomplete="off">'+hint
+      + (d.names.length>1 ? '<span class="drag-handle" data-drag="'+i+'" role="button" aria-label="Déplacer ce joueur (glisser)" title="Glisse pour changer l\'ordre">☰</span>' : '')
       + (d.names.length>2 ? '<button class="btn secondary small" data-action="sheet-remove-player" data-index="'+i+'" aria-label="Retirer">✕</button>' : '') + '</div>';
   });
   html += '</div>';
   if(d.names.length < MAX_PLAYERS) html += '<button class="btn secondary small" data-action="sheet-add-player" style="margin-bottom:6px;">+ Ajouter un joueur</button>';
   html += '<div id="sheetDealerWrap">'+dealerSelectHtml(d)+'</div>';
-  if(d.league) html += '<datalist id="leagueMemberList">'+league.members.map(function(m){ return '<option value="'+esc(m.name)+'"></option>'; }).join('')+'</datalist>';
+  html += knownNamesHtml(d);
   html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:12px 0 0;"><input type="checkbox" id="sheetLeague" '+(d.league?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
   html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">'+(d.direction==='quick' ? 'Partie rapide : pas de limite de zéros.' : 'Règle : pas plus de 3 zéros d\'affilée.')+'</p>';
   if(d.league) html += '<p class="muted" style="font-size:12.5px; margin:4px 0 0;">Tape le prénom d\'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum '+LEAGUE_MIN_HUMANS+' joueurs.</p>';
@@ -7211,6 +7244,12 @@ document.addEventListener('click', function(e){
   if(a==='sheet-open'){ openSheet(); }
   else if(a==='sheet-home'){ sheetConfirmNew=false; errorMsg=''; screen='entry'; render(); }
   else if(a==='sheet-add-player'){ readDraftFromDom(); sheetDraft.names.push(''); render(); var ins=document.querySelectorAll('[data-sheet-name]'); if(ins.length) ins[ins.length-1].focus(); }
+  else if(a==='sheet-pick-name'){ // v74 : un clic = ajoute ce prénom dans la première case vide (ou crée une case)
+    readDraftFromDom();
+    var pn = el.getAttribute('data-name') || '', slot = sheetDraft.names.findIndex(function(x){ return !(x||'').trim(); });
+    if(slot<0 && sheetDraft.names.length<MAX_PLAYERS){ sheetDraft.names.push(pn); } else if(slot>=0){ sheetDraft.names[slot] = pn; }
+    render();
+  }
   else if(a==='sheet-remove-player'){ readDraftFromDom(); sheetDraft.names.splice(parseInt(el.getAttribute('data-index'),10),1); render(); }
   else if(a==='sheet-toggle-scoring'){ readDraftFromDom(); sheetShowScoring=!sheetShowScoring; render(); }
   else if(a==='sheet-reset-scoring'){ readDraftFromDom(); sheetDraft.scoring = Object.assign({}, DEFAULT_SCORING); render(); }
@@ -7242,6 +7281,46 @@ document.addEventListener('change', function(e){
   if(e.target.id==='sheetDealer' || e.target.id==='sheetDirection' || e.target.id==='sheetStartSize' || e.target.id==='sheetLeague' || e.target.hasAttribute('data-sheet-scoring')){ readDraftFromDom(); render(); }
 });
 
+
+// v74 : glisser la poignée ☰ pour changer l'ordre des joueurs (souris ou doigt) ; le donneur suit la personne
+var sheetDrag = null;
+function sheetMovePlayer(from, to){
+  if(from===to || from<0 || to<0 || to>=sheetDraft.names.length) return;
+  var nm = sheetDraft.names.slice(), moved = nm.splice(from, 1)[0]; nm.splice(to, 0, moved);
+  var ds = sheetDraft.dealerStart||0, nd = ds===from ? to : (from<ds && to>=ds ? ds-1 : (from>ds && to<=ds ? ds+1 : ds));
+  var tops = {}; document.querySelectorAll('.sheet-row').forEach(function(r){ tops[r.getAttribute('data-row')] = r.getBoundingClientRect().top; });
+  sheetDraft.names = nm; sheetDraft.dealerStart = nd; render();
+  // animation (FLIP) : chaque ligne glisse de son ancienne place vers la nouvelle
+  var oldIndexOf = function(j){ return j===to ? from : (from<to ? (j>=from && j<to ? j+1 : j) : (j>to && j<=from ? j-1 : j)); };
+  var rows = document.querySelectorAll('.sheet-row');
+  rows.forEach(function(r, j){
+    var dy = tops[oldIndexOf(j)] - r.getBoundingClientRect().top; if(!dy) return;
+    r.style.transition = 'none'; r.style.transform = 'translateY('+dy+'px)';
+  });
+  void document.body.offsetHeight;
+  rows.forEach(function(r){ if(!r.style.transform) return; r.style.transition = 'transform .22s ease'; r.style.transform = ''; });
+}
+document.addEventListener('pointerdown', function(e){
+  var h = e.target.closest && e.target.closest('[data-drag]'); if(!h || screen!=='sheet-setup' || !sheetDraft) return;
+  e.preventDefault(); readDraftFromDom();
+  sheetDrag = { from: parseInt(h.getAttribute('data-drag'),10), over: -1 };
+  var row = h.closest('.sheet-row'); if(row) row.classList.add('dragging');
+  try{ h.setPointerCapture(e.pointerId); }catch(x){}
+});
+document.addEventListener('pointermove', function(e){
+  if(!sheetDrag) return;
+  var el = document.elementFromPoint(e.clientX, e.clientY), row = el && el.closest ? el.closest('.sheet-row') : null;
+  document.querySelectorAll('.sheet-row.drop').forEach(function(r){ r.classList.remove('drop'); });
+  sheetDrag.over = row ? parseInt(row.getAttribute('data-row'),10) : -1;
+  if(row && sheetDrag.over!==sheetDrag.from) row.classList.add('drop');
+});
+function endSheetDrag(){
+  if(!sheetDrag) return; var d = sheetDrag; sheetDrag = null;
+  document.querySelectorAll('.sheet-row.dragging, .sheet-row.drop').forEach(function(r){ r.classList.remove('dragging','drop'); });
+  if(d.over>=0) sheetMovePlayer(d.from, d.over);
+}
+document.addEventListener('pointerup', endSheetDrag);
+document.addEventListener('pointercancel', function(){ sheetDrag = null; document.querySelectorAll('.sheet-row.dragging, .sheet-row.drop').forEach(function(r){ r.classList.remove('dragging','drop'); }); });
 /* ===================== LIGUE : base de données + classement Elo ===================== */
 // Données partagées (tous les joueurs de l'artefact) :
 //   leagueMembers/{memberId}  { name, userId|null, createdAt }
@@ -7357,7 +7436,7 @@ function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo
 async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   // rows: [{ memberId, name, score, contracts, absDiff }]
   var ranks = ranksFromScores(rows.map(function(r){ return { key:r.memberId, score:r.score }; }));
-  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; if(typeof r.cuts==='number'){ p.cuts = r.cuts; p.cutWins = r.cutWins||0; } return p; });
+  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; if(typeof r.cuts==='number'){ p.cuts = r.cuts; p.cutWins = r.cutWins||0; } if(r.rivals && Object.keys(r.rivals).length) p.rivals = r.rivals; return p; });
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
@@ -7412,15 +7491,16 @@ async function maybeRecordOnline(g){
     var audit = await auditGameFull(g);
     if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
-    var cutsOfGame = cutStatsFromLog(g.roundLog||[]);
+    var cutsOfGame = cutStatsFromLog(g.roundLog||[]), rivalsOfGame = rivalStatsFromLog(g.roundLog||[]), midOf = {};
     var lids = leagueIdsOf(g); // v64 : les joueurs remplacés / retirés n'ont aucun point de ligue
     for(var i=0;i<lids.length;i++){
       var uid = lids[i], p = g.players[uid];
-      var mid = await ensureMember({ userId: uid, name: p.name });
+      var mid = await ensureMember({ userId: uid, name: p.name }); midOf[uid] = mid;
       var st = statsFromLog(g.roundLog||[], uid);
       var cs = cutsOfGame[uid] || { cuts:0, cutWins:0 };
-      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid), cuts: cs.cuts, cutWins: cs.cutWins }); // scores recalculés, pas ceux affichés
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid), cuts: cs.cuts, cutWins: cs.cutWins, rivalsUid: rivalsOfGame[uid] }); // scores recalculés, pas ceux affichés
     }
+    rows.forEach(function(row){ if(row.rivalsUid){ var rv = {}; Object.keys(row.rivalsUid).forEach(function(t){ if(midOf[t]) rv[midOf[t]] = row.rivalsUid[t]; }); row.rivals = rv; delete row.rivalsUid; } }); // v74 : voleur -> id de membre
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
   }catch(e){ console.error(e); showToast('Ligue : '+dbErrorText(e)); }
@@ -7524,6 +7604,7 @@ function renderLeagueRow(s, i, ranked){
       + '<div><b>'+s.precision.toFixed(2).replace('.',',')+'</b><span>écart moyen / manche</span></div>'
       + '<div><b>'+s.bestStreak+'</b><span>meilleure série</span></div>'
       + (s.cutGames ? '<div><b>'+s.cuts+' ✂️</b><span>coupes en '+s.cutGames+' parties ('+pct(s.cuts ? s.cutWins/s.cuts : 0)+' gagnantes)</span></div>' : '') + '</div>';
+    html += rivalCardHtml(s.id);
     html += '<div class="lg-spark">'+sparkline(s.eloHistory)+'<div class="muted" style="font-size:11.5px;">Évolution de la cote (pointillés = 1000)</div></div>';
     html += '<div class="eyebrow" style="margin:10px 0 4px;">Dernières parties</div><table class="score-table"><tbody>';
     s.history.slice(-8).reverse().forEach(function(h){
@@ -7980,6 +8061,96 @@ document.addEventListener('click', function(e){
   else if(a==='sec-consent-toggle'){ var onNow = securityConsent()===true; securityConsentSet(!onNow); if(!onNow) startAppCheck(); else showToast('Pris en compte au prochain lancement du jeu.'); render(); }
   else if(a==='big-text-toggle'){ bigTextOn = !bigTextOn; try{ localStorage.setItem('rikiki_big_text', bigTextOn ? '1' : '0'); }catch(err){} applyBigText(); render(); }
 });
+/* ===================== v74 : pire ennemi / victime préférée =====================
+   « Contrat ruiné » : une manche où V rate son annonce parce qu'il a PERDU des plis (il en a fait moins que prévu)
+   et où un autre joueur T (humain OU robot) est celui qui lui en a volé le plus (T gagne le pli, V était le 2e meilleur).
+   Égalité entre deux voleurs = personne n'est accusé. Reconstitué depuis les cartes jouées (comme les coupes). */
+var RIVAL_MIN_SHARED = 5; // parties jouées ensemble avant d'afficher un « pire ennemi » sur une fiche
+var RIVALS_HISTORY = {"49KW_1790851103662":{"mullwg9wk8qw":{"mul5tnvlb5fa":4,"muo82azxw149":3,"mulmpz0lcgvx":4},"mul5tnvlb5fa":{"mulmpz0lcgvx":1,"muo82azxw149":1,"mullwg9wk8qw":1},"mulmpz0lcgvx":{"muo82azxw149":2,"mul5tnvlb5fa":2}},"6H47_1791717816430":{"muo82azxw149":{"mul5tnvlb5fa":2},"mulmpz0lcgvx":{"mv3qidur16zh":5},"mv3qidur16zh":{"mulmpz0lcgvx":1},"mul5tnvlb5fa":{"mv3qidur16zh":1,"muo82azxw149":2}},"9JWU_1791400833947":{"mulmpz0lcgvx":{"mullwg9wk8qw":1,"mus91lbcyzol":1,"muo82azxw149":2},"mus91lbcyzol":{"mulmpz0lcgvx":1},"mullwg9wk8qw":{"mulmpz0lcgvx":2,"mus91lbcyzol":1},"muo82azxw149":{"mullwg9wk8qw":3}},"9REB_1791451846914":{"mus91lbcyzol":{"mulmpz0lcgvx":3,"muo82azxw149":1},"mullwg9wk8qw":{"mulmpz0lcgvx":2,"muo82azxw149":2},"muo82azxw149":{"mus91lbcyzol":1}},"9REB_1791452951554":{"mullwg9wk8qw":{"mulmpz0lcgvx":2},"mus6yenkw9mg":{"muo82azxw149":1,"mus91lbcyzol":1},"mulmpz0lcgvx":{"muo82azxw149":1,"mus91lbcyzol":1,"mullwg9wk8qw":1},"mus91lbcyzol":{"mus6yenkw9mg":1,"muo82azxw149":1}},"AS3X_1791232068148":{"muo82azxw149":{"mullwg9wk8qw":1,"mul5tnvlb5fa":2,"mulmpz0lcgvx":1},"mulmpz0lcgvx":{"mullwg9wk8qw":1},"mullwg9wk8qw":{"mul5tnvlb5fa":1,"mulmpz0lcgvx":1},"mul5tnvlb5fa":{"mullwg9wk8qw":1}},"AWK4_1791287683570":{"muo82azxw149":{"mullwg9wk8qw":7,"mus91lbcyzol":1},"mullwg9wk8qw":{"muo82azxw149":2,"mus91lbcyzol":2},"mus91lbcyzol":{"mullwg9wk8qw":2,"muo82azxw149":1}},"D5Y6_1792057554534":{"muy6un9tpvqs":{"muo82azxw149":1},"muo82azxw149":{"mul5tnvlb5fa":2,"muy6un9tpvqs":1},"mullwg9wk8qw":{"muo82azxw149":1,"muy6un9tpvqs":1}},"EN8F_1791544970129":{"muo82azxw149":{"muzwnxfkhrnb":2,"mus91lbcyzol":1},"mullwg9wk8qw":{"mul5tnvlb5fa":1,"muo82azxw149":1,"muzwnxfkhrnb":1},"mul5tnvlb5fa":{"muzwnxfkhrnb":1,"mullwg9wk8qw":2},"muzwnxfkhrnb":{"mullwg9wk8qw":1},"mus91lbcyzol":{"mul5tnvlb5fa":1}},"FVZM_1791486386451":{"mul5tnvlb5fa":{"mus6yenkw9mg":1},"muo82azxw149":{"muzxdyfiai6d":2},"muzwnxfkhrnb":{"mulmpz0lcgvx":1},"mulmpz0lcgvx":{"muzwnxfkhrnb":1}},"G25V_1791229274505":{"muo82azxw149":{"mul5tnvlb5fa":1,"mus6yenkw9mg":1},"mulmpz0lcgvx":{"mul5tnvlb5fa":1,"muo82azxw149":1},"mullwg9wk8qw":{"mulmpz0lcgvx":1},"mul5tnvlb5fa":{"mulmpz0lcgvx":1,"muo82azxw149":1}},"GPDA_1791220833884":{"mullwg9wk8qw":{"mulmpz0lcgvx":3,"muo82azxw149":1},"muo82azxw149":{"mullwg9wk8qw":6,"mulmpz0lcgvx":3},"mulmpz0lcgvx":{"mullwg9wk8qw":2}},"JJTR_1791230585833":{"mulmpz0lcgvx":{"muo82azxw149":1,"mullwg9wk8qw":1,"mul5tnvlb5fa":1},"mullwg9wk8qw":{"muo82azxw149":1,"mul5tnvlb5fa":1},"mul5tnvlb5fa":{"muo82azxw149":1,"mullwg9wk8qw":1},"mus6yenkw9mg":{"mul5tnvlb5fa":1}},"LRF8_1791402654119":{"mus91lbcyzol":{"muo82azxw149":1,"mullwg9wk8qw":2},"mulmpz0lcgvx":{"muo82azxw149":1},"mullwg9wk8qw":{"mus91lbcyzol":1},"muo82azxw149":{"mulmpz0lcgvx":1}},"NSJF_1791903305588":{"mullwg9wk8qw":{"mus6yenkw9mg":1,"mus91lbcyzol":1},"mus6yenkw9mg":{"mv6tny12xktd":2},"mus91lbcyzol":{"mv6tny12xktd":1}},"NSJF_1791904506978":{"mulmpz0lcgvx":{"mullwg9wk8qw":2,"mus91lbcyzol":1},"mus6yenkw9mg":{"mus91lbcyzol":1,"mullwg9wk8qw":1},"muo82azxw149":{"mv6tny12xktd":1,"mullwg9wk8qw":1},"mullwg9wk8qw":{"mus6yenkw9mg":1,"muo82azxw149":1},"mv6tny12xktd":{"mus91lbcyzol":1}},"NSJF_1791905436299":{"mulmpz0lcgvx":{"mv6tny12xktd":1,"muo82azxw149":1},"mv6tny12xktd":{"mus6yenkw9mg":1,"mulmpz0lcgvx":1},"mus91lbcyzol":{"muo82azxw149":1}},"NSJF_1791906414084":{"mus6yenkw9mg":{"mv6tny12xktd":2,"mus91lbcyzol":1},"mus91lbcyzol":{"muo82azxw149":1,"mv6tny12xktd":1},"mullwg9wk8qw":{"muo82azxw149":1},"mv6tny12xktd":{"muo82azxw149":1},"muo82azxw149":{"mv6tny12xktd":1,"mulmpz0lcgvx":1}},"NSJF_1791907334672":{"mv6tny12xktd":{"mulmpz0lcgvx":1},"mus6yenkw9mg":{"mus91lbcyzol":1}},"NVG2_1792008054895":{"muo82azxw149":{"munzmoujhcka":2,"mulmpz0lcgvx":1},"munzmoujhcka":{"mulmpz0lcgvx":1,"mullwg9wk8qw":2,"muo82azxw149":1},"mus91lbcyzol":{"mullwg9wk8qw":2,"munzmoujhcka":1},"mullwg9wk8qw":{"muo82azxw149":2,"mulmpz0lcgvx":2,"mus91lbcyzol":1},"mulmpz0lcgvx":{"munzmoujhcka":1}},"NZVD_1791398831365":{"mulmpz0lcgvx":{"muo82azxw149":1,"mus91lbcyzol":1,"mullwg9wk8qw":1},"mullwg9wk8qw":{"mulmpz0lcgvx":4},"muo82azxw149":{"mullwg9wk8qw":1}},"PM9A_1791397328532":{"mulmpz0lcgvx":{"mus91lbcyzol":1,"mullwg9wk8qw":1},"muygkt0v6yfc":{"mus91lbcyzol":1,"mullwg9wk8qw":2},"muo82azxw149":{"mus91lbcyzol":1,"mulmpz0lcgvx":1},"mus91lbcyzol":{"muygkt0v6yfc":2},"mullwg9wk8qw":{"muygkt0v6yfc":2}},"QKYX_1791023752333":{"mullwg9wk8qw":{"mul5tnvlb5fa":3},"mul5tnvlb5fa":{"mus91lbcyzol":3,"mus6yenkw9mg":1},"mus6yenkw9mg":{"mus91lbcyzol":1,"mul5tnvlb5fa":1}},"RSE4_1790622175174":{"mullwg9wk8qw":{"mulm3599ra5u":1,"mul5tnvlb5fa":1},"mulm3599ra5u":{"mullwg9wk8qw":1},"mulmpz0lcgvx":{"mul5tnvlb5fa":2}},"S3HH_1791488624457":{"mullwg9wk8qw":{"mul5tnvlb5fa":2},"muzwnxfkhrnb":{"mullwg9wk8qw":1,"mul5tnvlb5fa":1},"mulmpz0lcgvx":{"mullwg9wk8qw":2},"muo82azxw149":{"mullwg9wk8qw":1}},"SG6Z_1791473356912":{"muo82azxw149":{"mul5tnvlb5fa":1,"mulmpz0lcgvx":3},"mulmpz0lcgvx":{"muo82azxw149":3,"mullwg9wk8qw":1},"mul5tnvlb5fa":{"mullwg9wk8qw":2,"muo82azxw149":1},"mullwg9wk8qw":{"mulmpz0lcgvx":2,"muo82azxw149":1}},"T6Z3_1792005816559":{"mus91lbcyzol":{"mullwg9wk8qw":1,"munzmoujhcka":1},"muu6gkr5fssv":{"munzmoujhcka":1},"mulmpz0lcgvx":{"munzmoujhcka":1,"mus91lbcyzol":1},"munzmoujhcka":{"mulmpz0lcgvx":1},"mullwg9wk8qw":{"munzmoujhcka":2}},"TUE9_1792351950104":{"mul5tnvlb5fa":{"mv0rejqdr8dw":2},"mulmpz0lcgvx":{"muy6un9tpvqs":1,"mul5tnvlb5fa":2},"muy6un9tpvqs":{"mulmpz0lcgvx":1,"mul5tnvlb5fa":1}},"TUWX_1791198886464":{"muo82azxw149":{"mus6yenkw9mg":2,"mul5tnvlb5fa":1},"mul5tnvlb5fa":{"muo82azxw149":3,"mus6yenkw9mg":1}},"TUWX_1791201128995":{"mul5tnvlb5fa":{"mus6yenkw9mg":1,"muo82azxw149":2},"muo82azxw149":{"mul5tnvlb5fa":3,"mus6yenkw9mg":3},"mus6yenkw9mg":{"mul5tnvlb5fa":2,"muo82azxw149":1}},"TUWX_1791203323756":{"mus6yenkw9mg":{"muo82azxw149":2},"mul5tnvlb5fa":{"muo82azxw149":3,"mus6yenkw9mg":1},"muo82azxw149":{"mus6yenkw9mg":1,"mul5tnvlb5fa":2}},"UL8X_1792354131185":{"mulmpz0lcgvx":{"mul5tnvlb5fa":2,"mv0rejqdr8dw":1,"muo82azxw149":1,"muy6un9tpvqs":1},"mul5tnvlb5fa":{"mulmpz0lcgvx":2},"muo82azxw149":{"muy6un9tpvqs":1,"mulmpz0lcgvx":1},"muy6un9tpvqs":{"mulmpz0lcgvx":1},"mv0rejqdr8dw":{"muy6un9tpvqs":1}},"UL8X_1792355227289":{"mul5tnvlb5fa":{"muy6un9tpvqs":2,"mv0rejqdr8dw":1}},"XAT6_1791484769464":{"muzwnxfkhrnb":{"muo82azxw149":1,"mul5tnvlb5fa":1,"mullwg9wk8qw":1},"muo82azxw149":{"mul5tnvlb5fa":1},"mullwg9wk8qw":{"muo82azxw149":2,"mulmpz0lcgvx":1,"muzwnxfkhrnb":1},"mul5tnvlb5fa":{"muo82azxw149":1},"mulmpz0lcgvx":{"mullwg9wk8qw":1}},"Y2VG_1791454147320":{"mullwg9wk8qw":{"muo82azxw149":1},"muo82azxw149":{"mulmpz0lcgvx":2,"mus91lbcyzol":1}},"Z85P_1791385316485":{"mulmpz0lcgvx":{"mullwg9wk8qw":4,"muo82azxw149":3},"mullwg9wk8qw":{"mulmpz0lcgvx":1,"muo82azxw149":2},"muo82azxw149":{"mulmpz0lcgvx":1}},"Z9CB_1792055949912":{"muy6un9tpvqs":{"muo82azxw149":1},"mullwg9wk8qw":{"muy6un9tpvqs":1,"mul5tnvlb5fa":1,"muo82azxw149":1},"mul5tnvlb5fa":{"muo82azxw149":3,"muy6un9tpvqs":1,"mullwg9wk8qw":1},"muo82azxw149":{"mul5tnvlb5fa":1,"mullwg9wk8qw":1}},"ZH9X_1791138257358":{"muu6gkpu2gv5":{"muo82azxw149":1,"mus6yenkw9mg":2,"munzmoujhcka":1},"munzmoujhcka":{"mus6yenkw9mg":1,"mus91lbcyzol":1},"mus6yenkw9mg":{"muu6gkr5fssv":2,"mus91lbcyzol":1},"muu6gkr5fssv":{"munzmoujhcka":1,"muo82azxw149":1},"muo82azxw149":{"muu6gkpu2gv5":1}},"ZXDD_1790875775080":{"mul5tnvlb5fa":{"muo82azxw149":1,"mulmpz0lcgvx":1},"mulmpz0lcgvx":{"mul5tnvlb5fa":1,"mullwg9wk8qw":1},"muo82azxw149":{"mulmpz0lcgvx":3,"mullwg9wk8qw":1},"mullwg9wk8qw":{"mulmpz0lcgvx":1}}};  // parties déjà jouées : { id de partie sans « o_ » : { id de membre sans « m_ » : { id du voleur sans « m_ » : n } } }
+
+// roundLog -> { victimId : { thiefId : contrats ruinés } }
+function rivalStatsFromLog(roundLog){
+  var out = {};
+  (roundLog||[]).forEach(function(r){
+    var order = r.bidOrder || [], n = order.length, played = r.played || [], trump = r.trump && r.trump.suit ? r.trump.suit : null;
+    if(n<2 || !played.length || played.length % n) return;
+    var steals = {}, leader = order[0];
+    for(var t=0; t*n<played.length; t++){
+      var trick = played.slice(t*n, (t+1)*n), start = order.indexOf(leader), led = trick[0].suit;
+      var plays = trick.map(function(card, k){ return { playerId: order[(start+k)%n], card: card }; });
+      var winner = trickWinner(plays, led, trump);
+      var second = trickWinner(plays.filter(function(p){ return p.playerId!==winner; }), led, trump);
+      if(second){ steals[second] = steals[second] || {}; steals[second][winner] = (steals[second][winner]||0) + 1; }
+      leader = winner;
+    }
+    order.forEach(function(v){
+      if(!((r.tricksWon[v]||0) < (r.bids[v]||0)) || !steals[v]) return;
+      var best = null, tie = false;
+      Object.keys(steals[v]).forEach(function(w){
+        if(best===null || steals[v][w]>steals[v][best]){ best = w; tie = false; } else if(steals[v][w]===steals[v][best]) tie = true;
+      });
+      if(best===null || tie) return;
+      out[v] = out[v] || {}; out[v][best] = (out[v][best]||0) + 1;
+    });
+  });
+  return out;
+}
+
+// Fin de partie : détail pour MOI (qui m'a ruiné, qui j'ai ruiné) ; les robots comptent
+function rivalsHtml(g){
+  var log = g.roundLog || [];
+  if(!log.length || !g.players[myId]) return '';
+  var st = rivalStatsFromLog(log);
+  var tag = function(id){ var p = g.players[id]; return p ? (p.isBot ? '🤖 ' : '') + esc(p.name) : '?'; };
+  var top = function(map){ var b = null; Object.keys(map||{}).forEach(function(k){ if(b===null || map[k]>map[b]) b = k; }); return b; };
+  var mine = st[myId] || {}, enemy = top(mine), lines = [];
+  if(enemy) lines.push('😈 <b>'+tag(enemy)+'</b> t\'a ruiné '+mine[enemy]+' contrat'+(mine[enemy]>1?'s':'')+' cette partie');
+  var victims = {};
+  Object.keys(st).forEach(function(v){ if(v!==myId && st[v][myId]) victims[v] = st[v][myId]; });
+  var vic = top(victims);
+  if(vic) lines.push('🎯 Tu as ruiné '+victims[vic]+' contrat'+(victims[vic]>1?'s':'')+' de <b>'+tag(vic)+'</b>');
+  if(!lines.length) lines.push('🕊️ Personne ne t\'a vraiment ruiné cette partie.');
+  return '<div class="card-panel rivals-panel" style="margin-top:14px;"><div class="eyebrow">Duels de la partie</div>'
+    + lines.map(function(l){ return '<p class="rival-line">'+l+'</p>'; }).join('')
+    + '<p class="muted" style="font-size:11.5px; margin:6px 0 0;">Contrat ruiné = tu rates ton annonce parce que cette personne t\'a pris le plus de plis.</p></div>';
+}
+
+// Fiche d'un joueur de la ligue : pire ennemi / victime préférée sur toutes ses parties (>= RIVAL_MIN_SHARED parties ensemble)
+function rivalsOfMember(memberId){
+  var ruinedBy = {}, ruined = {}, shared = {};
+  (league.games||[]).forEach(function(g){
+    var ids = (g.players||[]).map(function(p){ return p.memberId; });
+    if(ids.indexOf(memberId)<0) return;
+    ids.forEach(function(o){ if(o!==memberId) shared[o] = (shared[o]||0)+1; });
+    var hist = RIVALS_HISTORY[String(g.id||'').replace(/^o_/,'')];
+    (g.players||[]).forEach(function(p){
+      var r = p.rivals || (hist && hist[String(p.origMemberId||p.memberId).replace(/^m_/,'')]) || null; if(!r) return;
+      Object.keys(r).forEach(function(t){
+        var tid = canonMember(t.indexOf('m_')===0 ? t : 'm_'+t);
+        if(p.memberId===memberId) ruinedBy[tid] = (ruinedBy[tid]||0) + r[t];
+        else if(tid===memberId) ruined[p.memberId] = (ruined[p.memberId]||0) + r[t];
+      });
+    });
+  });
+  function best(map){
+    var b = null;
+    Object.keys(map).forEach(function(k){
+      if((shared[k]||0) < RIVAL_MIN_SHARED) return;
+      var rate = map[k]/shared[k];
+      if(!b || rate>b.rate) b = { id:k, n:map[k], games:shared[k], rate:rate };
+    });
+    return b;
+  }
+  return { enemy: best(ruinedBy), victim: best(ruined) };
+}
+function rivalCardHtml(memberId){
+  var r = rivalsOfMember(memberId), one = function(x){ return x.toFixed(1).replace('.',','); };
+  var nm = function(id){ var m = memberById(id); return m ? m.name : '?'; };
+  var cells = '';
+  if(r.enemy) cells += '<div><b>😈 '+esc(nm(r.enemy.id))+'</b><span>pire ennemi : t\'a ruiné '+r.enemy.n+' contrats en '+r.enemy.games+' parties ('+one(r.enemy.rate)+' par partie)</span></div>';
+  if(r.victim) cells += '<div><b>🎯 '+esc(nm(r.victim.id))+'</b><span>victime préférée : ruiné '+r.victim.n+' fois en '+r.victim.games+' parties ('+one(r.victim.rate)+' par partie)</span></div>';
+  return cells ? '<div class="lg-stats rival-card">'+cells+'</div>' : '';
+}
 /* ===================== events ===================== */
 // clic à l'intérieur d'une fenêtre : ne pas la fermer (sauf via un vrai bouton à l'intérieur, ex. « Fermer »)
 document.addEventListener('click', function(e){

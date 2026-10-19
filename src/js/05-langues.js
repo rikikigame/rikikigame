@@ -69,6 +69,10 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Déplacer ce joueur (glisser)': 'Move this player (drag)',
+  'Duels de la partie': 'Duels of the game',
+  'Contrat ruiné = tu rates ton annonce parce que cette personne t\'a pris le plus de plis.': 'Ruined contract = you miss your bid because this person took the most tricks from you.',
+  '🕊️ Personne ne t\'a vraiment ruiné cette partie.': '🕊️ Nobody really ruined you this game.',
   /* v73 : parcours de profil, Paramètres, consentement */
   "Tu joues en invité":"You're playing as a guest",
   "Un profil (pseudo + code) te permet de te retrouver sur tous tes appareils et de compter dans la ligue. Sans profil, tu peux jouer quand même.":"A profile (username + code) lets you find yourself on all your devices and count in the league. You can still play without one.",

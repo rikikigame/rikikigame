@@ -213,6 +213,7 @@ function renderGameOver(g){
     + (g.hostId===myId ? '<button class="btn" data-action="replay">↻ Rejouer (mêmes joueurs, mêmes règles)</button>'
                        : '<p class="muted" style="font-size:13.5px;">L\'hôte peut relancer une partie avec les mêmes joueurs.</p>')
     + '</div>';
+  html += rivalsHtml(g);
   html += coachReviewHtml(g, (g.roundLog||[])[(g.roundLog||[]).length-1]);
   html += renderGameRecap(g);
   html += coachReviewsListHtml(g);

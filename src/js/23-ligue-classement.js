@@ -113,7 +113,7 @@ function ranksFromScores(list){ // list: [{key, score}] -> {key: rank} (ex æquo
 async function recordLeagueGame(gameId, mode, rows, roundsCount, at){
   // rows: [{ memberId, name, score, contracts, absDiff }]
   var ranks = ranksFromScores(rows.map(function(r){ return { key:r.memberId, score:r.score }; }));
-  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; if(typeof r.cuts==='number'){ p.cuts = r.cuts; p.cutWins = r.cutWins||0; } return p; });
+  var players = rows.map(function(r){ var p = { memberId:r.memberId, name:r.name, rank:ranks[r.memberId], score:r.score, contracts:r.contracts, absDiff:r.absDiff }; if(r.uid) p.uid = r.uid; if(typeof r.cuts==='number'){ p.cuts = r.cuts; p.cutWins = r.cutWins||0; } if(r.rivals && Object.keys(r.rivals).length) p.rivals = r.rivals; return p; });
   var rec = { at: at, season: seasonOf(at), mode: mode, rounds: roundsCount, players: players };
   var gref = claudeDb.collection('leagueGames').doc(gameId);
   var already = await gref.get();
@@ -168,15 +168,16 @@ async function maybeRecordOnline(g){
     var audit = await auditGameFull(g);
     if(audit.state==='bad'){ showToast('Ligue : scores suspects, partie non enregistrée'); return; } // (leagueRecording reste bloqué : on ne réessaie pas)
     var rows = [];
-    var cutsOfGame = cutStatsFromLog(g.roundLog||[]);
+    var cutsOfGame = cutStatsFromLog(g.roundLog||[]), rivalsOfGame = rivalStatsFromLog(g.roundLog||[]), midOf = {};
     var lids = leagueIdsOf(g); // v64 : les joueurs remplacés / retirés n'ont aucun point de ligue
     for(var i=0;i<lids.length;i++){
       var uid = lids[i], p = g.players[uid];
-      var mid = await ensureMember({ userId: uid, name: p.name });
+      var mid = await ensureMember({ userId: uid, name: p.name }); midOf[uid] = mid;
       var st = statsFromLog(g.roundLog||[], uid);
       var cs = cutsOfGame[uid] || { cuts:0, cutWins:0 };
-      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid), cuts: cs.cuts, cutWins: cs.cutWins }); // scores recalculés, pas ceux affichés
+      rows.push({ memberId: mid, name: p.name, score: audit.scores[uid]||0, contracts: st.contracts, absDiff: st.absDiff, uid: keyOfPlayer(g, uid), cuts: cs.cuts, cutWins: cs.cutWins, rivalsUid: rivalsOfGame[uid] }); // scores recalculés, pas ceux affichés
     }
+    rows.forEach(function(row){ if(row.rivalsUid){ var rv = {}; Object.keys(row.rivalsUid).forEach(function(t){ if(midOf[t]) rv[midOf[t]] = row.rivalsUid[t]; }); row.rivals = rv; delete row.rivalsUid; } }); // v74 : voleur -> id de membre
     await recordLeagueGame('o_'+g.code+'_'+(g.startedAt||g.createdAt), 'online', rows, (g.roundLog||[]).length, nowMs());
     await claudeDb.doc('games/'+g.code).update({ leagueRecorded: true });
   }catch(e){ console.error(e); showToast('Ligue : '+dbErrorText(e)); }
@@ -280,6 +281,7 @@ function renderLeagueRow(s, i, ranked){
       + '<div><b>'+s.precision.toFixed(2).replace('.',',')+'</b><span>écart moyen / manche</span></div>'
       + '<div><b>'+s.bestStreak+'</b><span>meilleure série</span></div>'
       + (s.cutGames ? '<div><b>'+s.cuts+' ✂️</b><span>coupes en '+s.cutGames+' parties ('+pct(s.cuts ? s.cutWins/s.cuts : 0)+' gagnantes)</span></div>' : '') + '</div>';
+    html += rivalCardHtml(s.id);
     html += '<div class="lg-spark">'+sparkline(s.eloHistory)+'<div class="muted" style="font-size:11.5px;">Évolution de la cote (pointillés = 1000)</div></div>';
     html += '<div class="eyebrow" style="margin:10px 0 4px;">Dernières parties</div><table class="score-table"><tbody>';
     s.history.slice(-8).reverse().forEach(function(h){

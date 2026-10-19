@@ -61,6 +61,27 @@ function readDraftFromDom(){
 }
 function draftMaxStart(n){ return Math.max(1, Math.floor(52/Math.max(n,2))); }
 var sheetStarting = false;
+// v74 : suggestions de prénoms quand on tape (« k » -> « K.vroom ») : derniers noms utilisés + membres de la ligue + mon profil
+var RECENT_NAMES_KEY = 'rikiki_recent_names', RECENT_NAMES_MAX = 40;
+function recentNames(){ try{ var a = JSON.parse(localStorage.getItem(RECENT_NAMES_KEY) || '[]'); return Array.isArray(a) ? a.filter(function(x){ return typeof x==='string'; }) : []; }catch(e){ return []; } }
+function rememberNames(names){
+  var merged = names.concat(recentNames()), seen = {}, out = [];
+  merged.forEach(function(n){ var k = normName(n); if(n && !seen[k]){ seen[k] = 1; out.push(n); } });
+  try{ localStorage.setItem(RECENT_NAMES_KEY, JSON.stringify(out.slice(0, RECENT_NAMES_MAX))); }catch(e){}
+}
+function knownNames(){
+  var friends = Object.keys(social.friends||{}).filter(function(k){ return social.friends[k]; }).map(function(k){ return social.friends[k].name; });
+  var all = [(myProfile && myProfile.name) || ''].concat(friends, recentNames(), (league.members||[]).map(function(m){ return m.name; })), seen = {}, out = [];
+  all.forEach(function(n){ n = (n||'').trim(); var k = normName(n); if(n && !seen[k]){ seen[k] = 1; out.push(n); } });
+  return { all: out, friends: friends };
+}
+function knownNamesHtml(d){
+  var kn = knownNames(), used = {};
+  d.names.forEach(function(n){ used[normName(n||'')] = 1; });
+  var chips = kn.all.filter(function(n){ return !used[normName(n)]; }).slice(0, 8);
+  return '<datalist id="leagueMemberList">'+kn.all.map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join('')+'</datalist>'
+    + (chips.length && d.names.length < MAX_PLAYERS+1 ? '<div class="name-chips" aria-label="Ajouter en un clic">'+chips.map(function(n){ return '<button class="chip" data-action="sheet-pick-name" data-name="'+esc(n)+'">+ '+esc(n)+'</button>'; }).join('')+'</div>' : '');
+}
 async function startSheet(){
   readDraftFromDom();
   if(sheetStarting) return;
@@ -69,6 +90,7 @@ async function startSheet(){
   if(names.length > MAX_PLAYERS){ errorMsg = 'Maximum '+MAX_PLAYERS+' joueurs.'; render(); return; }
   var seen = {}, dup = names.filter(function(n){ var k=normName(n); if(seen[k]) return true; seen[k]=1; return false; });
   if(dup.length){ errorMsg = 'Deux joueurs ont le même prénom : '+dup[0]+'.'; render(); return; }
+  rememberNames(names);
   if(sheetDraft.league && names.length < LEAGUE_MIN_HUMANS){ errorMsg = 'Une partie de ligue demande au moins '+LEAGUE_MIN_HUMANS+' joueurs.'; render(); return; }
   var maxStart = draftMaxStart(names.length);
   var startSize = Math.max(1, Math.min(sheetDraft.startSize || maxStart, maxStart));
@@ -164,13 +186,14 @@ function renderSheetSetup(){
   html += '<div style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">';
   d.names.forEach(function(name, i){
     var hint = '<span id="sheetHint'+i+'">'+memberHint(name, d.league)+'</span>';
-    html += '<div class="row"><input type="text" maxlength="24" placeholder="Joueur '+(i+1)+'" value="'+esc(name)+'" data-sheet-name="'+i+'" id="sheetName'+i+'"'+(d.league?' list="leagueMemberList"':'')+'>'+hint
+    html += '<div class="row sheet-row" data-row="'+i+'"><input type="text" maxlength="24" placeholder="Joueur '+(i+1)+'" value="'+esc(name)+'" data-sheet-name="'+i+'" id="sheetName'+i+'" list="leagueMemberList" autocomplete="off">'+hint
+      + (d.names.length>1 ? '<span class="drag-handle" data-drag="'+i+'" role="button" aria-label="Déplacer ce joueur (glisser)" title="Glisse pour changer l\'ordre">☰</span>' : '')
       + (d.names.length>2 ? '<button class="btn secondary small" data-action="sheet-remove-player" data-index="'+i+'" aria-label="Retirer">✕</button>' : '') + '</div>';
   });
   html += '</div>';
   if(d.names.length < MAX_PLAYERS) html += '<button class="btn secondary small" data-action="sheet-add-player" style="margin-bottom:6px;">+ Ajouter un joueur</button>';
   html += '<div id="sheetDealerWrap">'+dealerSelectHtml(d)+'</div>';
-  if(d.league) html += '<datalist id="leagueMemberList">'+league.members.map(function(m){ return '<option value="'+esc(m.name)+'"></option>'; }).join('')+'</datalist>';
+  html += knownNamesHtml(d);
   html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:12px 0 0;"><input type="checkbox" id="sheetLeague" '+(d.league?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
   html += '<p class="muted" style="font-size:12.5px; margin:8px 0 0;">'+(d.direction==='quick' ? 'Partie rapide : pas de limite de zéros.' : 'Règle : pas plus de 3 zéros d\'affilée.')+'</p>';
   if(d.league) html += '<p class="muted" style="font-size:12.5px; margin:4px 0 0;">Tape le prénom d\'un membre (proposé automatiquement) ; un prénom inconnu crée un nouveau membre. Minimum '+LEAGUE_MIN_HUMANS+' joueurs.</p>';
@@ -313,6 +336,12 @@ document.addEventListener('click', function(e){
   if(a==='sheet-open'){ openSheet(); }
   else if(a==='sheet-home'){ sheetConfirmNew=false; errorMsg=''; screen='entry'; render(); }
   else if(a==='sheet-add-player'){ readDraftFromDom(); sheetDraft.names.push(''); render(); var ins=document.querySelectorAll('[data-sheet-name]'); if(ins.length) ins[ins.length-1].focus(); }
+  else if(a==='sheet-pick-name'){ // v74 : un clic = ajoute ce prénom dans la première case vide (ou crée une case)
+    readDraftFromDom();
+    var pn = el.getAttribute('data-name') || '', slot = sheetDraft.names.findIndex(function(x){ return !(x||'').trim(); });
+    if(slot<0 && sheetDraft.names.length<MAX_PLAYERS){ sheetDraft.names.push(pn); } else if(slot>=0){ sheetDraft.names[slot] = pn; }
+    render();
+  }
   else if(a==='sheet-remove-player'){ readDraftFromDom(); sheetDraft.names.splice(parseInt(el.getAttribute('data-index'),10),1); render(); }
   else if(a==='sheet-toggle-scoring'){ readDraftFromDom(); sheetShowScoring=!sheetShowScoring; render(); }
   else if(a==='sheet-reset-scoring'){ readDraftFromDom(); sheetDraft.scoring = Object.assign({}, DEFAULT_SCORING); render(); }
@@ -344,3 +373,43 @@ document.addEventListener('change', function(e){
   if(e.target.id==='sheetDealer' || e.target.id==='sheetDirection' || e.target.id==='sheetStartSize' || e.target.id==='sheetLeague' || e.target.hasAttribute('data-sheet-scoring')){ readDraftFromDom(); render(); }
 });
 
+
+// v74 : glisser la poignée ☰ pour changer l'ordre des joueurs (souris ou doigt) ; le donneur suit la personne
+var sheetDrag = null;
+function sheetMovePlayer(from, to){
+  if(from===to || from<0 || to<0 || to>=sheetDraft.names.length) return;
+  var nm = sheetDraft.names.slice(), moved = nm.splice(from, 1)[0]; nm.splice(to, 0, moved);
+  var ds = sheetDraft.dealerStart||0, nd = ds===from ? to : (from<ds && to>=ds ? ds-1 : (from>ds && to<=ds ? ds+1 : ds));
+  var tops = {}; document.querySelectorAll('.sheet-row').forEach(function(r){ tops[r.getAttribute('data-row')] = r.getBoundingClientRect().top; });
+  sheetDraft.names = nm; sheetDraft.dealerStart = nd; render();
+  // animation (FLIP) : chaque ligne glisse de son ancienne place vers la nouvelle
+  var oldIndexOf = function(j){ return j===to ? from : (from<to ? (j>=from && j<to ? j+1 : j) : (j>to && j<=from ? j-1 : j)); };
+  var rows = document.querySelectorAll('.sheet-row');
+  rows.forEach(function(r, j){
+    var dy = tops[oldIndexOf(j)] - r.getBoundingClientRect().top; if(!dy) return;
+    r.style.transition = 'none'; r.style.transform = 'translateY('+dy+'px)';
+  });
+  void document.body.offsetHeight;
+  rows.forEach(function(r){ if(!r.style.transform) return; r.style.transition = 'transform .22s ease'; r.style.transform = ''; });
+}
+document.addEventListener('pointerdown', function(e){
+  var h = e.target.closest && e.target.closest('[data-drag]'); if(!h || screen!=='sheet-setup' || !sheetDraft) return;
+  e.preventDefault(); readDraftFromDom();
+  sheetDrag = { from: parseInt(h.getAttribute('data-drag'),10), over: -1 };
+  var row = h.closest('.sheet-row'); if(row) row.classList.add('dragging');
+  try{ h.setPointerCapture(e.pointerId); }catch(x){}
+});
+document.addEventListener('pointermove', function(e){
+  if(!sheetDrag) return;
+  var el = document.elementFromPoint(e.clientX, e.clientY), row = el && el.closest ? el.closest('.sheet-row') : null;
+  document.querySelectorAll('.sheet-row.drop').forEach(function(r){ r.classList.remove('drop'); });
+  sheetDrag.over = row ? parseInt(row.getAttribute('data-row'),10) : -1;
+  if(row && sheetDrag.over!==sheetDrag.from) row.classList.add('drop');
+});
+function endSheetDrag(){
+  if(!sheetDrag) return; var d = sheetDrag; sheetDrag = null;
+  document.querySelectorAll('.sheet-row.dragging, .sheet-row.drop').forEach(function(r){ r.classList.remove('dragging','drop'); });
+  if(d.over>=0) sheetMovePlayer(d.from, d.over);
+}
+document.addEventListener('pointerup', endSheetDrag);
+document.addEventListener('pointercancel', function(){ sheetDrag = null; document.querySelectorAll('.sheet-row.dragging, .sheet-row.drop').forEach(function(r){ r.classList.remove('dragging','drop'); }); });

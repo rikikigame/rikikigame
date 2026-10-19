@@ -955,3 +955,8 @@
   .state-pill{ display:inline-flex; align-items:center; gap:7px; padding:3px 11px 3px 9px; border-radius:999px; font-size:12.5px; font-weight:700; color:#C9F2DA; background:rgba(74,222,128,.12); border:1px solid rgba(74,222,128,.38); }
   .state-dot{ width:8px; height:8px; border-radius:50%; background:#4ADE80; box-shadow:0 0 0 3px rgba(74,222,128,.22); flex:none; }
   .hc-state.ok{ opacity:1; }
+
+.rival-line{margin:8px 0 0;font-size:15px;line-height:1.4}
+.rival-card b{overflow-wrap:anywhere}
+.name-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.name-chips .chip{border:1px solid var(--line,#ffffff33);background:transparent;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer}
+.drag-handle{flex:none;width:38px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;color:var(--cream-dim,#aaa);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:10px}.drag-handle:hover{color:inherit;background:#ffffff14}.sheet-row.dragging{opacity:.55}.sheet-row.drop{outline:2px dashed var(--orange,#f08040);outline-offset:3px;border-radius:12px}
