@@ -90,7 +90,7 @@ var I18N_EN = { exact: {
   "✅ Connecté":"✅ Signed in",
   "Tu es déconnecté.":"You are signed out.",
   "Tu joues maintenant en invité. Pour retrouver ton profil : « Me connecter ».":"You are now playing as a guest. To get your profile back: “Sign in”.",
-  "✅ Profil connecté":"✅ Signed in to your profile",
+  "Profil connecté":"Signed in",
   "Fermer ce message":"Close this message",
   "Créer un profil ou me connecter":"Create a profile or sign in",
   "Invité · tu n'as pas de profil connecté.":"Guest · you are not signed in to a profile.",

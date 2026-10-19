@@ -61,7 +61,7 @@ function renderEntry(){
   html += '<button class="hc-avatar'+(currentProfile?'':' guest')+'" data-action="home-profile" aria-label="'+(currentProfile ? 'Mon profil' : 'Créer ou connecter mon profil')+'" aria-expanded="'+(homeProfileOpen?'true':'false')+'">'
     + (currentProfile ? esc(init) : '<span class="hc-avatar-txt">Profil</span>') + '</button>';
   html += '</div>';
-  html += currentProfile ? '<div class="hc-state ok">✅ Profil connecté</div>' : '<div class="hc-state">Invité · tu n\'as pas de profil connecté. <button class="linkish" data-action="home-profile">Créer un profil ou me connecter</button></div>';
+  html += currentProfile ? '<div class="hc-state ok"><span class="state-pill"><i class="state-dot" aria-hidden="true"></i>Profil connecté</span></div>' : '<div class="hc-state">Invité · tu n\'as pas de profil connecté. <button class="linkish" data-action="home-profile">Créer un profil ou me connecter</button></div>';
   var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
   if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
   else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil

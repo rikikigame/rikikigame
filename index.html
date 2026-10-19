@@ -965,6 +965,9 @@
   .hc-state{ font-size:12.5px; margin:-2px 2px 10px; opacity:.92; }
   .hc-state.ok{ font-weight:700; }
   .linkish{ background:none; border:none; padding:0; font:inherit; color:inherit; text-decoration:underline; cursor:pointer; }
+  .state-pill{ display:inline-flex; align-items:center; gap:7px; padding:3px 11px 3px 9px; border-radius:999px; font-size:12.5px; font-weight:700; color:#C9F2DA; background:rgba(74,222,128,.12); border:1px solid rgba(74,222,128,.38); }
+  .state-dot{ width:8px; height:8px; border-radius:50%; background:#4ADE80; box-shadow:0 0 0 3px rgba(74,222,128,.22); flex:none; }
+  .hc-state.ok{ opacity:1; }
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1599,7 +1602,7 @@ var I18N_EN = { exact: {
   "✅ Connecté":"✅ Signed in",
   "Tu es déconnecté.":"You are signed out.",
   "Tu joues maintenant en invité. Pour retrouver ton profil : « Me connecter ».":"You are now playing as a guest. To get your profile back: “Sign in”.",
-  "✅ Profil connecté":"✅ Signed in to your profile",
+  "Profil connecté":"Signed in",
   "Fermer ce message":"Close this message",
   "Créer un profil ou me connecter":"Create a profile or sign in",
   "Invité · tu n'as pas de profil connecté.":"Guest · you are not signed in to a profile.",
@@ -5477,7 +5480,7 @@ function renderEntry(){
   html += '<button class="hc-avatar'+(currentProfile?'':' guest')+'" data-action="home-profile" aria-label="'+(currentProfile ? 'Mon profil' : 'Créer ou connecter mon profil')+'" aria-expanded="'+(homeProfileOpen?'true':'false')+'">'
     + (currentProfile ? esc(init) : '<span class="hc-avatar-txt">Profil</span>') + '</button>';
   html += '</div>';
-  html += currentProfile ? '<div class="hc-state ok">✅ Profil connecté</div>' : '<div class="hc-state">Invité · tu n\'as pas de profil connecté. <button class="linkish" data-action="home-profile">Créer un profil ou me connecter</button></div>';
+  html += currentProfile ? '<div class="hc-state ok"><span class="state-pill"><i class="state-dot" aria-hidden="true"></i>Profil connecté</span></div>' : '<div class="hc-state">Invité · tu n\'as pas de profil connecté. <button class="linkish" data-action="home-profile">Créer un profil ou me connecter</button></div>';
   var mustShowProfile = homeProfileOpen || (currentProfile && authOn() && authAnon()) || !!profileUi.err || !!profileUi.ok || !!profileUi.mode;
   if(mustShowProfile) html += '<div class="home-panel">'+renderProfileBox()+'</div>';
   else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
