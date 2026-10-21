@@ -68,7 +68,8 @@ function leaveToEntry(){
 }
 
 var versionSent = false;
-function subscribeGame(code){
+var STALE_RESTORE_MS = 6*3600000; // v75 : une partie sans aucune activité depuis 6 h n'est plus rouverte automatiquement au retour sur le site
+function subscribeGame(code, fromRestore){
   versionSent = false;
   screen='loading'; render();
   armWatchdog();
@@ -81,6 +82,14 @@ function subscribeGame(code){
     subscribeGame.retries = 0;
     try{
       if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
+      var lastWrite = snap.data().__serverAt;
+      if(fromRestore && !subscribeGame.restoreChecked){ // premier chargement au retour sur le site : partie abandonnée ?
+        subscribeGame.restoreChecked = true;
+        if(typeof lastWrite==='number' && nowMs() - lastWrite > STALE_RESTORE_MS){
+          clearLocal(); gameDoc=null; gameCode=null; if(gameUnsub){ gameUnsub(); gameUnsub=null; }
+          screen='entry'; errorMsg='Ta dernière partie est restée sans activité : on t\'a ramené à l\'accueil.'; render(); return;
+        }
+      }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
       if(!gameDoc.players || !gameDoc.players[myId]){

@@ -69,6 +69,7 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  '🏆 Tournoi du dimanche': '🏆 Sunday tournament',
   'Déplacer ce joueur (glisser)': 'Move this player (drag)',
   'Duels de la partie': 'Duels of the game',
   'Contrat ruiné = tu rates ton annonce parce que cette personne t\'a pris le plus de plis.': 'Ruined contract = you miss your bid because this person took the most tricks from you.',

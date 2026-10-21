@@ -306,6 +306,7 @@ function leagueDailyStat(){
   else { var t = by(function(s){ return s.cuts; }); txt = '<b>'+esc(t.name)+'</b> a coupé '+t.cuts+' fois en '+t.cutGames+' parties : personne n\'a plus d\'atouts à son actif.'; }
   return '<div class="daily-stat"><b>✂️ Stat du jour</b> · '+txt+'</div>';
 }
+var PENDING_MAX_AGE_MS = 10*86400000; // v75 : une partie jamais confirmée disparaît de la liste d'attente après 10 jours (elle reste en base, elle ne compte pas)
 function renderLeague(){
   var html = '<div class="topbar"><div class="brand"><span class="display">Rikiki</span><span class="badge">Ligue</span></div>'
     + '<div class="actions"><button class="btn ghost" data-action="analysis-open">Analyse</button><button class="btn ghost" data-action="league-help">Comment ça marche</button><button class="btn ghost" data-action="league-home">Accueil</button></div></div>';
@@ -322,6 +323,7 @@ function renderLeague(){
     + '<select id="leagueSeason" aria-label="Saison">'
     + seasons.map(function(k){ return '<option value="'+esc(k)+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
     + '<option value="all"'+(leagueView.season==='all'?' selected':'')+'>'+seasonLabel('all')+'</option></select></div>';
+  html += tournamentHtml();
   var res = computeLeague(leagueView.season, leagueView.mode);
   if(!res.games){
     html += '<div class="card-panel" style="text-align:center;"><p style="margin:0 0 6px; font-weight:700;">Aucune partie de ligue pour l\'instant</p>'
@@ -338,7 +340,7 @@ function renderLeague(){
     }
   }
   // v43 : parties en ligne pas encore confirmées par la majorité des joueurs
-  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return leagueView.season==='all' || g.season===leagueView.season; }) : [];
+  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return (leagueView.season==='all' || g.season===leagueView.season) && nowMs() - (g.at||0) < PENDING_MAX_AGE_MS; }) : [];
   if(pend.length){
     html += '<div class="card-panel" style="margin-top:14px;"><div class="eyebrow" style="margin-bottom:6px;">⏳ En attente de confirmation</div>'
       + '<p class="muted" style="font-size:12.5px; margin:0 0 8px;">Une partie compte dès que la majorité des joueurs l\'a confirmée. C\'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.</p>';

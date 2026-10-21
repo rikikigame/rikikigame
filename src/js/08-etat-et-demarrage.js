@@ -75,7 +75,7 @@ async function init(){
   }catch(e){}
   if(saved && saved.code){
     gameCode = saved.code;
-    subscribeGame(gameCode);
+    subscribeGame(gameCode, true);
   } else if(qCode){
     clearTimeout(loadWatchdog);
     entryMode='join'; prefillCode = qCode;

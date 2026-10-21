@@ -973,6 +973,13 @@
 .rival-card b{overflow-wrap:anywhere}
 .name-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.name-chips .chip{border:1px solid var(--line,#ffffff33);background:transparent;color:inherit;border-radius:999px;padding:6px 12px;font:inherit;font-size:13.5px;cursor:pointer}
 .drag-handle{flex:none;width:38px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;color:var(--cream-dim,#aaa);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:10px}.drag-handle:hover{color:inherit;background:#ffffff14}.sheet-row.dragging{opacity:.55}.sheet-row.drop{outline:2px dashed var(--orange,#f08040);outline-offset:3px;border-radius:12px}
+
+.tourney{margin:0 0 14px}.tourney h3{font-size:18px;margin:0 0 4px}.tourney-sub{font-size:13px;margin:0 0 8px}
+.tourney-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.tourney-list li{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:10px;background:#ffffff0d}
+.tourney-list li.me{outline:1px solid var(--orange,#f08040)}
+.tr-rank{width:26px;text-align:center}.tr-name{flex:1;font-weight:700;overflow-wrap:anywhere}.tr-meta{font-size:12px;opacity:.7}
+.tourney-hof{font-size:13px;margin:10px 0 0}
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1011,7 +1018,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '74';
+var APP_VERSION = '75';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1586,6 +1593,7 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  '🏆 Tournoi du dimanche': '🏆 Sunday tournament',
   'Déplacer ce joueur (glisser)': 'Move this player (drag)',
   'Duels de la partie': 'Duels of the game',
   'Contrat ruiné = tu rates ton annonce parce que cette personne t\'a pris le plus de plis.': 'Ruined contract = you miss your bid because this person took the most tricks from you.',
@@ -2923,7 +2931,7 @@ async function init(){
   }catch(e){}
   if(saved && saved.code){
     gameCode = saved.code;
-    subscribeGame(gameCode);
+    subscribeGame(gameCode, true);
   } else if(qCode){
     clearTimeout(loadWatchdog);
     entryMode='join'; prefillCode = qCode;
@@ -3111,7 +3119,8 @@ function leaveToEntry(){
 }
 
 var versionSent = false;
-function subscribeGame(code){
+var STALE_RESTORE_MS = 6*3600000; // v75 : une partie sans aucune activité depuis 6 h n'est plus rouverte automatiquement au retour sur le site
+function subscribeGame(code, fromRestore){
   versionSent = false;
   screen='loading'; render();
   armWatchdog();
@@ -3124,6 +3133,14 @@ function subscribeGame(code){
     subscribeGame.retries = 0;
     try{
       if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
+      var lastWrite = snap.data().__serverAt;
+      if(fromRestore && !subscribeGame.restoreChecked){ // premier chargement au retour sur le site : partie abandonnée ?
+        subscribeGame.restoreChecked = true;
+        if(typeof lastWrite==='number' && nowMs() - lastWrite > STALE_RESTORE_MS){
+          clearLocal(); gameDoc=null; gameCode=null; if(gameUnsub){ gameUnsub(); gameUnsub=null; }
+          screen='entry'; errorMsg='Ta dernière partie est restée sans activité : on t\'a ramené à l\'accueil.'; render(); return;
+        }
+      }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
       if(!gameDoc.players || !gameDoc.players[myId]){
@@ -4735,6 +4752,31 @@ async function cleanOldGames(){
   }catch(e){ console.error(e); maintUi.msg = 'Nettoyage interrompu ('+done+' supprimée'+(done>1?'s':'')+') : '+dbErrorText(e); }
   finally{ maintUi.busy = false; render(); }
 }
+// v75 : nettoyage automatique des salles d'attente abandonnées. Salles d'attente ET parties commencées puis abandonnées (sans aucune écriture depuis 24 h). Seul l'organisateur (admin) peut lire/supprimer les parties,
+// donc ça se fait tout seul quand il ouvre le jeu connecté (au plus toutes les 6 h). On ne touche qu'aux salles encore en « lobby » depuis plus de 24 h.
+var LOBBY_MAX_AGE_MS = 24*3600000, LOBBY_CLEAN_EVERY_MS = 6*3600000, LOBBY_CLEAN_KEY = 'rikiki_lobby_clean_at', lobbyCleaning = false;
+async function cleanStaleLobbies(){
+  if(lobbyCleaning || !usingFirebase || !isAdmin() || !authOn()) return;
+  var last = 0; try{ last = parseInt(localStorage.getItem(LOBBY_CLEAN_KEY) || '0', 10) || 0; }catch(e){}
+  if(nowMs() - last < LOBBY_CLEAN_EVERY_MS) return;
+  lobbyCleaning = true;
+  try{
+    var snap = await firebase.database().ref('games').orderByChild('__at').endAt(nowMs() - LOBBY_MAX_AGE_MS).limitToLast(80).once('value'), codes = [];
+    snap.forEach(function(c){ codes.push(c.key); });
+    var removed = 0;
+    for(var i=0; i<codes.length; i++){
+      var st = await firebase.database().ref('games/'+codes[i]+'/status').once('value');
+      if(st.val()==='game_over') continue; // les parties finies restent (nettoyage mensuel) ; salles d'attente ET parties commencées puis abandonnées depuis 24 h : supprimées
+      for(var k=0; k<GAME_PARTS.length; k++) await claudeDb.doc(GAME_PARTS[k]+'/'+codes[i]).delete();
+      await claudeDb.doc('games/'+codes[i]).delete();
+      removed++;
+    }
+    try{ localStorage.setItem(LOBBY_CLEAN_KEY, String(nowMs())); }catch(e){}
+    if(removed) console.log('Salles d\'attente abandonnées supprimées : '+removed);
+  }catch(e){ console.warn('nettoyage des salles d\'attente', e); }
+  finally{ lobbyCleaning = false; }
+}
+setInterval(cleanStaleLobbies, 60000);
 async function legacyProfiles(){
   var all = await claudeDb.collection('profiles').get();
   return all.docs.map(function(d){ return Object.assign({ id:d.id }, d.data()); })
@@ -5496,7 +5538,7 @@ function renderEntry(){
     html += '<div class="home-panel"><div class="card-panel" style="margin-bottom:12px; padding:12px 16px;">'+renderClaimsList()+'</div></div>';
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
-    + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag">Le jeu de plis à annonces</div></div>';
+    + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
@@ -7629,6 +7671,7 @@ function leagueDailyStat(){
   else { var t = by(function(s){ return s.cuts; }); txt = '<b>'+esc(t.name)+'</b> a coupé '+t.cuts+' fois en '+t.cutGames+' parties : personne n\'a plus d\'atouts à son actif.'; }
   return '<div class="daily-stat"><b>✂️ Stat du jour</b> · '+txt+'</div>';
 }
+var PENDING_MAX_AGE_MS = 10*86400000; // v75 : une partie jamais confirmée disparaît de la liste d'attente après 10 jours (elle reste en base, elle ne compte pas)
 function renderLeague(){
   var html = '<div class="topbar"><div class="brand"><span class="display">Rikiki</span><span class="badge">Ligue</span></div>'
     + '<div class="actions"><button class="btn ghost" data-action="analysis-open">Analyse</button><button class="btn ghost" data-action="league-help">Comment ça marche</button><button class="btn ghost" data-action="league-home">Accueil</button></div></div>';
@@ -7645,6 +7688,7 @@ function renderLeague(){
     + '<select id="leagueSeason" aria-label="Saison">'
     + seasons.map(function(k){ return '<option value="'+esc(k)+'"'+(leagueView.season===k?' selected':'')+'>'+esc(seasonLabel(k))+'</option>'; }).join('')
     + '<option value="all"'+(leagueView.season==='all'?' selected':'')+'>'+seasonLabel('all')+'</option></select></div>';
+  html += tournamentHtml();
   var res = computeLeague(leagueView.season, leagueView.mode);
   if(!res.games){
     html += '<div class="card-panel" style="text-align:center;"><p style="margin:0 0 6px; font-weight:700;">Aucune partie de ligue pour l\'instant</p>'
@@ -7661,7 +7705,7 @@ function renderLeague(){
     }
   }
   // v43 : parties en ligne pas encore confirmées par la majorité des joueurs
-  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return leagueView.season==='all' || g.season===leagueView.season; }) : [];
+  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return (leagueView.season==='all' || g.season===leagueView.season) && nowMs() - (g.at||0) < PENDING_MAX_AGE_MS; }) : [];
   if(pend.length){
     html += '<div class="card-panel" style="margin-top:14px;"><div class="eyebrow" style="margin-bottom:6px;">⏳ En attente de confirmation</div>'
       + '<p class="muted" style="font-size:12.5px; margin:0 0 8px;">Une partie compte dès que la majorité des joueurs l\'a confirmée. C\'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.</p>';
@@ -8150,6 +8194,79 @@ function rivalCardHtml(memberId){
   if(r.enemy) cells += '<div><b>😈 '+esc(nm(r.enemy.id))+'</b><span>pire ennemi : t\'a ruiné '+r.enemy.n+' contrats en '+r.enemy.games+' parties ('+one(r.enemy.rate)+' par partie)</span></div>';
   if(r.victim) cells += '<div><b>🎯 '+esc(nm(r.victim.id))+'</b><span>victime préférée : ruiné '+r.victim.n+' fois en '+r.victim.games+' parties ('+one(r.victim.rate)+' par partie)</span></div>';
   return cells ? '<div class="lg-stats rival-card">'+cells+'</div>' : '';
+}
+/* ===================== v75 : tournoi du dimanche =====================
+   Chaque dimanche (heure de Belgique) toutes les parties de ligue EN LIGNE jouées ce jour-là forment un tournoi.
+   Points d'une partie : le dernier gagne 1 point, chaque place au-dessus en ajoute 1 (le 1er d'une partie à 5 : 5 points ; ex æquo = même place).
+   Classé à partir de TOURNEY_MIN_GAMES parties ; à égalité de points : plus de victoires, puis moins de parties.
+   Rien n'est enregistré à part : tout est recalculé depuis les parties de ligue (aucun changement des règles Firebase). */
+// INTERRUPTEUR : false = le tournoi n'est PAS affiché (code prêt, encore à travailler avant de l'activer).
+var TOURNEY_READY = false;
+var TOURNEY_MIN_GAMES = 2, TOURNEY_TZ = 'Europe/Brussels';
+
+// date du jour en Belgique : { key:'2026-10-18', weekday:0..6 (0 = dimanche) }
+function tourneyDayOf(ms){
+  try{
+    var parts = {};
+    new Intl.DateTimeFormat('en-CA', { timeZone: TOURNEY_TZ, year:'numeric', month:'2-digit', day:'2-digit', weekday:'short' })
+      .formatToParts(new Date(ms)).forEach(function(p){ parts[p.type] = p.value; });
+    var wd = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 }[parts.weekday];
+    return { key: parts.year+'-'+parts.month+'-'+parts.day, weekday: wd };
+  }catch(e){ var d = new Date(ms); return { key: d.toISOString().slice(0,10), weekday: d.getUTCDay() }; }
+}
+
+// tous les tournois (un par dimanche où une partie a été jouée), du plus récent au plus ancien
+function computeTournaments(games){
+  var days = {};
+  (games||[]).forEach(function(g){
+    if(g.mode!=='online') return;
+    var d = tourneyDayOf(g.at||0); if(d.weekday!==0) return;
+    var day = days[d.key] = days[d.key] || { key:d.key, games:0, rows:{} }, n = (g.players||[]).length;
+    day.games++;
+    (g.players||[]).forEach(function(p){
+      var r = day.rows[p.memberId] = day.rows[p.memberId] || { id:p.memberId, pts:0, wins:0, games:0 };
+      r.pts += Math.max(1, n - (p.rank||n) + 1); r.games++; if(p.rank===1) r.wins++;
+    });
+  });
+  return Object.keys(days).sort().reverse().map(function(k){
+    var day = days[k], list = Object.keys(day.rows).map(function(id){ return day.rows[id]; });
+    var ranked = list.filter(function(r){ return r.games>=TOURNEY_MIN_GAMES; })
+      .sort(function(a,b){ return (b.pts-a.pts) || (b.wins-a.wins) || (a.games-b.games); });
+    return { key:k, games:day.games, ranked:ranked, champion: ranked.length ? ranked[0].id : null };
+  });
+}
+
+function tourneyDateLabel(key){
+  var p = key.split('-'); return new Date(Date.UTC(+p[0], +p[1]-1, +p[2], 12)).toLocaleDateString('fr-BE', { day:'numeric', month:'long', timeZone:'UTC' });
+}
+function daysUntilSunday(ms){ var wd = tourneyDayOf(ms).weekday; return wd===0 ? 0 : 7-wd; }
+
+function tourneyRowsHtml(t, max){
+  var nm = function(id){ var m = memberById(id); return m ? m.name : '?'; }, medals = ['🥇','🥈','🥉'], me = myMember();
+  return '<ol class="tourney-list">' + t.ranked.slice(0, max).map(function(r, i){
+    return '<li'+(me && me.id===r.id ? ' class="me"' : '')+'><span class="tr-rank">'+(medals[i]||(i+1))+'</span><span class="tr-name">'+esc(nm(r.id))+'</span><span class="tr-meta">'+r.games+' parties · '+r.wins+' V</span><b>'+r.pts+' pts</b></li>';
+  }).join('') + '</ol>';
+}
+
+// bloc affiché en haut de l'écran « Ligue — En ligne »
+function tournamentHtml(){
+  if(!TOURNEY_READY || leagueView.mode!=='online') return '';
+  var now = nowMs(), today = tourneyDayOf(now), ts = computeTournaments(league.games), nm = function(id){ var m = memberById(id); return m ? m.name : '?'; };
+  var live = today.weekday===0 ? ts.filter(function(t){ return t.key===today.key; })[0] : null;
+  var past = ts.filter(function(t){ return t.key!==today.key && t.champion; });
+  var html = '<section class="card-panel tourney" aria-labelledby="tourney-t"><h3 id="tourney-t">🏆 Tournoi du dimanche</h3>';
+  if(today.weekday===0){
+    html += '<p class="muted tourney-sub">C\'est aujourd\'hui ! Toutes les parties de ligue en ligne de ce dimanche comptent. Il faut '+TOURNEY_MIN_GAMES+' parties pour être classé.</p>';
+    html += live && live.ranked.length ? tourneyRowsHtml(live, 5) : '<p class="muted">Personne n\'est encore classé : jouez une partie de ligue pour ouvrir le tournoi.</p>';
+  } else {
+    var d = daysUntilSunday(now);
+    html += '<p class="muted tourney-sub">Prochain tournoi : dimanche'+(d===1 ? ' (demain)' : ' (dans '+d+' jours)')+'. Toutes les parties de ligue en ligne ce jour-là comptent.</p>';
+    if(past[0]) html += '<div class="eyebrow" style="margin:10px 0 4px;">Dimanche '+esc(tourneyDateLabel(past[0].key))+'</div>' + tourneyRowsHtml(past[0], 3);
+  }
+  var wins = {}; past.forEach(function(t){ wins[t.champion] = (wins[t.champion]||0)+1; });
+  var top = Object.keys(wins).sort(function(a,b){ return wins[b]-wins[a]; }).slice(0,4);
+  if(top.length) html += '<p class="tourney-hof"><b>Palmarès</b> : ' + top.map(function(id){ return '👑 '+esc(nm(id))+' ×'+wins[id]; }).join(' · ') + '</p>';
+  return html + '</section>';
 }
 /* ===================== events ===================== */
 // clic à l'intérieur d'une fenêtre : ne pas la fermer (sauf via un vrai bouton à l'intérieur, ex. « Fermer »)
