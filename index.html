@@ -1018,7 +1018,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '75';
+var APP_VERSION = '76';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1593,6 +1593,8 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  '👤 Tu joues en invité': '👤 You are playing as a guest',
+  'Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.': 'With a profile: your league card, your duels (worst enemy, favourite victim), your rewards, and you find yourself on all your devices. 20 seconds, a nickname and a 4-digit code.',
   '🏆 Tournoi du dimanche': '🏆 Sunday tournament',
   'Déplacer ce joueur (glisser)': 'Move this player (drag)',
   'Duels de la partie': 'Duels of the game',
@@ -4176,6 +4178,22 @@ document.addEventListener('click', function(e){
   else if(a==='profile-admin-reset'){ profileAdminReset(); }
 });
 
+
+// v76 : à la fin d'une partie, un invité reçoit une invitation à créer un profil (pseudo déjà rempli avec son prénom de partie)
+var signupNudgeHidden = false;
+function signupNudgeHtml(g){
+  if(signupNudgeHidden || currentProfile || !(usingFirebase || usingMock) || !g.players[myId]) return '';
+  var name = esc(g.players[myId].name);
+  return '<div class="card-panel signup-nudge" style="margin-top:14px;"><div class="row between"><div class="eyebrow">👤 Tu joues en invité</div><button class="btn ghost" data-action="signup-nudge-hide" aria-label="Fermer">✕</button></div>'
+    + '<p style="margin:6px 0 10px;">Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.</p>'
+    + '<button class="btn" style="width:100%;" data-action="signup-nudge-go">Créer mon profil « '+name+' »</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="signup-nudge-go"],[data-action="signup-nudge-hide"]') : null; if(!el) return;
+  if(el.getAttribute('data-action')==='signup-nudge-hide'){ signupNudgeHidden = true; render(); return; }
+  if(gameDoc && gameDoc.players && gameDoc.players[myId]) myProfile.name = gameDoc.players[myId].name; // le pseudo proposé = mon prénom de partie
+  leaveToEntry(); homeProfileOpen = true; profileUi.open = true; profileUi.tab = 'create'; profileUi.err = ''; profileUi.pseudo = null; render();
+});
 /* ===================== v20 : analyse des parties en ligne + niveau des robots =====================
    analysisGames/{id} : { at, code, playerOrder, players:{id:{name,isBot}}, settings:{scoring,blindOne,botLevel}, rounds:[roundLog enrichi] }
    Chaque manche garde la graine de la donne, l'ordre d'annonce et la suite exacte des cartes jouées :
@@ -6880,6 +6898,7 @@ function renderGameOver(g){
                        : '<p class="muted" style="font-size:13.5px;">L\'hôte peut relancer une partie avec les mêmes joueurs.</p>')
     + '</div>';
   html += rivalsHtml(g);
+  html += signupNudgeHtml(g);
   html += coachReviewHtml(g, (g.roundLog||[])[(g.roundLog||[]).length-1]);
   html += renderGameRecap(g);
   html += coachReviewsListHtml(g);

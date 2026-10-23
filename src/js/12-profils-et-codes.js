@@ -374,3 +374,19 @@ document.addEventListener('click', function(e){
   else if(a==='profile-admin-reset'){ profileAdminReset(); }
 });
 
+
+// v76 : à la fin d'une partie, un invité reçoit une invitation à créer un profil (pseudo déjà rempli avec son prénom de partie)
+var signupNudgeHidden = false;
+function signupNudgeHtml(g){
+  if(signupNudgeHidden || currentProfile || !(usingFirebase || usingMock) || !g.players[myId]) return '';
+  var name = esc(g.players[myId].name);
+  return '<div class="card-panel signup-nudge" style="margin-top:14px;"><div class="row between"><div class="eyebrow">👤 Tu joues en invité</div><button class="btn ghost" data-action="signup-nudge-hide" aria-label="Fermer">✕</button></div>'
+    + '<p style="margin:6px 0 10px;">Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.</p>'
+    + '<button class="btn" style="width:100%;" data-action="signup-nudge-go">Créer mon profil « '+name+' »</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="signup-nudge-go"],[data-action="signup-nudge-hide"]') : null; if(!el) return;
+  if(el.getAttribute('data-action')==='signup-nudge-hide'){ signupNudgeHidden = true; render(); return; }
+  if(gameDoc && gameDoc.players && gameDoc.players[myId]) myProfile.name = gameDoc.players[myId].name; // le pseudo proposé = mon prénom de partie
+  leaveToEntry(); homeProfileOpen = true; profileUi.open = true; profileUi.tab = 'create'; profileUi.err = ''; profileUi.pseudo = null; render();
+});

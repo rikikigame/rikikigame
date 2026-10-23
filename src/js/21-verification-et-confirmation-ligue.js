@@ -214,6 +214,7 @@ function renderGameOver(g){
                        : '<p class="muted" style="font-size:13.5px;">L\'hôte peut relancer une partie avec les mêmes joueurs.</p>')
     + '</div>';
   html += rivalsHtml(g);
+  html += signupNudgeHtml(g);
   html += coachReviewHtml(g, (g.roundLog||[])[(g.roundLog||[]).length-1]);
   html += renderGameRecap(g);
   html += coachReviewsListHtml(g);

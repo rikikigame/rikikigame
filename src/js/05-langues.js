@@ -69,6 +69,8 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  '👤 Tu joues en invité': '👤 You are playing as a guest',
+  'Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.': 'With a profile: your league card, your duels (worst enemy, favourite victim), your rewards, and you find yourself on all your devices. 20 seconds, a nickname and a 4-digit code.',
   '🏆 Tournoi du dimanche': '🏆 Sunday tournament',
   'Déplacer ce joueur (glisser)': 'Move this player (drag)',
   'Duels de la partie': 'Duels of the game',
