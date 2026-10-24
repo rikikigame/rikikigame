@@ -33,5 +33,5 @@ print('pages de test prêtes dans ./srv')
 
 # v73 : polices et pages légales (valeurs bidon) disponibles dans le serveur de test
 import shutil, subprocess
-shutil.copytree('assets/fonts', 'srv/fonts', dirs_exist_ok=True)
+shutil.copytree('assets/fonts' if os.path.isdir('assets/fonts') else 'fonts', 'srv/fonts', dirs_exist_ok=True)  # sur GitHub (tests automatiques) les polices sont dans fonts/
 subprocess.run(['python3', 'faire_pages_legales.py', 'srv'], env=dict(os.environ, RIKIKI_LEGAL_TEST='1'), check=False, capture_output=True)
