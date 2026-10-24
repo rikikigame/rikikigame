@@ -1,0 +1,62 @@
+# Tester, puis publier le jeu (GitHub Pages).
+# - Sur chaque pull request : GitHub reconstruit le jeu et lui fait jouer des parties complètes à des robots.
+#   Si quelque chose casse, la pull request affiche une croix rouge : ne pas valider.
+# - Quand la pull request est validée (push sur main) : mêmes tests, puis mise en ligne SEULEMENT si tout est vert.
+# Réglage à faire une fois dans GitHub : Settings > Pages > Source = « GitHub Actions ».
+name: Tester et publier
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  tester:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Le jeu construit correspond au code source
+        run: |
+          python3 build.py
+          git diff --exit-code -- index.html || { echo "::error::index.html n'est pas à jour avec src/ : relancer ./preparer.sh puis publier.sh"; exit 1; }
+      - name: Parties complètes de robots (3, 4, 5, 6 joueurs, joueur absent)
+        run: |
+          python3 build_test_pages.py
+          node tests/test_robots.mjs
+
+  publier:
+    needs: tester
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Préparer le site (sans les fichiers de développement)
+        run: |
+          mkdir _site
+          cp index.html manifest.webmanifest CNAME _site/
+          cp *.html *.txt *.xml _site/ 2>/dev/null || true
+          cp -r fonts icons sons _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
