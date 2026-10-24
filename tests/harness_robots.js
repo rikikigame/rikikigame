@@ -312,7 +312,9 @@
       ok('accessibilité : tous les champs de l\'écran ont une étiquette', noLabel.length===0, noLabel.map(function(f){ return f.id||f.type; }).join(','));
       var noCard = [].slice.call(document.querySelectorAll('#app .card')).filter(function(c){ return !(c.getAttribute('aria-label') || c.getAttribute('aria-hidden')==='true'); });
       ok('accessibilité : toutes les cartes affichées ont une description (ou sont masquées aux lecteurs car déjà portées par leur bouton)', noCard.length===0, String(noCard.length));
-      ok('accessibilité : description des cartes en français et en anglais', cardAriaLabel('S','A')==='As de pique' && cardAriaLabel('H','K')==='Roi de cœur' && cardAriaLabel('D','7')==='7 de carreau');
+      var langAvant = LANG; LANG = 'fr'; var aFr = cardAriaLabel('S','A')==='As de pique' && cardAriaLabel('H','K')==='Roi de cœur' && cardAriaLabel('D','7')==='7 de carreau'; // la langue du navigateur varie (Mac en français, GitHub en anglais) : on fixe la langue
+      LANG = 'en'; var aEn = cardAriaLabel('S','A')==='Ace of spades' && cardAriaLabel('H','K')==='King of hearts'; LANG = langAvant;
+      ok('accessibilité : description des cartes en français et en anglais', aFr && aEn, 'fr='+aFr+' en='+aEn);
       ok('accessibilité : la page de départ déclare sa langue et une description', document.documentElement.getAttribute('lang') && !!document.querySelector('meta[name="description"]') && document.getElementById('app').tagName==='MAIN');
       POLL.end = 0; // test : sondage ouvert (la vraie date de fin est passée, le nom est choisi)
       await pollVote(1); await pollVote(2);

@@ -35,9 +35,14 @@ jobs:
           python3 build.py
           git diff --exit-code -- index.html || { echo "::error::index.html n'est pas à jour avec src/ : relancer ./preparer.sh puis publier.sh"; exit 1; }
       - name: Parties complètes de robots (3, 4, 5, 6 joueurs, joueur absent)
+        shell: bash
         run: |
           python3 build_test_pages.py
-          node tests/test_robots.mjs
+          set +e
+          node tests/test_robots.mjs 2>&1 | tee resultat-tests.txt
+          code=${PIPESTATUS[0]}
+          { echo '### Résultat des parties de robots'; echo '```'; cat resultat-tests.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code
 
   publier:
     needs: tester
