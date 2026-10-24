@@ -9,24 +9,26 @@
 var POLL = { id:'deck1', title:'Quel nom pour le paquet Halloween ?', options:['Minuit au Café', 'Café des Damnés', 'Le Cimetière d\'Albert'], end:1791906939843,
   final:[29, 0, 71] }; // v69 : résultat final PUBLIC, en % seulement (13/10/2026) — les votes eux-mêmes restent lisibles par l'organisateur seul
 var NEWS = {
-  version: '64', title: '🎃 Du nouveau sur Rikiki !',
+  // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
+  version: APP_VERSION, tour: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
-    'Un <strong>paquet Halloween</strong> : Dracula, le zombie, la momie et la Faucheuse, avec un fond d\'araignées, de chauves-souris et de citrouilles, une musique d\'horreur et un rire diabolique quand on coupe. Choisis-le dans « Tes cartes ».',
-    'La <strong>recherche de GIF</strong> est de retour dans le chat.',
-    'Les parties de ligue demandent <strong>4 joueurs minimum</strong> ; l\'application s\'installe sur l\'écran d\'accueil de ton téléphone.',
-    'Les demandes d\'amis et les invitations sont mieux protégées.',
-    '<strong>Joueur absent</strong> : après 2 tours joués automatiquement, les autres joueurs peuvent voter pour le <strong>remplacer par un robot</strong> ou le <strong>retirer</strong> de la partie. Le jeu joue correctement à sa place en attendant ; il finit dernier, sans point de ligue.',
-    'Une <strong>couronne 👑</strong> sur le nom du <strong>premier du classement de la ligue</strong>.',
-    'Des <strong>récompenses</strong> dans ton profil : ⭐ à ta 1re victoire en ligue, 🍀 (trèfle à quatre feuilles) à la 3e, 🃏 (joker) à la 5e.',
-    'Ajouter un ami est plus simple : un bouton <strong>➕</strong> à côté des joueurs de la partie, et des suggestions de pseudos.'
+    'Le jeu a <strong>sa propre adresse : rikikigame.com</strong>. En bas de l\'accueil, tu trouves les pages <strong>Confidentialité, Conditions, Cookies et Mentions légales</strong>.',
+    '<strong>Supprimer mon compte</strong> : dans ton profil, tu peux effacer ton compte (il faut écrire ton pseudo et ton code).',
+    '<strong>Duels</strong> : à la fin d\'une partie, tu vois qui t\'a ruiné le plus de contrats (« pire ennemi ») et à qui tu as le plus gâché les siens (« victime préférée »). Les joueurs réguliers l\'ont aussi sur leur fiche de la ligue (à partir de 5 parties ensemble).',
+    '<strong>Jeu automatique</strong> : quand tu n\'as qu\'une seule carte jouable, le jeu la joue pour toi après 1 seconde. Tu peux le couper dans ⚙️ Paramètres.',
+    '<strong>Reprendre ma partie</strong> : si tu quittes une partie sans faire exprès, un bouton sur l\'accueil te remet dedans (pendant 6 heures). Quitter une partie en cours demande maintenant une confirmation.',
+    '<strong>Vraies cartes</strong> : une poignée ☰ pour changer l\'ordre des joueurs sans retaper les noms, et des suggestions de prénoms (tes amis, les derniers joueurs).',
+    '<strong>Invités</strong> : à la fin d\'une partie, une invitation à créer un profil (pseudo + code à 4 chiffres) pour garder ta fiche de ligue et tes duels.',
+    '<strong>Ligue</strong> : une couronne 👑 pour le premier, les « coupes » comptées pour chacun, et une « stat du jour » qui change chaque jour.',
+    '<strong>⚙️ Paramètres</strong> : bruitages, musique, aide, grand texte et jeu automatique au même endroit. Sur l\'appli iPhone, le son marche aussi en mode silencieux.'
   ],
   fixes: [
-    'Le <strong>paquet Halloween s\'appelle « Le Cimetière d\'Albert »</strong> : c\'est le nom choisi par vos votes (71 %). Il est maintenant écrit au dos des cartes et sur le néon des Rois et des Valets.',
-    'Une invitation de partie peut maintenant être refusée, et ne reste plus affichée pendant une partie.',
-    'Une <strong>aide au jeu</strong> optionnelle (bouton 💡, désactivée par défaut) : elle entoure la première carte du pli et rappelle la couleur demandée.',
-    'Le <strong>logo de la couleur</strong> est bien visible sur les Valets, Dames, Rois et As de pique, y compris en petit.',
-    'Les boutons <strong>bruitages et musique</strong> sont aussi sur l\'écran d\'accueil.',
-    'Aux vraies cartes, les points se comptent comme en ligne (4 points + 4 par pli, −2 par pli d\'écart).'
+    'La manche à une carte cachée dit maintenant « <strong>Clique sur ta carte pour la voir</strong> ».',
+    'Quand tu rouvres le site, tu n\'es plus renvoyé dans une <strong>vieille partie abandonnée</strong> (plus de 6 heures sans activité).',
+    'Le <strong>profil de l\'organisateur</strong> ne peut plus être pris avec « Code oublié ».',
+    'Les salles d\'attente et les parties abandonnées sont <strong>nettoyées automatiquement</strong> ; les parties « en attente de confirmation » disparaissent de la ligue après 10 jours.',
+    'La distribution des cartes qui restait bloquée en pleine partie est corrigée.',
+    'Le <strong>paquet Halloween s\'appelle « Le Cimetière d\'Albert »</strong>, le nom choisi par vos votes (71 %).'
   ]
 };
 var pollState = { open:false, mine:null, results:null, busy:false, msg:'', timer:null }, newsStep = null, notesOpen = false;
@@ -121,6 +123,7 @@ function renderNewsTour(){
 function renderNotes(){ // notes de version : tout le détail (on y arrive en touchant le numéro de version, ou depuis la visite)
   return '<div class="modal-backdrop" data-action="notes-bg" data-noi18n><div class="card-panel modal news-card" role="dialog" aria-modal="true">'
     + '<h2 class="news-title">Version '+esc(NEWS.version)+'</h2>'
+    + '<p class="muted" style="font-size:12.5px; margin:0 0 10px;">Comment lire le numéro : <b>1.2.3</b>. Le 3<sup>e</sup> chiffre monte pour une petite réparation, le 2<sup>e</sup> pour une nouvelle fonction, le 1<sup>er</sup> pour un très gros changement.</p>'
     + '<div class="eyebrow">Nouveautés</div><ul class="news-list">'+NEWS.items.map(function(t){ return '<li>'+t+'</li>'; }).join('')+'</ul>'
     + (NEWS.fixes.length ? '<div class="eyebrow">Bugs corrigés</div><ul class="news-list">'+NEWS.fixes.map(function(t){ return '<li>'+t+'</li>'; }).join('')+'</ul>' : '')
     + '<div class="row" style="justify-content:flex-end; margin-top:14px;"><button class="btn" data-action="notes-close">Fermer</button></div></div></div>';
@@ -139,7 +142,7 @@ async function pollOpen(step){
 }
 function pollClose(){
   newsStep = null; pollState.open = false; renderPoll();
-  try{ localStorage.setItem('rikiki_news_seen', NEWS.version); }catch(e){}
+  try{ localStorage.setItem('rikiki_news_seen', NEWS.tour); }catch(e){}
 }
 // bannière de l'accueil : ouvre le vote (tout le monde) ; une fois terminé, seul l'organisateur garde un accès aux résultats
 function renderPollBanner(){
@@ -156,11 +159,11 @@ document.addEventListener('click', function(e){
   else if(a==='news-prev'){ newsStep = Math.max(0, newsStep-1); renderPoll(); }
   else if(a==='poll-vote') pollVote(parseInt(el.getAttribute('data-i'), 10));
   else if(a==='notes-open'){ var root = document.getElementById('news-root'); if(!root){ root = document.createElement('div'); root.id = 'news-root'; document.body.appendChild(root); } newsStep = null; notesOpen = true; renderPoll(); }
-  else if(a==='notes-close' || (a==='notes-bg' && e.target===el)){ notesOpen = false; renderPoll(); try{ localStorage.setItem('rikiki_news_seen', NEWS.version); }catch(err){} }
+  else if(a==='notes-close' || (a==='notes-bg' && e.target===el)){ notesOpen = false; renderPoll(); try{ localStorage.setItem('rikiki_news_seen', NEWS.tour); }catch(err){} }
 });
 // teasing : à la première ouverture après une mise à jour (jamais en pleine partie)
 setTimeout(function(){
-  try{ if(localStorage.getItem('rikiki_news_seen') === NEWS.version) return; }catch(e){}
+  try{ if(localStorage.getItem('rikiki_news_seen') === NEWS.tour) return; }catch(e){}
   if(typeof screen !== 'undefined' && screen === 'game') return;
   pollOpen(0);
 }, 3500);
