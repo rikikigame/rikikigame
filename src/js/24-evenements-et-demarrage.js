@@ -43,7 +43,15 @@ document.addEventListener('click', function(e){
   else if(action==='music-toggle'){ toggleMusic(); }
   else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
-  else if(action==='leave'){ leaveToEntry(); }
+  else if(action==='leave'){
+    // v77 : double validation avant de quitter une partie en cours (surtout en ligue) ; on peut la reprendre depuis l'accueil pendant 6 h
+    var midGame = screen==='game' && gameDoc && ['bidding','playing','round_end','dealing'].indexOf(gameDoc.status)>=0 && gameDoc.players && gameDoc.players[myId];
+    if(midGame){
+      var inLeague = !!(gameDoc.settings && gameDoc.settings.league);
+      if(!confirmT(inLeague ? 'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.' : 'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.')) return;
+    }
+    leaveToEntry();
+  }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }
   else if(action==='retry'){ retryInit(); }
 });

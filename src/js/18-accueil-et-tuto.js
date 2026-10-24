@@ -32,12 +32,12 @@ function renderHomeFriends(){
   html += '<div class="hf-row">';
   ids.slice(0, 4).forEach(function(fid){
     var on = friendOnline(fid), pr = social.presence[fid], name = social.friends[fid].name || '?';
-    var inLobby = on && pr && pr.status==='lobby' && pr.code;
+    var rs = resumeInfo(), inLobby = on && pr && pr.code && (pr.status==='lobby' || (pr.status==='playing' && rs && rs.code===pr.code)); // v77 : ma propre partie en cours = « Rejoindre » aussi
     var st = !on ? 'hors ligne' : (pr && pr.status==='lobby' ? 'en salon' : (pr && pr.status==='playing' ? 'en partie' : (pr && pr.status==='cards' ? 'vraies cartes' : 'en ligne')));
     var av = '<span class="hf-av'+(on?'':' off')+'" style="background:'+(on ? homeColorFor(fid) : '#2A3247')+'">'+esc(name.charAt(0).toUpperCase())+(on?'<span class="hf-dot"></span>':'')+'</span>';
     var label = '<span class="hf-name">'+esc(name)+'</span><span class="hf-st'+(inLobby?' join':'')+'">'+(inLobby ? 'Rejoindre' : st)+'</span>';
     html += inLobby
-      ? '<button class="hf-item" data-action="friend-join" data-code="'+esc(pr.code)+'" aria-label="Rejoindre '+esc(name)+' dans son salon">'+av+label+'</button>'
+      ? '<button class="hf-item" data-action="friend-join" data-code="'+esc(pr.code)+'" aria-label="Rejoindre '+esc(name)+'">'+av+label+'</button>'
       : '<div class="hf-item">'+av+label+'</div>';
   });
   html += '<button class="hf-item" data-action="friends-toggle" aria-label="Ajouter un ami"><span class="hf-av add">'+homeIcon('plus', 18)+'</span><span class="hf-name">'+(ids.length ? 'Ajouter' : 'Ajoute')+'</span><span class="hf-st">'+(ids.length ? 'un ami' : 'tes amis')+'</span></button>';
@@ -45,8 +45,18 @@ function renderHomeFriends(){
   if(social.open) html += '<div class="home-panel">'+renderFriendsPanel()+'</div>';
   return html + '</div>';
 }
+function resumeBannerHtml(){
+  var r = resumeInfo(); if(!r || gameCode || !myProfile.name) return '';
+  return '<div class="resume-banner"><span>↩ Tu as quitté ta partie <b>'+esc(r.code)+'</b>.</span><button class="btn small" data-action="resume-game">Reprendre ma partie</button></div>';
+}
+document.addEventListener('click', async function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="resume-game"]') : null; if(!el) return;
+  var r = resumeInfo(); if(!r) return;
+  entryMode = 'join'; await joinGame(r.code, myProfile.name || '');
+  if(screen==='entry') clearResume(); // la partie n'existe plus / est finie : on n'insiste pas
+});
 function renderEntry(){
-  var html = '<div class="home-c">' + renderProfileFlash();
+  var html = '<div class="home-c">' + renderProfileFlash() + resumeBannerHtml();
   // --- en-tête ---
   var pseudo = currentProfile ? currentProfile.pseudo : '';
   html += '<div class="hc-head">';

@@ -69,6 +69,11 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave this league game?\n\nThe other players carry on without you and your result may not count. You can resume it from the home screen for 6 hours.',
+  'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave the current game?\n\nYou can resume it from the home screen for 6 hours.',
+  'Reprendre ma partie': 'Resume my game',
+  '👆 Clique sur ta carte pour la voir': '👆 Tap your card to see it',
+  'À ton tour, clique sur ta carte pour la voir.': 'On your turn, tap your card to see it.',
   '👤 Tu joues en invité': '👤 You are playing as a guest',
   'Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.': 'With a profile: your league card, your duels (worst enemy, favourite victim), your rewards, and you find yourself on all your devices. 20 seconds, a nickname and a 4-digit code.',
   '🏆 Tournoi du dimanche': '🏆 Sunday tournament',

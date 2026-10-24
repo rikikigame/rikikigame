@@ -81,7 +81,7 @@ function subscribeGame(code, fromRestore){
     clearTimeout(loadWatchdog);
     subscribeGame.retries = 0;
     try{
-      if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
+      if(!snap.exists){ clearResume(); clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
       var lastWrite = snap.data().__serverAt;
       if(fromRestore && !subscribeGame.restoreChecked){ // premier chargement au retour sur le site : partie abandonnée ?
         subscribeGame.restoreChecked = true;
@@ -93,9 +93,10 @@ function subscribeGame(code, fromRestore){
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
       if(!gameDoc.players || !gameDoc.players[myId]){
-        screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearLocal(); render(); return;
+        screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }
       screen='game';
+      if(gameDoc.status==='game_over') clearResume(); // partie finie : plus rien à reprendre
       if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
         versionSent = true;
         // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver

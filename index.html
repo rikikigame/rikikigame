@@ -980,6 +980,12 @@
 .tourney-list li.me{outline:1px solid var(--orange,#f08040)}
 .tr-rank{width:26px;text-align:center}.tr-name{flex:1;font-weight:700;overflow-wrap:anywhere}.tr-meta{font-size:12px;opacity:.7}
 .tourney-hof{font-size:13px;margin:10px 0 0}
+
+.hand-row.blind.playable .hand-card{animation:blindPulse 1.4s ease-in-out infinite}.blind-hint{text-align:center;margin:10px 0 0;font-size:16px;font-weight:800;color:var(--orange,#f08040)}
+@keyframes blindPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.hand-row.blind.playable .hand-card{animation:none}}
+
+.resume-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:14px;background:#ffffff12;border:1px solid var(--orange,#f08040)}.resume-banner b{letter-spacing:.08em}
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1018,7 +1024,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '76';
+var APP_VERSION = '77';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1593,6 +1599,11 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave this league game?\n\nThe other players carry on without you and your result may not count. You can resume it from the home screen for 6 hours.',
+  'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave the current game?\n\nYou can resume it from the home screen for 6 hours.',
+  'Reprendre ma partie': 'Resume my game',
+  '👆 Clique sur ta carte pour la voir': '👆 Tap your card to see it',
+  'À ton tour, clique sur ta carte pour la voir.': 'On your turn, tap your card to see it.',
   '👤 Tu joues en invité': '👤 You are playing as a guest',
   'Avec un profil : ta fiche dans la ligue, tes duels (pire ennemi, victime préférée), tes récompenses, et tu te retrouves sur tous tes appareils. 20 secondes, un pseudo et un code à 4 chiffres.': 'With a profile: your league card, your duels (worst enemy, favourite victim), your rewards, and you find yourself on all your devices. 20 seconds, a nickname and a 4-digit code.',
   '🏆 Tournoi du dimanche': '🏆 Sunday tournament',
@@ -2873,7 +2884,13 @@ var usingFirebase=false;
 var toastMsg='', toastTimer=null, busy=false;
 var botActing=false, lastBotTurnKey=null, lastBotTurnAt=0;
 
-function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); }catch(e){} }
+function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); localStorage.setItem('rikiki_resume', JSON.stringify({code:gameCode, at:nowMs()})); }catch(e){} }
+// v77 : on retient la dernière partie QUITTÉE (même sans faire exprès) pour pouvoir la reprendre depuis l'accueil, pendant 6 h
+function resumeInfo(){
+  try{ var r = JSON.parse(localStorage.getItem('rikiki_resume')||'null'); if(r && r.code && typeof r.at==='number' && nowMs()-r.at < 6*3600000) return r; }catch(e){}
+  return null;
+}
+function clearResume(){ try{ localStorage.removeItem('rikiki_resume'); }catch(e){} }
 function clearLocal(){ try{ localStorage.removeItem('rikiki_last'); }catch(e){} }
 
 /* ===================== init ===================== */
@@ -3134,7 +3151,7 @@ function subscribeGame(code, fromRestore){
     clearTimeout(loadWatchdog);
     subscribeGame.retries = 0;
     try{
-      if(!snap.exists){ clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
+      if(!snap.exists){ clearResume(); clearLocal(); gameDoc=null; screen='entry'; errorMsg='Cette partie a été fermée.'; render(); return; }
       var lastWrite = snap.data().__serverAt;
       if(fromRestore && !subscribeGame.restoreChecked){ // premier chargement au retour sur le site : partie abandonnée ?
         subscribeGame.restoreChecked = true;
@@ -3146,9 +3163,10 @@ function subscribeGame(code, fromRestore){
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
       if(!gameDoc.players || !gameDoc.players[myId]){
-        screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearLocal(); render(); return;
+        screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }
       screen='game';
+      if(gameDoc.status==='game_over') clearResume(); // partie finie : plus rien à reprendre
       if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
         versionSent = true;
         // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver
@@ -5520,12 +5538,12 @@ function renderHomeFriends(){
   html += '<div class="hf-row">';
   ids.slice(0, 4).forEach(function(fid){
     var on = friendOnline(fid), pr = social.presence[fid], name = social.friends[fid].name || '?';
-    var inLobby = on && pr && pr.status==='lobby' && pr.code;
+    var rs = resumeInfo(), inLobby = on && pr && pr.code && (pr.status==='lobby' || (pr.status==='playing' && rs && rs.code===pr.code)); // v77 : ma propre partie en cours = « Rejoindre » aussi
     var st = !on ? 'hors ligne' : (pr && pr.status==='lobby' ? 'en salon' : (pr && pr.status==='playing' ? 'en partie' : (pr && pr.status==='cards' ? 'vraies cartes' : 'en ligne')));
     var av = '<span class="hf-av'+(on?'':' off')+'" style="background:'+(on ? homeColorFor(fid) : '#2A3247')+'">'+esc(name.charAt(0).toUpperCase())+(on?'<span class="hf-dot"></span>':'')+'</span>';
     var label = '<span class="hf-name">'+esc(name)+'</span><span class="hf-st'+(inLobby?' join':'')+'">'+(inLobby ? 'Rejoindre' : st)+'</span>';
     html += inLobby
-      ? '<button class="hf-item" data-action="friend-join" data-code="'+esc(pr.code)+'" aria-label="Rejoindre '+esc(name)+' dans son salon">'+av+label+'</button>'
+      ? '<button class="hf-item" data-action="friend-join" data-code="'+esc(pr.code)+'" aria-label="Rejoindre '+esc(name)+'">'+av+label+'</button>'
       : '<div class="hf-item">'+av+label+'</div>';
   });
   html += '<button class="hf-item" data-action="friends-toggle" aria-label="Ajouter un ami"><span class="hf-av add">'+homeIcon('plus', 18)+'</span><span class="hf-name">'+(ids.length ? 'Ajouter' : 'Ajoute')+'</span><span class="hf-st">'+(ids.length ? 'un ami' : 'tes amis')+'</span></button>';
@@ -5533,8 +5551,18 @@ function renderHomeFriends(){
   if(social.open) html += '<div class="home-panel">'+renderFriendsPanel()+'</div>';
   return html + '</div>';
 }
+function resumeBannerHtml(){
+  var r = resumeInfo(); if(!r || gameCode || !myProfile.name) return '';
+  return '<div class="resume-banner"><span>↩ Tu as quitté ta partie <b>'+esc(r.code)+'</b>.</span><button class="btn small" data-action="resume-game">Reprendre ma partie</button></div>';
+}
+document.addEventListener('click', async function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="resume-game"]') : null; if(!el) return;
+  var r = resumeInfo(); if(!r) return;
+  entryMode = 'join'; await joinGame(r.code, myProfile.name || '');
+  if(screen==='entry') clearResume(); // la partie n'existe plus / est finie : on n'insiste pas
+});
 function renderEntry(){
-  var html = '<div class="home-c">' + renderProfileFlash();
+  var html = '<div class="home-c">' + renderProfileFlash() + resumeBannerHtml();
   // --- en-tête ---
   var pseudo = currentProfile ? currentProfile.pseudo : '';
   html += '<div class="hc-head">';
@@ -6577,7 +6605,9 @@ function renderHand(g){
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
     var c0 = myHand.cards[0];
-    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+    return '<div class="hand-row blind'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+      + (canPlay ? '<p class="blind-hint">👆 Clique sur ta carte pour la voir</p>'
+                 : '<p class="muted" style="text-align:center; font-size:12.5px; margin:8px 0 0;">À ton tour, clique sur ta carte pour la voir.</p>')
       + '<p class="muted" style="text-align:center; font-size:12.5px; margin:6px 0 0;">À l\'aveugle : tu vois les cartes des autres, pas la tienne.</p>';
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
@@ -8332,7 +8362,15 @@ document.addEventListener('click', function(e){
   else if(action==='music-toggle'){ toggleMusic(); }
   else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
-  else if(action==='leave'){ leaveToEntry(); }
+  else if(action==='leave'){
+    // v77 : double validation avant de quitter une partie en cours (surtout en ligue) ; on peut la reprendre depuis l'accueil pendant 6 h
+    var midGame = screen==='game' && gameDoc && ['bidding','playing','round_end','dealing'].indexOf(gameDoc.status)>=0 && gameDoc.players && gameDoc.players[myId];
+    if(midGame){
+      var inLeague = !!(gameDoc.settings && gameDoc.settings.league);
+      if(!confirmT(inLeague ? 'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.' : 'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.')) return;
+    }
+    leaveToEntry();
+  }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }
   else if(action==='retry'){ retryInit(); }
 });

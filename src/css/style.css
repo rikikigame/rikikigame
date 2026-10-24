@@ -967,3 +967,9 @@
 .tourney-list li.me{outline:1px solid var(--orange,#f08040)}
 .tr-rank{width:26px;text-align:center}.tr-name{flex:1;font-weight:700;overflow-wrap:anywhere}.tr-meta{font-size:12px;opacity:.7}
 .tourney-hof{font-size:13px;margin:10px 0 0}
+
+.hand-row.blind.playable .hand-card{animation:blindPulse 1.4s ease-in-out infinite}.blind-hint{text-align:center;margin:10px 0 0;font-size:16px;font-weight:800;color:var(--orange,#f08040)}
+@keyframes blindPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.hand-row.blind.playable .hand-card{animation:none}}
+
+.resume-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:14px;background:#ffffff12;border:1px solid var(--orange,#f08040)}.resume-banner b{letter-spacing:.08em}

@@ -676,7 +676,9 @@ function renderHand(g){
   var canPlay = g.status==='playing' && g.turnPlayerId===myId;
   if(isBlindRound(g)){
     var c0 = myHand.cards[0];
-    return '<div class="hand-row'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+    return '<div class="hand-row blind'+(canPlay?' playable':'')+'" style="--cw:86px;"><button class="hand-card" '+(canPlay?'':'disabled')+' data-action="play-card" data-suit="'+esc(c0.suit)+'" data-rank="'+esc(c0.rank)+'" aria-label="Jouer ta carte cachée"><div class="card back"></div></button></div>'
+      + (canPlay ? '<p class="blind-hint">👆 Clique sur ta carte pour la voir</p>'
+                 : '<p class="muted" style="text-align:center; font-size:12.5px; margin:8px 0 0;">À ton tour, clique sur ta carte pour la voir.</p>')
       + '<p class="muted" style="text-align:center; font-size:12.5px; margin:6px 0 0;">À l\'aveugle : tu vois les cartes des autres, pas la tienne.</p>';
   }
   var ledSuit = (g.currentTrick && g.currentTrick.length>0) ? g.currentTrick[0].card.suit : null;
