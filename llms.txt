@@ -1,0 +1,21 @@
+# Rikiki
+
+> Rikiki est un jeu de cartes à plis et annonces (famille des « Oh Hell »), gratuit, jouable dans le navigateur, avec des robots, des parties en ligne entre amis, une ligue et un mode « vraies cartes » (feuille de score). Interface en français et en anglais.
+
+Site : https://rikikigame.github.io/rikikigame/
+
+## Pour comprendre le jeu
+- Règles : dans le jeu, bouton « Règles » (tuto animé d'une minute).
+- Principe : à chaque manche, chacun annonce combien de plis il fera ; réussir son annonce rapporte des points.
+
+## Pages légales
+- [Politique de confidentialité](https://rikikigame.github.io/rikikigame/confidentialite.html)
+- [Conditions d'utilisation](https://rikikigame.github.io/rikikigame/conditions.html)
+- [Cookies et stockage](https://rikikigame.github.io/rikikigame/cookies.html)
+- [Mentions légales](https://rikikigame.github.io/rikikigame/mentions-legales.html)
+
+## Données et vie privée (résumé)
+Pas de publicité, pas de revente de données, pas de statistiques, pas de cookie de suivi. Seulement un pseudo, un code secret et le contenu des parties. reCAPTCHA et GIF (KLIPY) ne se chargent qu'avec l'accord du joueur.
+
+## Contact
+admin@rikikigame.com

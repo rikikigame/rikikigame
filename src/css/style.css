@@ -973,3 +973,5 @@
 @media (prefers-reduced-motion:reduce){.hand-row.blind.playable .hand-card{animation:none}}
 
 .resume-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:14px;background:#ffffff12;border:1px solid var(--orange,#f08040)}.resume-banner b{letter-spacing:.08em}
+
+.delete-panel{margin-top:12px;padding:12px 14px;border:1px solid #c0504d;border-radius:12px;background:#ffffff0a}.btn.danger{background:#b3402f;color:#fff}.btn.danger:hover{background:#c24d3b}

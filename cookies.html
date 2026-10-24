@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cookies et stockage dans ton navigateur · Rikiki</title>
+<meta name="description" content="Rikiki ne pose aucun cookie de suivi. Liste du stockage navigateur et des services soumis à ton choix.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://rikikigame.github.io/rikikigame/cookies.html">
+<style>
+:root{--bg:#FFFFFF;--tx:#1B2236;--mu:#4A5470;--li:#1F4FBF;--ca:#F3F5FA;--bo:#C5CBDD;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#0E1320;--tx:#EEF0F6;--mu:#B4BCD3;--li:#9DBBFF;--ca:#171E31;--bo:#38435F}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--li);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:3px solid var(--li);outline-offset:3px;border-radius:4px}
+.skip{position:absolute;left:-999px;top:0;background:var(--li);color:var(--bg);padding:10px 14px;z-index:9}
+.skip:focus{left:8px;top:8px}
+header,main,footer{max-width:820px;margin:0 auto;padding:0 18px}
+header{padding-top:18px;padding-bottom:6px;border-bottom:1px solid var(--bo)}
+header .jeu{font-weight:700;font-size:18px}
+nav ul{list-style:none;padding:0;margin:10px 0 12px;display:flex;flex-wrap:wrap;gap:6px 18px}
+nav a[aria-current="page"]{color:var(--tx);font-weight:700;text-decoration:none}
+h1{font-size:30px;line-height:1.2;margin:26px 0 4px}
+h2{font-size:22px;line-height:1.3;margin:34px 0 8px}
+h3{font-size:18px;margin:22px 0 6px}
+p,li{margin:0 0 12px}
+ul,ol{padding-left:22px}
+.maj{color:var(--mu);font-size:15px;margin-bottom:18px}
+.resume{background:var(--ca);border:1px solid var(--bo);border-radius:12px;padding:14px 18px;margin:18px 0}
+.resume h2{margin-top:0;font-size:19px}
+table{width:100%;border-collapse:collapse;margin:12px 0 22px;font-size:15.5px}
+caption{text-align:left;font-weight:700;padding:0 0 8px}
+th,td{border:1px solid var(--bo);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--ca)}
+.defil{overflow-x:auto}
+footer{padding-top:22px;padding-bottom:40px;color:var(--mu);font-size:15px;border-top:1px solid var(--bo);margin-top:34px}
+@media (max-width:560px){body{font-size:16px}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<a class="skip" href="#contenu">Aller au contenu</a>
+<header><a class="jeu" href="./">← Retour au jeu Rikiki</a>
+<nav aria-label="Pages légales"><ul><li><a href="confidentialite.html">Politique de confidentialité</a></li><li><a href="conditions.html">Conditions d&#x27;utilisation</a></li><li><a href="cookies.html" aria-current="page">Cookies et stockage dans ton navigateur</a></li><li><a href="mentions-legales.html">Mentions légales</a></li></ul></nav></header>
+<main id="contenu">
+<h1>Cookies et stockage dans ton navigateur</h1>
+<p class="maj">Dernière mise à jour : 24 octobre 2026</p>
+
+<div class="resume"><h2>En bref</h2>
+<ul>
+<li>Rikiki ne pose <strong>aucun cookie</strong> de suivi, de publicité ou de statistiques.</li>
+<li>Le jeu enregistre dans ton navigateur de petites données <strong>nécessaires</strong> (qui tu es, ta partie en cours) et tes <strong>réglages</strong> (son, langue, paquet de cartes, grand texte…). Elles ne sont jamais envoyées à des régies publicitaires.</li>
+<li>Deux éléments ne se chargent <strong>qu'après ton accord</strong> : Google reCAPTCHA et les GIF de KLIPY.</li>
+</ul></div>
+
+<h2>1. Pourquoi on ne te demande pas un consentement pour tout</h2>
+<p>En Belgique (article 129 de la loi du 13 juin 2005 sur les communications électroniques) et dans l'Union européenne, ton accord n'est pas nécessaire pour stocker des informations <strong>strictement nécessaires</strong> à un service que tu demandes, comme te garder connecté ou retenir un réglage que tu as choisi (langue, son…). Il l'est pour le reste. C'est pourquoi les deux services extérieurs listés plus bas ne se chargent qu'après un clic de ta part.</p>
+
+<h2>2. Ce qui est enregistré dans ton navigateur</h2>
+<p>Rikiki utilise l'espace de stockage du navigateur (« localStorage »), pas de cookies. Voici la liste complète.</p>
+<div class="defil"><table>
+<caption>Données stockées dans ton navigateur par Rikiki</caption>
+<thead><tr><th scope="col">Nom</th><th scope="col">À quoi ça sert</th><th scope="col">Type</th></tr></thead>
+<tbody>
+<tr><th scope="row">rikiki_profile</th><td>Ton profil connecté (pseudo, identifiant du joueur) pour ne pas te redemander ton code à chaque visite.</td><td>Nécessaire</td></tr>
+<tr><th scope="row">rikiki_fb_uid, rikiki_fb_name, rikiki_fb_color</th><td>Ton identifiant de joueur, ton prénom et ta couleur quand tu joues sans profil.</td><td>Nécessaire</td></tr>
+<tr><th scope="row">rikiki_last, rikiki_resume</th><td>Le code de ta partie en cours (ou quittée depuis moins de 6 heures), pour te la rendre si tu recharges la page ou pour la reprendre depuis l'accueil.</td><td>Nécessaire</td></tr>
+<tr><th scope="row">rikiki_recent_names</th><td>Les derniers prénoms que tu as écrits dans la feuille de score, proposés en suggestion la fois suivante.</td><td>Réglage</td></tr>
+<tr><th scope="row">rikiki_ptok</th><td>Un jeton secret qui prouve que c'est bien toi si tu dois retrouver ta main.</td><td>Nécessaire</td></tr>
+<tr><th scope="row">rikiki_attest_todo_…, rikiki_claim_…</th><td>Résultats de ligue à confirmer et demande de récupération de code en cours.</td><td>Nécessaire</td></tr>
+<tr><th scope="row">rikiki_sfx, rikiki_music, rikiki_led_help, rikiki_autoplay, rikiki_big_text, rikiki_lang, rikiki_deck, rikiki_coach</th><td>Tes réglages : bruitages, musique, aide, grand texte, langue, paquet de cartes, coach.</td><td>Réglage que tu as choisi</td></tr>
+<tr><th scope="row">rikiki_tuto_seen, rikiki_news_seen</th><td>Se souvenir que tu as déjà vu le tuto et les nouveautés.</td><td>Réglage</td></tr>
+<tr><th scope="row">rikiki_consent, rikiki_gif_ok</th><td>Ton choix sur reCAPTCHA et sur les GIF.</td><td>Nécessaire (preuve de ton choix)</td></tr>
+<tr><th scope="row">rikiki_last_backup, rikiki_lobby_clean_at</th><td>Date de la dernière sauvegarde et du dernier nettoyage automatique (uniquement pour l'organisateur).</td><td>Réglage</td></tr>
+<tr><th scope="row">firebaseLocalStorageDb (IndexedDB)</th><td>Le jeton de connexion de Google Firebase : il te garde connecté.</td><td>Nécessaire</td></tr>
+</tbody></table></div>
+<p>Tu peux tout effacer à tout moment dans les réglages de ton navigateur (« effacer les données de site »). Tu devras alors te reconnecter.</p>
+
+<h2>3. Ce qui ne se charge qu'après ton accord</h2>
+<div class="defil"><table>
+<caption>Services extérieurs soumis à ton choix</caption>
+<thead><tr><th scope="col">Service</th><th scope="col">Ce qu'il fait</th><th scope="col">Ce qu'il reçoit</th><th scope="col">Si tu refuses</th></tr></thead>
+<tbody>
+<tr><th scope="row">Google reCAPTCHA (via Firebase App Check)</th><td>Vérifie que les connexions viennent bien du vrai jeu.</td><td>Ton adresse IP et des informations sur ton navigateur. Google peut poser ses propres cookies sur son domaine.</td><td>Le jeu fonctionne exactement pareil.</td></tr>
+<tr><th scope="row">KLIPY (GIF du chat)</th><td>Cherche et affiche des GIF.</td><td>Ton adresse IP et tes mots de recherche. Les GIF s'affichent depuis le serveur de KLIPY.</td><td>Les GIF restent masqués (un bouton te propose de les afficher). Le reste du chat marche normalement.</td></tr>
+</tbody></table></div>
+<p>Tu peux changer ces deux choix à tout moment : <strong>⚙️ Paramètres</strong> dans le jeu. Le retrait d'un accord empêche les chargements suivants ; il ne supprime pas ce que Google ou KLIPY ont déjà reçu.</p>
+
+<h2>4. Ce qui est chargé depuis l'extérieur de toute façon</h2>
+<p>Les programmes de Google Firebase sont chargés depuis le serveur de Google (gstatic.com) : c'est indispensable au jeu en ligne. Les pages du site viennent de GitHub Pages. Ces deux sociétés voient ton adresse IP comme n'importe quel site web. Plus de détails dans la <a href="confidentialite.html">politique de confidentialité</a>. Les polices sont hébergées par Rikiki lui-même.</p>
+</main>
+<footer>
+<p>Rikiki est un jeu de cartes gratuit et non commercial, édité par Pierre Brogniez. Contact : <a href="mailto:admin@rikikigame.com">admin@rikikigame.com</a>.</p>
+<p>Ces pages sont rédigées en français ; la version française fait foi.</p>
+</footer>
+</body>
+</html>

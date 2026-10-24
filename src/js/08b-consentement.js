@@ -6,7 +6,7 @@
 // INTERRUPTEUR : false = la partie « légale / RGPD » est en veille (pas de bannière, pas de liens vers des pages qui n'existent pas encore,
 // pas de case « conditions », et reCAPTCHA (Google) n'est JAMAIS chargé : le choix le plus prudent tant qu'on ne peut pas demander l'accord).
 // À passer à true quand les pages légales sont prêtes (assets/pages/legal-config.json rempli) — publier.sh le vérifie.
-var LEGAL_READY = false;
+var LEGAL_READY = true;
 var CONSENT_KEY = 'rikiki_consent', GIF_CONSENT_KEY = 'rikiki_gif_ok', CONSENT_TTL = 365*86400000;
 var LEGAL_LINKS = [['confidentialite.html','Confidentialité'], ['conditions.html','Conditions'], ['cookies.html','Cookies'], ['mentions-legales.html','Mentions légales']];
 function legalLinksHtml(){

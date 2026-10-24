@@ -13,6 +13,7 @@ function renderProfileFlash(){
   var f = profileFlash, nm = esc(f.pseudo||'');
   var msg = f.kind==='created' ? '<strong>✅ Profil créé !</strong> Tu es connecté en tant que « '+nm+' ». Garde bien ton pseudo et ton code : ils te permettent de te reconnecter sur un autre appareil.'
     : f.kind==='login' ? '<strong>✅ Connecté</strong> en tant que « '+nm+' ». Tes parties comptent pour ton profil.'
+    : f.kind==='deleted' ? '<strong>Ton compte a été supprimé.</strong> Ton accès, tes amis et ta présence sont effacés. Merci d\'avoir joué !'
     : '<strong>Tu es déconnecté.</strong> Tu joues maintenant en invité. Pour retrouver ton profil : « Me connecter ».';
   return '<div class="flash" role="status"><span>'+msg+'</span><button class="flash-x" data-action="flash-close" aria-label="Fermer ce message">✕</button></div>';
 }
@@ -150,7 +151,7 @@ function renderProfileBox(){
     if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   } else if(currentProfile){
     html += '<div class="row between"><div>👤 Connecté : <strong>'+esc(currentProfile.pseudo)+crownMark(myId, currentProfile.pseudo, authUid())+'</strong><div class="muted" style="font-size:12px;">Tes parties comptent pour ton profil, sur n\'importe quel appareil.</div></div>'
-      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras();
+      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras() + renderDeleteAccount();
   } else if(!profileUi.tab){
     // v73 : un choix clair dès l'ouverture, au lieu d'un seul formulaire avec deux boutons
     html += '<div class="row between" style="margin-bottom:6px;"><strong>👤 Tu joues en invité</strong><button class="btn ghost" data-action="profile-close" aria-label="Fermer">✕</button></div>'
@@ -206,6 +207,9 @@ document.addEventListener('click', function(e){
   else if(a==='profile-create'){ profileCreate(); }
   else if(a==='profile-login'){ profileLogin(); }
   else if(a==='profile-logout'){ profileLogout(); }
+  else if(a==='delete-account-open'){ profileUi.deleting = true; profileUi.err = ''; render(); }
+  else if(a==='delete-account-cancel'){ profileUi.deleting = false; profileUi.err = ''; render(); }
+  else if(a==='delete-account-go'){ deleteMyAccount(); }
 });
 document.addEventListener('keydown', function(e){
   if(e.key==='Enter' && e.target && (e.target.id==='profilePin' || e.target.id==='profilePseudo')){ e.preventDefault(); if(profileUi.tab==='create') profileCreate(); else profileLogin(); } // v73 : Entrée fait l'action de l'écran (créer OU se connecter)
@@ -216,7 +220,7 @@ document.addEventListener('keydown', function(e){
 var ADMIN_PSEUDOS = ['K.vroom'];
 // Nouvelle adresse du jeu. Laisse vide tant qu'il n'y a pas de déménagement.
 // Quand c'est rempli, l'ancienne adresse renvoie automatiquement chacun vers la nouvelle, avec son identité.
-var MOVED_TO = 'https://rikikigame.github.io/rikikigame/';
+var MOVED_TO = ''; // v79 : VIDE. Le domaine rikikigame.com est branché sur GitHub Pages : l'ancienne adresse est redirigée par GitHub lui-même (301). Ne JAMAIS remettre une adresse ici tant que le jeu est servi à cette adresse : le jeu se renvoie en boucle (vu le 24/10).
 
 function isAdmin(){
   if(!currentProfile) return false;
@@ -390,3 +394,45 @@ document.addEventListener('click', function(e){
   if(gameDoc && gameDoc.players && gameDoc.players[myId]) myProfile.name = gameDoc.players[myId].name; // le pseudo proposé = mon prénom de partie
   leaveToEntry(); homeProfileOpen = true; profileUi.open = true; profileUi.tab = 'create'; profileUi.err = ''; profileUi.pseudo = null; render();
 });
+
+// v79 : « Supprimer mon compte » (obligatoire pour l'App Store, et droit à l'effacement). Faisable sans changer les règles Firebase :
+// on efface ce que le joueur a le droit d'effacer (accès de connexion, amis, présence), on vide son profil, et on supprime son compte de connexion.
+// Limites : le pseudo reste dans les parties de ligue déjà enregistrées (jamais réécrites) ; la clé du profil (le pseudo en minuscules) reste réservée jusqu'à purge par l'organisateur.
+function renderDeleteAccount(){
+  if(!(authOn() && currentProfile)) return '';
+  if(isAdmin()) return '';
+  if(!profileUi.deleting) return '<div style="margin-top:10px;"><button class="btn ghost small" data-action="delete-account-open">Supprimer mon compte</button></div>';
+  return '<div class="delete-panel" role="group" aria-label="Supprimer mon compte"><strong>🗑️ Supprimer mon compte « '+esc(currentProfile.pseudo)+' »</strong>'
+    + '<p class="muted" style="font-size:13px; margin:6px 0 8px;">Ton accès (pseudo + code), tes amis et ta présence en ligne sont effacés. <b>Ça ne se rattrape pas.</b> Ton pseudo peut rester dans l\'historique des parties de ligue déjà jouées (il reste visible comme avant).</p>'
+    + '<label for="deletePseudo">Écris ton pseudo pour confirmer</label><input type="text" id="deletePseudo" maxlength="24" autocomplete="off" style="margin-bottom:8px;">'
+    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:10px;">'
+    + (profileUi.err ? '<div class="error-text">'+esc(profileUi.err)+'</div>' : '')
+    + '<div class="row"><button class="btn danger" style="flex:1;" data-action="delete-account-go" '+(profileUi.busy?'disabled':'')+'>Supprimer définitivement</button><button class="btn ghost" data-action="delete-account-cancel">Annuler</button></div></div>';
+}
+async function deleteMyAccount(){
+  if(profileUi.busy || !currentProfile || isAdmin()) return;
+  var typed = ((document.getElementById('deletePseudo')||{}).value || '').trim(), pin = ((document.getElementById('deletePin')||{}).value || '').trim();
+  if(profileKey(typed) !== profileKey(currentProfile.pseudo)){ profileUi.err = 'Le pseudo ne correspond pas.'; render(); return; }
+  if(!/^[0-9]{4,6}$/.test(pin)){ profileUi.err = 'Entre ton code (4 à 6 chiffres).'; render(); return; }
+  if(!confirmT('Dernière confirmation : supprimer ton compte pour toujours ?')) return;
+  profileUi.busy = true; profileUi.err = ''; render();
+  try{
+    var key = currentProfile.key, ref = claudeDb.doc('profiles/'+key), snap = await ref.get(), d = snap.exists ? snap.data() : {};
+    var email = (d.__plain && d.__plain.email) || authEmail(key), uid = authUid();
+    if(authOn()){
+      try{ await fbAuth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(email, authPw(pin))); }
+      catch(e){ if(isBadCredential(e)) throw { ui:'Code incorrect.' }; throw e; }
+    }
+    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:email } };
+    await ref.set(tombstone);                                                                     // profil vidé (pseudo, couleur, identifiant de joueur)
+    try{ await claudeDb.doc('friends/'+myId).set(withOwner({ list:{} })); }catch(e){ console.warn('amis', e); }
+    try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name:'', at:0, code:'', status:'off' })); }catch(e){ console.warn('présence', e); }
+    if(authOn()) await fbAuth.currentUser.delete();                                                // le compte de connexion disparaît
+    saveProfileLocal(null);
+    try{ ['rikiki_fb_name','rikiki_last','rikiki_resume','rikiki_recent_names','rikiki_claim_'+key].forEach(function(k){ localStorage.removeItem(k); }); localStorage.setItem('rikiki_fb_uid', 'p-'+Math.random().toString(36).slice(2,10)+nowMs().toString(36)); sessionStorage.removeItem('rikiki_mock_uid'); }catch(e){}
+    setFlash('deleted', ''); location.reload();
+  }catch(e){
+    console.error(e); profileUi.busy = false;
+    profileUi.err = (e && e.ui) ? e.ui : 'Suppression impossible : '+dbErrorText(e); render();
+  }
+}

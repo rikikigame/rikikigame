@@ -986,6 +986,8 @@
 @media (prefers-reduced-motion:reduce){.hand-row.blind.playable .hand-card{animation:none}}
 
 .resume-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:14px;background:#ffffff12;border:1px solid var(--orange,#f08040)}.resume-banner b{letter-spacing:.08em}
+
+.delete-panel{margin-top:12px;padding:12px 14px;border:1px solid #c0504d;border-radius:12px;background:#ffffff0a}.btn.danger{background:#b3402f;color:#fff}.btn.danger:hover{background:#c24d3b}
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -993,7 +995,7 @@
 <h1>Rikiki</h1>
 <p>Rikiki est un jeu de cartes à plis et annonces, gratuit, qui se joue dans le navigateur : parties en ligne entre amis, robots, ligue et classement, et mode « vraies cartes » (feuille de score). À chaque manche, chaque joueur annonce combien de plis il va faire ; réussir son annonce rapporte des points.</p>
 <p><strong>JavaScript est nécessaire pour jouer.</strong> Active-le dans ton navigateur, puis recharge cette page.</p>
-<!-- liens vers les pages légales à remettre ici quand LEGAL_READY passe à true -->
+<p><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions</a> · <a href="cookies.html">Cookies</a> · <a href="mentions-legales.html">Mentions légales</a></p>
 </section></noscript>
 <div id="chat-root" role="region" aria-label="Chat de la partie"></div>
 <div id="invite-root" role="status" aria-live="polite"></div>
@@ -1024,7 +1026,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '78';
+var APP_VERSION = '79';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1599,6 +1601,14 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Supprimer mon compte': 'Delete my account',
+  'Supprimer définitivement': 'Delete permanently',
+  'Écris ton pseudo pour confirmer': 'Type your username to confirm',
+  'Ton code': 'Your code',
+  'Le pseudo ne correspond pas.': 'The username does not match.',
+  'Code incorrect.': 'Wrong code.',
+  'Dernière confirmation : supprimer ton compte pour toujours ?': 'Final confirmation: delete your account forever?',
+  'Ce profil est protégé : il ne peut pas être récupéré avec « Code oublié ».': 'This profile is protected: it cannot be recovered with “Forgot code”.',
   'Une seule carte jouable : jouée automatiquement': 'Only one playable card: played automatically',
   'Jeu automatique': 'Auto-play',
   'Joue pour toi la carte quand tu n\'as pas le choix': 'Plays your card for you when you have no choice',
@@ -3022,7 +3032,7 @@ window.addEventListener('error', function(e){
 // INTERRUPTEUR : false = la partie « légale / RGPD » est en veille (pas de bannière, pas de liens vers des pages qui n'existent pas encore,
 // pas de case « conditions », et reCAPTCHA (Google) n'est JAMAIS chargé : le choix le plus prudent tant qu'on ne peut pas demander l'accord).
 // À passer à true quand les pages légales sont prêtes (assets/pages/legal-config.json rempli) — publier.sh le vérifie.
-var LEGAL_READY = false;
+var LEGAL_READY = true;
 var CONSENT_KEY = 'rikiki_consent', GIF_CONSENT_KEY = 'rikiki_gif_ok', CONSENT_TTL = 365*86400000;
 var LEGAL_LINKS = [['confidentialite.html','Confidentialité'], ['conditions.html','Conditions'], ['cookies.html','Cookies'], ['mentions-legales.html','Mentions légales']];
 function legalLinksHtml(){
@@ -3858,6 +3868,7 @@ function renderProfileFlash(){
   var f = profileFlash, nm = esc(f.pseudo||'');
   var msg = f.kind==='created' ? '<strong>✅ Profil créé !</strong> Tu es connecté en tant que « '+nm+' ». Garde bien ton pseudo et ton code : ils te permettent de te reconnecter sur un autre appareil.'
     : f.kind==='login' ? '<strong>✅ Connecté</strong> en tant que « '+nm+' ». Tes parties comptent pour ton profil.'
+    : f.kind==='deleted' ? '<strong>Ton compte a été supprimé.</strong> Ton accès, tes amis et ta présence sont effacés. Merci d\'avoir joué !'
     : '<strong>Tu es déconnecté.</strong> Tu joues maintenant en invité. Pour retrouver ton profil : « Me connecter ».';
   return '<div class="flash" role="status"><span>'+msg+'</span><button class="flash-x" data-action="flash-close" aria-label="Fermer ce message">✕</button></div>';
 }
@@ -3995,7 +4006,7 @@ function renderProfileBox(){
     if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   } else if(currentProfile){
     html += '<div class="row between"><div>👤 Connecté : <strong>'+esc(currentProfile.pseudo)+crownMark(myId, currentProfile.pseudo, authUid())+'</strong><div class="muted" style="font-size:12px;">Tes parties comptent pour ton profil, sur n\'importe quel appareil.</div></div>'
-      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras();
+      + '<button class="btn ghost" data-action="profile-logout">Se déconnecter</button></div>' + renderBadges() + renderProfileExtras() + renderDeleteAccount();
   } else if(!profileUi.tab){
     // v73 : un choix clair dès l'ouverture, au lieu d'un seul formulaire avec deux boutons
     html += '<div class="row between" style="margin-bottom:6px;"><strong>👤 Tu joues en invité</strong><button class="btn ghost" data-action="profile-close" aria-label="Fermer">✕</button></div>'
@@ -4051,6 +4062,9 @@ document.addEventListener('click', function(e){
   else if(a==='profile-create'){ profileCreate(); }
   else if(a==='profile-login'){ profileLogin(); }
   else if(a==='profile-logout'){ profileLogout(); }
+  else if(a==='delete-account-open'){ profileUi.deleting = true; profileUi.err = ''; render(); }
+  else if(a==='delete-account-cancel'){ profileUi.deleting = false; profileUi.err = ''; render(); }
+  else if(a==='delete-account-go'){ deleteMyAccount(); }
 });
 document.addEventListener('keydown', function(e){
   if(e.key==='Enter' && e.target && (e.target.id==='profilePin' || e.target.id==='profilePseudo')){ e.preventDefault(); if(profileUi.tab==='create') profileCreate(); else profileLogin(); } // v73 : Entrée fait l'action de l'écran (créer OU se connecter)
@@ -4061,7 +4075,7 @@ document.addEventListener('keydown', function(e){
 var ADMIN_PSEUDOS = ['K.vroom'];
 // Nouvelle adresse du jeu. Laisse vide tant qu'il n'y a pas de déménagement.
 // Quand c'est rempli, l'ancienne adresse renvoie automatiquement chacun vers la nouvelle, avec son identité.
-var MOVED_TO = 'https://rikikigame.github.io/rikikigame/';
+var MOVED_TO = ''; // v79 : VIDE. Le domaine rikikigame.com est branché sur GitHub Pages : l'ancienne adresse est redirigée par GitHub lui-même (301). Ne JAMAIS remettre une adresse ici tant que le jeu est servi à cette adresse : le jeu se renvoie en boucle (vu le 24/10).
 
 function isAdmin(){
   if(!currentProfile) return false;
@@ -4235,6 +4249,48 @@ document.addEventListener('click', function(e){
   if(gameDoc && gameDoc.players && gameDoc.players[myId]) myProfile.name = gameDoc.players[myId].name; // le pseudo proposé = mon prénom de partie
   leaveToEntry(); homeProfileOpen = true; profileUi.open = true; profileUi.tab = 'create'; profileUi.err = ''; profileUi.pseudo = null; render();
 });
+
+// v79 : « Supprimer mon compte » (obligatoire pour l'App Store, et droit à l'effacement). Faisable sans changer les règles Firebase :
+// on efface ce que le joueur a le droit d'effacer (accès de connexion, amis, présence), on vide son profil, et on supprime son compte de connexion.
+// Limites : le pseudo reste dans les parties de ligue déjà enregistrées (jamais réécrites) ; la clé du profil (le pseudo en minuscules) reste réservée jusqu'à purge par l'organisateur.
+function renderDeleteAccount(){
+  if(!(authOn() && currentProfile)) return '';
+  if(isAdmin()) return '';
+  if(!profileUi.deleting) return '<div style="margin-top:10px;"><button class="btn ghost small" data-action="delete-account-open">Supprimer mon compte</button></div>';
+  return '<div class="delete-panel" role="group" aria-label="Supprimer mon compte"><strong>🗑️ Supprimer mon compte « '+esc(currentProfile.pseudo)+' »</strong>'
+    + '<p class="muted" style="font-size:13px; margin:6px 0 8px;">Ton accès (pseudo + code), tes amis et ta présence en ligne sont effacés. <b>Ça ne se rattrape pas.</b> Ton pseudo peut rester dans l\'historique des parties de ligue déjà jouées (il reste visible comme avant).</p>'
+    + '<label for="deletePseudo">Écris ton pseudo pour confirmer</label><input type="text" id="deletePseudo" maxlength="24" autocomplete="off" style="margin-bottom:8px;">'
+    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:10px;">'
+    + (profileUi.err ? '<div class="error-text">'+esc(profileUi.err)+'</div>' : '')
+    + '<div class="row"><button class="btn danger" style="flex:1;" data-action="delete-account-go" '+(profileUi.busy?'disabled':'')+'>Supprimer définitivement</button><button class="btn ghost" data-action="delete-account-cancel">Annuler</button></div></div>';
+}
+async function deleteMyAccount(){
+  if(profileUi.busy || !currentProfile || isAdmin()) return;
+  var typed = ((document.getElementById('deletePseudo')||{}).value || '').trim(), pin = ((document.getElementById('deletePin')||{}).value || '').trim();
+  if(profileKey(typed) !== profileKey(currentProfile.pseudo)){ profileUi.err = 'Le pseudo ne correspond pas.'; render(); return; }
+  if(!/^[0-9]{4,6}$/.test(pin)){ profileUi.err = 'Entre ton code (4 à 6 chiffres).'; render(); return; }
+  if(!confirmT('Dernière confirmation : supprimer ton compte pour toujours ?')) return;
+  profileUi.busy = true; profileUi.err = ''; render();
+  try{
+    var key = currentProfile.key, ref = claudeDb.doc('profiles/'+key), snap = await ref.get(), d = snap.exists ? snap.data() : {};
+    var email = (d.__plain && d.__plain.email) || authEmail(key), uid = authUid();
+    if(authOn()){
+      try{ await fbAuth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(email, authPw(pin))); }
+      catch(e){ if(isBadCredential(e)) throw { ui:'Code incorrect.' }; throw e; }
+    }
+    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:email } };
+    await ref.set(tombstone);                                                                     // profil vidé (pseudo, couleur, identifiant de joueur)
+    try{ await claudeDb.doc('friends/'+myId).set(withOwner({ list:{} })); }catch(e){ console.warn('amis', e); }
+    try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name:'', at:0, code:'', status:'off' })); }catch(e){ console.warn('présence', e); }
+    if(authOn()) await fbAuth.currentUser.delete();                                                // le compte de connexion disparaît
+    saveProfileLocal(null);
+    try{ ['rikiki_fb_name','rikiki_last','rikiki_resume','rikiki_recent_names','rikiki_claim_'+key].forEach(function(k){ localStorage.removeItem(k); }); localStorage.setItem('rikiki_fb_uid', 'p-'+Math.random().toString(36).slice(2,10)+nowMs().toString(36)); sessionStorage.removeItem('rikiki_mock_uid'); }catch(e){}
+    setFlash('deleted', ''); location.reload();
+  }catch(e){
+    console.error(e); profileUi.busy = false;
+    profileUi.err = (e && e.ui) ? e.ui : 'Suppression impossible : '+dbErrorText(e); render();
+  }
+}
 /* ===================== v20 : analyse des parties en ligne + niveau des robots =====================
    analysisGames/{id} : { at, code, playerOrder, players:{id:{name,isBot}}, settings:{scoring,blindOne,botLevel}, rounds:[roundLog enrichi] }
    Chaque manche garde la graine de la donne, l'ordre d'annonce et la suite exacte des cartes jouées :
@@ -4993,6 +5049,8 @@ async function authChangePin(cur, nw){
 async function authForgot(f, key){
   var snap = await claudeDb.doc('profiles/'+key).get();
   if(!snap.exists) throw { ui:'Pseudo inconnu.' };
+  var po = snap.data().__plain && snap.data().__plain.owner;
+  if(adminUid && po === adminUid) throw { ui:'Ce profil est protégé : il ne peut pas être récupéré avec « Code oublié ».' }; // v79 : le profil de l'organisateur n'accepte aucune demande
   var email = key + '.r' + nowMs().toString(36) + '@rikiki.invalid';
   var u = await authCreateOrLink(email, authPw(f.pin));
   await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email, st:'pending' } }); // v60 : st='pending' → une demande en attente ne peut plus être écrasée par un tiers

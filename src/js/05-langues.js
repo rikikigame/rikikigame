@@ -69,6 +69,14 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Supprimer mon compte': 'Delete my account',
+  'Supprimer définitivement': 'Delete permanently',
+  'Écris ton pseudo pour confirmer': 'Type your username to confirm',
+  'Ton code': 'Your code',
+  'Le pseudo ne correspond pas.': 'The username does not match.',
+  'Code incorrect.': 'Wrong code.',
+  'Dernière confirmation : supprimer ton compte pour toujours ?': 'Final confirmation: delete your account forever?',
+  'Ce profil est protégé : il ne peut pas être récupéré avec « Code oublié ».': 'This profile is protected: it cannot be recovered with “Forgot code”.',
   'Une seule carte jouable : jouée automatiquement': 'Only one playable card: played automatically',
   'Jeu automatique': 'Auto-play',
   'Joue pour toi la carte quand tu n\'as pas le choix': 'Plays your card for you when you have no choice',

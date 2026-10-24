@@ -98,6 +98,8 @@ async function authChangePin(cur, nw){
 async function authForgot(f, key){
   var snap = await claudeDb.doc('profiles/'+key).get();
   if(!snap.exists) throw { ui:'Pseudo inconnu.' };
+  var po = snap.data().__plain && snap.data().__plain.owner;
+  if(adminUid && po === adminUid) throw { ui:'Ce profil est protégé : il ne peut pas être récupéré avec « Code oublié ».' }; // v79 : le profil de l'organisateur n'accepte aucune demande
   var email = key + '.r' + nowMs().toString(36) + '@rikiki.invalid';
   var u = await authCreateOrLink(email, authPw(f.pin));
   await claudeDb.doc('profileClaims/'+key).set({ pseudo: snap.data().pseudo, key:key, at: nowMs(), status:'pending', __plain:{ newOwner:u.uid, email:email, st:'pending' } }); // v60 : st='pending' → une demande en attente ne peut plus être écrasée par un tiers
