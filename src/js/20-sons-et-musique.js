@@ -385,6 +385,7 @@ var PREF_ROWS = [
   { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
+  { action:'autoplay-toggle', on:function(){ return autoPlayOn; }, icon:function(){ return '🃏'; }, title:'Jeu automatique', hint:'Joue pour toi la carte quand tu n\'as pas le choix' },
   { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
   { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
   { action:'sec-consent-toggle', on:function(){ return securityConsent()===true; }, icon:function(){ return '🔒'; }, title:'Vérification Google reCAPTCHA', hint:'Sécurité. Google voit ton adresse IP. Refuser ne change rien au jeu.' }

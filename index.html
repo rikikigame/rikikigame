@@ -1024,7 +1024,7 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '77';
+var APP_VERSION = '78';
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -1599,6 +1599,9 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Une seule carte jouable : jouée automatiquement': 'Only one playable card: played automatically',
+  'Jeu automatique': 'Auto-play',
+  'Joue pour toi la carte quand tu n\'as pas le choix': 'Plays your card for you when you have no choice',
   'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave this league game?\n\nThe other players carry on without you and your result may not count. You can resume it from the home screen for 6 hours.',
   'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave the current game?\n\nYou can resume it from the home screen for 6 hours.',
   'Reprendre ma partie': 'Resume my game',
@@ -3611,9 +3614,29 @@ function turnState(g){
   var left = Math.max(0, lim - elapsed);
   return { lim:lim, left:left, elapsed:elapsed, text:'⏱ '+Math.ceil(left/1000)+' s', cls:'turn-timer'+(left<10000?' urgent':'') };
 }
+// v78 : quand une seule carte est jouable (suivre la couleur avec une seule carte de cette couleur, ou dernière carte), le jeu la joue pour toi
+// après 1 s et le dit. Réglable dans ⚙️ Paramètres. Pas pour la manche à une carte cachée. Ce n'est PAS compté comme une absence.
+var FORCED_PLAY_DELAY_MS = 1000, forcedPlayKey = '';
+function forcedPlayTick(g){
+  if(!autoPlayOn || forcedPlayKey || autoActing) return;
+  if(g.status!=='playing' || g.turnPlayerId!==myId || isBlindRound(g) || !myHand || !myHand.cards || !myHand.cards.length) return;
+  var legal = legalCards(g, myHand.cards);
+  if(legal.length!==1) return;
+  var key = g.round+'|'+(g.currentTrick||[]).length+'|'+myHand.cards.length+'|'+legal[0].suit+legal[0].rank;
+  forcedPlayKey = key;
+  showToast('Une seule carte jouable : jouée automatiquement');
+  setTimeout(function(){
+    var cur = gameDoc;
+    var still = cur && cur.status==='playing' && cur.turnPlayerId===myId && myHand && myHand.cards && !isBlindRound(cur) && autoPlayOn;
+    var legalNow = still ? legalCards(cur, myHand.cards) : [];
+    if(legalNow.length===1) playCard(legalNow[0]).catch(function(e){ console.error(e); }).then(function(){ setTimeout(function(){ forcedPlayKey = ''; }, 600); });
+    else forcedPlayKey = '';
+  }, FORCED_PLAY_DELAY_MS);
+}
 function turnTick(){
   var g = gameDoc;
   if(screen!=='game' || !g) return;
+  forcedPlayTick(g);
   var ts = turnState(g);
   var el = document.getElementById('turn-timer');
   if(el){ el.textContent = ts.text; el.className = ts.cls; }
@@ -6314,6 +6337,7 @@ var PREF_ROWS = [
   { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
+  { action:'autoplay-toggle', on:function(){ return autoPlayOn; }, icon:function(){ return '🃏'; }, title:'Jeu automatique', hint:'Joue pour toi la carte quand tu n\'as pas le choix' },
   { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
   { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
   { action:'sec-consent-toggle', on:function(){ return securityConsent()===true; }, icon:function(){ return '🔒'; }, title:'Vérification Google reCAPTCHA', hint:'Sécurité. Google voit ton adresse IP. Refuser ne change rien au jeu.' }
@@ -8060,6 +8084,7 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 // v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
+var autoPlayOn = true; try{ autoPlayOn = localStorage.getItem('rikiki_autoplay')!=='0'; }catch(e){} // v78 : activé par défaut
 var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
 function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
 applyBigText();
@@ -8152,6 +8177,7 @@ document.addEventListener('click', function(e){
   else if(a==='led-help-toggle'){ ledHelpOn = !ledHelpOn; try{ localStorage.setItem('rikiki_led_help', ledHelpOn ? '1' : '0'); }catch(err){} render(); }
   else if(a==='gif-consent-toggle'){ gifConsentSet(!gifConsent()); chatListSig = null; gifSig = null; render(); }
   else if(a==='sec-consent-toggle'){ var onNow = securityConsent()===true; securityConsentSet(!onNow); if(!onNow) startAppCheck(); else showToast('Pris en compte au prochain lancement du jeu.'); render(); }
+  else if(a==='autoplay-toggle'){ autoPlayOn = !autoPlayOn; try{ localStorage.setItem('rikiki_autoplay', autoPlayOn ? '1' : '0'); }catch(err){} render(); }
   else if(a==='big-text-toggle'){ bigTextOn = !bigTextOn; try{ localStorage.setItem('rikiki_big_text', bigTextOn ? '1' : '0'); }catch(err){} applyBigText(); render(); }
 });
 /* ===================== v74 : pire ennemi / victime préférée =====================

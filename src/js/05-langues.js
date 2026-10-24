@@ -69,6 +69,9 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Une seule carte jouable : jouée automatiquement': 'Only one playable card: played automatically',
+  'Jeu automatique': 'Auto-play',
+  'Joue pour toi la carte quand tu n\'as pas le choix': 'Plays your card for you when you have no choice',
   'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave this league game?\n\nThe other players carry on without you and your result may not count. You can resume it from the home screen for 6 hours.',
   'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.': 'Leave the current game?\n\nYou can resume it from the home screen for 6 hours.',
   'Reprendre ma partie': 'Resume my game',

@@ -26,9 +26,29 @@ function turnState(g){
   var left = Math.max(0, lim - elapsed);
   return { lim:lim, left:left, elapsed:elapsed, text:'⏱ '+Math.ceil(left/1000)+' s', cls:'turn-timer'+(left<10000?' urgent':'') };
 }
+// v78 : quand une seule carte est jouable (suivre la couleur avec une seule carte de cette couleur, ou dernière carte), le jeu la joue pour toi
+// après 1 s et le dit. Réglable dans ⚙️ Paramètres. Pas pour la manche à une carte cachée. Ce n'est PAS compté comme une absence.
+var FORCED_PLAY_DELAY_MS = 1000, forcedPlayKey = '';
+function forcedPlayTick(g){
+  if(!autoPlayOn || forcedPlayKey || autoActing) return;
+  if(g.status!=='playing' || g.turnPlayerId!==myId || isBlindRound(g) || !myHand || !myHand.cards || !myHand.cards.length) return;
+  var legal = legalCards(g, myHand.cards);
+  if(legal.length!==1) return;
+  var key = g.round+'|'+(g.currentTrick||[]).length+'|'+myHand.cards.length+'|'+legal[0].suit+legal[0].rank;
+  forcedPlayKey = key;
+  showToast('Une seule carte jouable : jouée automatiquement');
+  setTimeout(function(){
+    var cur = gameDoc;
+    var still = cur && cur.status==='playing' && cur.turnPlayerId===myId && myHand && myHand.cards && !isBlindRound(cur) && autoPlayOn;
+    var legalNow = still ? legalCards(cur, myHand.cards) : [];
+    if(legalNow.length===1) playCard(legalNow[0]).catch(function(e){ console.error(e); }).then(function(){ setTimeout(function(){ forcedPlayKey = ''; }, 600); });
+    else forcedPlayKey = '';
+  }, FORCED_PLAY_DELAY_MS);
+}
 function turnTick(){
   var g = gameDoc;
   if(screen!=='game' || !g) return;
+  forcedPlayTick(g);
   var ts = turnState(g);
   var el = document.getElementById('turn-timer');
   if(el){ el.textContent = ts.text; el.className = ts.cls; }

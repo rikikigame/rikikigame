@@ -83,6 +83,7 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 // v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
+var autoPlayOn = true; try{ autoPlayOn = localStorage.getItem('rikiki_autoplay')!=='0'; }catch(e){} // v78 : activé par défaut
 var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
 function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
 applyBigText();
@@ -175,5 +176,6 @@ document.addEventListener('click', function(e){
   else if(a==='led-help-toggle'){ ledHelpOn = !ledHelpOn; try{ localStorage.setItem('rikiki_led_help', ledHelpOn ? '1' : '0'); }catch(err){} render(); }
   else if(a==='gif-consent-toggle'){ gifConsentSet(!gifConsent()); chatListSig = null; gifSig = null; render(); }
   else if(a==='sec-consent-toggle'){ var onNow = securityConsent()===true; securityConsentSet(!onNow); if(!onNow) startAppCheck(); else showToast('Pris en compte au prochain lancement du jeu.'); render(); }
+  else if(a==='autoplay-toggle'){ autoPlayOn = !autoPlayOn; try{ localStorage.setItem('rikiki_autoplay', autoPlayOn ? '1' : '0'); }catch(err){} render(); }
   else if(a==='big-text-toggle'){ bigTextOn = !bigTextOn; try{ localStorage.setItem('rikiki_big_text', bigTextOn ? '1' : '0'); }catch(err){} applyBigText(); render(); }
 });
