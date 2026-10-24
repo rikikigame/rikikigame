@@ -453,7 +453,7 @@ function renderLobby(g){
   var html = '<div class="card-panel" style="margin-bottom:12px;">';
   html += '<div class="row between"><h2 style="font-size:24px;">Salon'+(direction==='quick' ? '<span class="quick-chip">⚡ Partie rapide</span>' : '')+'</h2><span class="badge">'+n+' / '+MAX_PLAYERS+'</span></div>';
   html += '<p class="muted" style="font-size:13.5px; margin:4px 0 8px;">Donne le code <strong style="color:var(--navy); letter-spacing:0.1em;">'+esc(g.code)+'</strong> à tes amis.</p>';
-  var newer = ids.some(function(id){ return Number(g.players[id].v) > Number(APP_VERSION); });
+  var newer = ids.some(function(id){ return versionIsNewer(g.players[id].v, APP_VERSION); });
   if(newer) html += '<p class="pts-neg" style="font-size:13.5px; font-weight:700; margin:0 0 8px;">⚠ Une nouvelle version du jeu est en ligne : recharge la page avant de jouer.</p>';
   html += '<div class="player-list">';
   ids.forEach(function(id){
