@@ -1,7 +1,24 @@
 /* ===================== constants ===================== */
 // Heure commune à tous les appareils : en ligne, on corrige l'horloge du téléphone avec celle du serveur Firebase
 var prefillCode = '';
-var APP_VERSION = '79';
+// Versionnage sémantique (https://semver.org) : MAJEUR.MINEUR.CORRECTIF
+//   MAJEUR   = changement qui casse la compatibilité (données, règles Firebase à recoller avant, anciens clients inutilisables)
+//   MINEUR   = nouvelle fonction qui ne casse rien
+//   CORRECTIF= correction de bug
+// Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
+var APP_VERSION = '1.0.0';
+function parseVersion(s){
+  s = String(s==null ? '' : s).trim();
+  var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if(m) return [+m[1], +m[2], +m[3]];
+  var n = parseInt(s, 10);
+  return isNaN(n) ? [0, 0, 0] : [0, n, 0];
+}
+function versionIsNewer(a, b){ // vrai si la version a est strictement plus récente que b
+  var x = parseVersion(a), y = parseVersion(b);
+  for(var i=0; i<3; i++){ if(x[i] !== y[i]) return x[i] > y[i]; }
+  return false;
+}
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
