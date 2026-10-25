@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.1.1 — 25 octobre 2026
+
+Correctif : un test des liens légaux supposait que le navigateur parle français ; il vérifie maintenant les deux langues. Aucun changement dans le jeu.
+
 ## 1.1.0 — 25 octobre 2026
 
 Nouveau : les 4 pages légales (confidentialité, conditions, cookies, mentions légales) existent aussi **en anglais** (`*.en.html`), avec un lien « English / Français » en haut de chaque page. Les liens du jeu (bannière, case des conditions, pied de page) mènent à la version dans la langue choisie. La version française fait foi. Le texte français sur la suppression de compte décrit maintenant le vrai bouton.

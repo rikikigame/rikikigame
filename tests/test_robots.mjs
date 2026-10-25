@@ -14,7 +14,7 @@ let mal = 0;
 async function jouerUneFois(n, mode, extra) {
   const prof = mkdtempSync(join(tmpdir(), 'rk-test-')), port = 9300 + Math.floor(Math.random() * 500);
   const url = 'file://' + resolve('srv/bots.html') + `?n=${n}&mode=${mode}${extra}`;
-  const ch = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-sandbox', '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, url], { stdio: 'ignore' });
+  const ch = spawn(CHROME, ['--headless=new', '--lang=en-US', '--disable-gpu', '--no-sandbox', '--mute-audio', '--autoplay-policy=no-user-gesture-required', `--remote-debugging-port=${port}`, `--user-data-dir=${prof}`, url], { stdio: 'ignore' });
   let res = null;
   try {
     let ws;

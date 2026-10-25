@@ -293,7 +293,9 @@
       ok('consentement : jamais de bannière devant les cartes (écran de partie)', !croot.querySelector('.consent'));
       if(consentSave===null) localStorage.removeItem(CONSENT_KEY); else localStorage.setItem(CONSENT_KEY, consentSave);
       window.firebase = fbSave; usingFirebase = ufSave; screen = scrSave; appCheckStarted = acs; consentSig = ''; renderConsent();
-      ok('liens légaux : confidentialité, conditions, cookies et mentions légales à l\'accueil', ['confidentialite.html','conditions.html','cookies.html','mentions-legales.html'].every(function(h){ return renderEntry().indexOf('href="'+h+'"')>0; }));
+      var langAv3 = LANG; LANG = 'fr'; var okFr = ['confidentialite.html','conditions.html','cookies.html','mentions-legales.html'].every(function(h){ return renderEntry().indexOf('href="'+h+'"')>0; });
+      LANG = 'en'; var okEn = ['confidentialite.en.html','conditions.en.html','cookies.en.html','mentions-legales.en.html'].every(function(h){ return renderEntry().indexOf('href="'+h+'"')>0; }); LANG = langAv3; // la langue du navigateur varie (Mac en français, GitHub en anglais)
+      ok('liens légaux : confidentialité, conditions, cookies et mentions légales à l\'accueil', okFr && okEn, 'fr='+okFr+' en='+okEn);
       // v73 : parcours de profil — un choix clair, un bouton par écran, confirmation visible
       var cpSave = currentProfile, tabSave = profileUi.tab, flashSave = profileFlash, hpSave = homeProfileOpen; currentProfile = null; homeProfileOpen = true;
       profileUi.tab = null; var chooser = renderEntry();
