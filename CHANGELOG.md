@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.0.4 — 25 octobre 2026
+
+Correctif : le test automatique de GitHub attend plus longtemps le démarrage du navigateur et refait une partie jusqu'à 3 fois si le navigateur ne répond pas (il échouait au hasard sur la première partie). Aucun changement dans le jeu.
+
 ## 1.0.3 — 24 octobre 2026
 
 Correctif : la fenêtre « Notes de version » (on y arrive en touchant le numéro en bas de l'accueil) affichait toujours « v64 » et d'anciennes nouveautés. Elle affiche maintenant le vrai numéro, ce qui a changé depuis la v64 en français simple, et une phrase pour lire le numéro.
