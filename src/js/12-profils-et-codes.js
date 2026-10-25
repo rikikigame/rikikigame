@@ -398,6 +398,7 @@ document.addEventListener('click', function(e){
 // v79 : « Supprimer mon compte » (obligatoire pour l'App Store, et droit à l'effacement). Faisable sans changer les règles Firebase :
 // on efface ce que le joueur a le droit d'effacer (accès de connexion, amis, présence), on vide son profil, et on supprime son compte de connexion.
 // Limites : le pseudo reste dans les parties de ligue déjà enregistrées (jamais réécrites) ; la clé du profil (le pseudo en minuscules) reste réservée jusqu'à purge par l'organisateur.
+var DELETED_EMAIL = 'supprime@rikiki.invalid';
 function renderDeleteAccount(){
   if(!(authOn() && currentProfile)) return '';
   if(isAdmin()) return '';
@@ -431,7 +432,7 @@ async function deleteMyAccount(){
       try{ await fbAuth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(email, authPw(pin))); }
       catch(e){ if(isBadCredential(e)) throw { ui:'Code incorrect.' }; throw e; }
     }
-    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:email } };
+    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:DELETED_EMAIL } }; // l'adresse technique d'origine contenait le pseudo : on la remplace par une adresse neutre (les règles exigent seulement « …@rikiki.invalid »)
     await ref.set(tombstone);                                                                     // profil vidé (pseudo, couleur, identifiant de joueur)
     try{ await claudeDb.doc('friends/'+myId).set(withOwner({ list:{} })); }catch(e){ console.warn('amis', e); }
     try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name:'', at:0, code:'', status:'off' })); }catch(e){ console.warn('présence', e); }

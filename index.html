@@ -1031,7 +1031,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.0.7';
+var APP_VERSION = '1.0.8';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -4273,6 +4273,7 @@ document.addEventListener('click', function(e){
 // v79 : « Supprimer mon compte » (obligatoire pour l'App Store, et droit à l'effacement). Faisable sans changer les règles Firebase :
 // on efface ce que le joueur a le droit d'effacer (accès de connexion, amis, présence), on vide son profil, et on supprime son compte de connexion.
 // Limites : le pseudo reste dans les parties de ligue déjà enregistrées (jamais réécrites) ; la clé du profil (le pseudo en minuscules) reste réservée jusqu'à purge par l'organisateur.
+var DELETED_EMAIL = 'supprime@rikiki.invalid';
 function renderDeleteAccount(){
   if(!(authOn() && currentProfile)) return '';
   if(isAdmin()) return '';
@@ -4306,7 +4307,7 @@ async function deleteMyAccount(){
       try{ await fbAuth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(email, authPw(pin))); }
       catch(e){ if(isBadCredential(e)) throw { ui:'Code incorrect.' }; throw e; }
     }
-    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:email } };
+    var tombstone = { deleted:true, at:nowMs(), __plain:{ owner:uid, email:DELETED_EMAIL } }; // l'adresse technique d'origine contenait le pseudo : on la remplace par une adresse neutre (les règles exigent seulement « …@rikiki.invalid »)
     await ref.set(tombstone);                                                                     // profil vidé (pseudo, couleur, identifiant de joueur)
     try{ await claudeDb.doc('friends/'+myId).set(withOwner({ list:{} })); }catch(e){ console.warn('amis', e); }
     try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name:'', at:0, code:'', status:'off' })); }catch(e){ console.warn('présence', e); }
