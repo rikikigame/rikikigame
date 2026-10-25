@@ -8,10 +8,13 @@
 // À passer à true quand les pages légales sont prêtes (assets/pages/legal-config.json rempli) — publier.sh le vérifie.
 var LEGAL_READY = true;
 var CONSENT_KEY = 'rikiki_consent', GIF_CONSENT_KEY = 'rikiki_gif_ok', CONSENT_TTL = 365*86400000;
-var LEGAL_LINKS = [['confidentialite.html','Confidentialité'], ['conditions.html','Conditions'], ['cookies.html','Cookies'], ['mentions-legales.html','Mentions légales']];
+var LEGAL_LINKS = [['confidentialite.html','Confidentialité','Privacy'], ['conditions.html','Conditions','Terms'], ['cookies.html','Cookies','Cookies'], ['mentions-legales.html','Mentions légales','Legal notice']];
+// v1.1.0 : pages légales en anglais (*.en.html) pour les joueurs qui ont choisi l'anglais
+function legalHref(f){ return (typeof LANG!=='undefined' && LANG==='en') ? f.replace(/\.html$/, '.en.html') : f; }
 function legalLinksHtml(){
   if(!LEGAL_READY) return '';
-  return LEGAL_LINKS.map(function(l){ return '<a href="'+l[0]+'" target="_blank" rel="noopener">'+l[1]+'</a>'; }).join(' · ');
+  var en = (typeof LANG!=='undefined' && LANG==='en');
+  return LEGAL_LINKS.map(function(l){ return '<a href="'+legalHref(l[0])+'" target="_blank" rel="noopener">'+(en ? l[2] : l[1])+'</a>'; }).join(' · ');
 }
 function consentRead(){
   try{ var c = JSON.parse(localStorage.getItem(CONSENT_KEY) || 'null'); if(c && typeof c.at==='number' && Date.now()-c.at < CONSENT_TTL) return c; }catch(e){}
@@ -44,7 +47,7 @@ function renderConsent(){
   root.innerHTML = !show ? '' :
     '<div class="consent" role="dialog" aria-labelledby="consent-t" aria-describedby="consent-d">'
     + '<strong id="consent-t">🔒 Ta vie privée</strong>'
-    + '<p id="consent-d">Rikiki ne met aucun cookie de pub ni de suivi. Pour vérifier que les connexions viennent bien du vrai jeu, il peut utiliser <b>Google reCAPTCHA</b> : Google reçoit alors ton adresse IP. Si tu refuses, le jeu marche exactement pareil. Tu peux changer d\'avis dans ⚙️ Paramètres. <a href="confidentialite.html" target="_blank" rel="noopener">En savoir plus</a></p>'
+    + '<p id="consent-d">Rikiki ne met aucun cookie de pub ni de suivi. Pour vérifier que les connexions viennent bien du vrai jeu, il peut utiliser <b>Google reCAPTCHA</b> : Google reçoit alors ton adresse IP. Si tu refuses, le jeu marche exactement pareil. Tu peux changer d\'avis dans ⚙️ Paramètres. <a href="'+legalHref('confidentialite.html')+'" target="_blank" rel="noopener">En savoir plus</a></p>'
     + '<div class="consent-btns"><button class="btn secondary" data-consent="no">Refuser</button><button class="btn secondary" data-consent="yes">Accepter</button></div></div>';
 }
 document.addEventListener('click', function(e){

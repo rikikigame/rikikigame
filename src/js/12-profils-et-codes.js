@@ -169,7 +169,7 @@ function renderProfileBox(){
     html += '<label for="profilePseudo">Pseudo</label><input type="text" id="profilePseudo" maxlength="24" autocomplete="username" placeholder="Ton pseudo" value="'+esc(profileUi.pseudo!=null ? profileUi.pseudo : (myProfile.name||''))+'" style="margin-bottom:10px;">';
     html += '<label for="profilePin">'+(creating ? 'Code (4 chiffres)' : 'Code PIN')+'</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="'+(creating?'4':'6')+'" autocomplete="'+(creating?'new-password':'current-password')+'" placeholder="••••" style="margin-bottom:12px;">';
     if(creating){
-      if(LEGAL_READY) html += '<label class="terms-row"><input type="checkbox" id="profileTerms"'+(profileUi.terms?' checked':'')+'> <span>J\'ai 13 ans ou plus et j\'accepte les <a href="conditions.html" target="_blank" rel="noopener">conditions d\'utilisation</a> et la <a href="confidentialite.html" target="_blank" rel="noopener">politique de confidentialité</a>.</span></label>';
+      if(LEGAL_READY) html += '<label class="terms-row"><input type="checkbox" id="profileTerms"'+(profileUi.terms?' checked':'')+'> <span>J\'ai 13 ans ou plus et j\'accepte les <a href="'+legalHref('conditions.html')+'" target="_blank" rel="noopener">conditions d\'utilisation</a> et la <a href="'+legalHref('confidentialite.html')+'" target="_blank" rel="noopener">politique de confidentialité</a>.</span></label>';
       html += '<button class="btn" style="width:100%;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button>';
     } else {
       html += '<button class="btn" style="width:100%;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Se connecter</button>';
