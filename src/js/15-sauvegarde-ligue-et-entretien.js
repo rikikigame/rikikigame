@@ -121,6 +121,7 @@ async function cleanOldGames(){
 }
 // v75 : nettoyage automatique des salles d'attente abandonnées. Salles d'attente ET parties commencées puis abandonnées (sans aucune écriture depuis 24 h). Seul l'organisateur (admin) peut lire/supprimer les parties,
 // donc ça se fait tout seul quand il ouvre le jeu connecté (au plus toutes les 6 h). On ne touche qu'aux salles encore en « lobby » depuis plus de 24 h.
+var LIVE_STATUSES = ['lobby','dealing','bidding','playing','round_end']; // parties non terminées
 var LOBBY_MAX_AGE_MS = 24*3600000, LOBBY_CLEAN_EVERY_MS = 6*3600000, LOBBY_CLEAN_KEY = 'rikiki_lobby_clean_at', lobbyCleaning = false;
 async function cleanStaleLobbies(){
   if(lobbyCleaning || !usingFirebase || !isAdmin() || !authOn()) return;
@@ -133,7 +134,7 @@ async function cleanStaleLobbies(){
     var removed = 0;
     for(var i=0; i<codes.length; i++){
       var st = await firebase.database().ref('games/'+codes[i]+'/status').once('value');
-      if(st.val()==='game_over') continue; // les parties finies restent (nettoyage mensuel) ; salles d'attente ET parties commencées puis abandonnées depuis 24 h : supprimées
+      if(LIVE_STATUSES.indexOf(st.val()) < 0) continue; // on ne supprime QUE les salles d'attente et les parties commencées puis abandonnées depuis 24 h ; les parties finies (ou sans statut : anciennes) restent pour le nettoyage mensuel
       for(var k=0; k<GAME_PARTS.length; k++) await claudeDb.doc(GAME_PARTS[k]+'/'+codes[i]).delete();
       await claudeDb.doc('games/'+codes[i]).delete();
       removed++;
