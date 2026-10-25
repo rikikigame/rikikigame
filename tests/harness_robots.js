@@ -198,6 +198,8 @@
       ok('semver : 1.10.0 > 1.9.9 (comparaison numérique, pas alphabétique)', versionIsNewer('1.10.0','1.9.9') && !versionIsNewer('1.9.9','1.10.0'));
       ok('semver : deux versions identiques ne sont pas « plus récentes »', !versionIsNewer('1.2.3','1.2.3') && !versionIsNewer('80','80'));
       ok('semver : l\'ancien numéro 80 est plus récent que 79', versionIsNewer('80','79'));
+      ok('reprendre ma partie : une salle d\'attente n\'est jamais « à reprendre », une partie en cours oui', LIVE_STATUSES.indexOf('playing')>=0 && LIVE_STATUSES.indexOf('bidding')>=0 && LIVE_STATUSES.indexOf('game_over')<0 && typeof rememberResume==='function');
+      try{ localStorage.removeItem('rikiki_resume'); persistLocal(); }catch(e){} ok('reprendre ma partie : rejoindre une salle ne crée plus de « partie à reprendre »', !resumeInfo());
       // v1.1.0 : liens vers les pages légales dans la langue du joueur
       var langAv2 = LANG; LANG = 'fr'; var lf = legalHref('conditions.html'); LANG = 'en'; var le = legalHref('conditions.html'), lk = legalLinksHtml(); LANG = langAv2;
       ok('pages légales : le lien suit la langue (fr = .html, en = .en.html)', lf==='conditions.html' && le==='conditions.en.html' && lk.indexOf('mentions-legales.en.html')>0 && lk.indexOf('Legal notice')>0, lf+' | '+le);

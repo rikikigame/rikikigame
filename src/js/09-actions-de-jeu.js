@@ -96,7 +96,7 @@ function subscribeGame(code, fromRestore){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }
       screen='game';
-      if(gameDoc.status==='game_over') clearResume(); // partie finie : plus rien à reprendre
+      if(LIVE_STATUSES.indexOf(gameDoc.status) >= 0 && gameDoc.status!=='lobby') rememberResume(code); else clearResume(); // commencée = à reprendre ; salle d'attente ou finie = rien à reprendre
       if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
         versionSent = true;
         // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver
