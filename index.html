@@ -1031,7 +1031,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.1.1';
+var APP_VERSION = '1.1.2';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -2917,7 +2917,9 @@ var usingFirebase=false;
 var toastMsg='', toastTimer=null, busy=false;
 var botActing=false, lastBotTurnKey=null, lastBotTurnAt=0;
 
-function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); localStorage.setItem('rikiki_resume', JSON.stringify({code:gameCode, at:nowMs()})); }catch(e){} }
+function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); }catch(e){} }
+// v1.1.2 : on ne retient la partie à « reprendre » que quand elle est vraiment commencée (jamais pour une salle d'attente) ; appelé à chaque mise à jour de la partie
+function rememberResume(code){ try{ localStorage.setItem('rikiki_resume', JSON.stringify({code:code, at:nowMs()})); }catch(e){} }
 // v77 : on retient la dernière partie QUITTÉE (même sans faire exprès) pour pouvoir la reprendre depuis l'accueil, pendant 6 h
 function resumeInfo(){
   try{ var r = JSON.parse(localStorage.getItem('rikiki_resume')||'null'); if(r && r.code && typeof r.at==='number' && nowMs()-r.at < 6*3600000) return r; }catch(e){}
@@ -3202,7 +3204,7 @@ function subscribeGame(code, fromRestore){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }
       screen='game';
-      if(gameDoc.status==='game_over') clearResume(); // partie finie : plus rien à reprendre
+      if(LIVE_STATUSES.indexOf(gameDoc.status) >= 0 && gameDoc.status!=='lobby') rememberResume(code); else clearResume(); // commencée = à reprendre ; salle d'attente ou finie = rien à reprendre
       if((gameDoc.players[myId].v !== APP_VERSION || gameDoc.players[myId].uid !== myKeyId() || !gameDoc.players[myId].pt) && !versionSent){
         versionSent = true;
         // v60 : j'envoie aussi l'empreinte de mon « jeton de joueur » (secret gardé sur mon appareil) : il me permettra de prouver
@@ -5665,8 +5667,16 @@ function renderHomeFriends(){
   if(social.open) html += '<div class="home-panel">'+renderFriendsPanel()+'</div>';
   return html + '</div>';
 }
+var resumeChecked = {};
 function resumeBannerHtml(){
   var r = resumeInfo(); if(!r || gameCode || !myProfile.name) return '';
+  if(!resumeChecked[r.code]){ // on vérifie une fois que la partie existe encore et qu'elle est bien commencée ; sinon le bandeau disparaît
+    resumeChecked[r.code] = true;
+    try{ claudeDb.doc('games/'+r.code).get().then(function(snap){
+      var st = snap.exists ? snap.data().status : null;
+      if(!snap.exists || LIVE_STATUSES.indexOf(st) < 0 || st==='lobby'){ clearResume(); render(); }
+    }).catch(function(){}); }catch(e){}
+  }
   return '<div class="resume-banner"><span>↩ Tu as quitté ta partie <b>'+esc(r.code)+'</b>.</span><button class="btn small" data-action="resume-game">Reprendre ma partie</button></div>';
 }
 document.addEventListener('click', async function(e){

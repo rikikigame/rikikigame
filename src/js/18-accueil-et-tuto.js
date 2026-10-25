@@ -45,8 +45,16 @@ function renderHomeFriends(){
   if(social.open) html += '<div class="home-panel">'+renderFriendsPanel()+'</div>';
   return html + '</div>';
 }
+var resumeChecked = {};
 function resumeBannerHtml(){
   var r = resumeInfo(); if(!r || gameCode || !myProfile.name) return '';
+  if(!resumeChecked[r.code]){ // on vérifie une fois que la partie existe encore et qu'elle est bien commencée ; sinon le bandeau disparaît
+    resumeChecked[r.code] = true;
+    try{ claudeDb.doc('games/'+r.code).get().then(function(snap){
+      var st = snap.exists ? snap.data().status : null;
+      if(!snap.exists || LIVE_STATUSES.indexOf(st) < 0 || st==='lobby'){ clearResume(); render(); }
+    }).catch(function(){}); }catch(e){}
+  }
   return '<div class="resume-banner"><span>↩ Tu as quitté ta partie <b>'+esc(r.code)+'</b>.</span><button class="btn small" data-action="resume-game">Reprendre ma partie</button></div>';
 }
 document.addEventListener('click', async function(e){

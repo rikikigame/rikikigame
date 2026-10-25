@@ -15,7 +15,9 @@ var usingFirebase=false;
 var toastMsg='', toastTimer=null, busy=false;
 var botActing=false, lastBotTurnKey=null, lastBotTurnAt=0;
 
-function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); localStorage.setItem('rikiki_resume', JSON.stringify({code:gameCode, at:nowMs()})); }catch(e){} }
+function persistLocal(){ try{ localStorage.setItem('rikiki_last', JSON.stringify({code:gameCode})); }catch(e){} }
+// v1.1.2 : on ne retient la partie à « reprendre » que quand elle est vraiment commencée (jamais pour une salle d'attente) ; appelé à chaque mise à jour de la partie
+function rememberResume(code){ try{ localStorage.setItem('rikiki_resume', JSON.stringify({code:code, at:nowMs()})); }catch(e){} }
 // v77 : on retient la dernière partie QUITTÉE (même sans faire exprès) pour pouvoir la reprendre depuis l'accueil, pendant 6 h
 function resumeInfo(){
   try{ var r = JSON.parse(localStorage.getItem('rikiki_resume')||'null'); if(r && r.code && typeof r.at==='number' && nowMs()-r.at < 6*3600000) return r; }catch(e){}

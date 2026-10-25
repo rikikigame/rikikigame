@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.1.2 — 25 octobre 2026
+
+Correctif : le bandeau « Tu as quitté ta partie … / Reprendre ma partie » s'affichait aussi pour une salle d'attente où la partie n'avait pas commencé. Il n'apparaît plus que pour une partie commencée, et le jeu vérifie que la partie existe encore avant de l'afficher.
+
 ## 1.1.1 — 25 octobre 2026
 
 Correctif : un test des liens légaux supposait que le navigateur parle français ; il vérifie maintenant les deux langues. Aucun changement dans le jeu.
