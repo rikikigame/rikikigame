@@ -204,6 +204,11 @@
       ok('suppression : lien « Supprimer mon compte » pour un joueur connecté', renderDeleteAccount().indexOf('delete-account-open')>0);
       profileUi.deleting = true; var delHtml = renderDeleteAccount();
       ok('suppression : le panneau demande le pseudo et le code', delHtml.indexOf('id="deletePseudo"')>0 && delHtml.indexOf('id="deletePin"')>0 && delHtml.indexOf('delete-account-go')>0);
+      profileUi.delPseudo = 'Léa'; profileUi.delPin = '0107'; profileUi.deleteConfirm = false; var d1 = renderDeleteAccount();
+      ok('suppression : ce qui est écrit dans les champs est gardé après un redessin', d1.indexOf('value="Léa"')>0 && d1.indexOf('value="0107"')>0 && d1.indexOf('Supprimer définitivement')>0 && d1.indexOf('Oui, supprimer pour toujours')<0);
+      profileUi.deleteConfirm = true; var d2 = renderDeleteAccount();
+      ok('suppression : 2e étape dans la page (pas de fenêtre du navigateur)', d2.indexOf('Oui, supprimer pour toujours')>0 && d2.indexOf('Dernière confirmation')>0);
+      profileUi.delPseudo = ''; profileUi.delPin = ''; profileUi.deleteConfirm = false;
       adminUid = 'u1'; ok('suppression : jamais proposée à l\'organisateur', renderDeleteAccount()==='');
       fbAuth = oldAuth; currentProfile = oldCp; adminUid = oldAdm; profileUi.deleting = oldDel;
       // v78 : jeu automatique quand une seule carte est jouable

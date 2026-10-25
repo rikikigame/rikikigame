@@ -69,6 +69,9 @@ var EN_SUIT = { 'Cœur':'Hearts', 'Carreau':'Diamonds', 'Pique':'Spades', 'Trèf
 var EN_RANK = { 'As':'Ace', 'Roi':'King', 'Dame':'Queen', 'Valet':'Jack' };
 var EN_MONTHS = { 'janv. – mars':'Jan – Mar', 'avr. – juin':'Apr – Jun', 'juil. – sept.':'Jul – Sep', 'oct. – déc.':'Oct – Dec' };
 var I18N_EN = { exact: {
+  'Suppression en cours…': 'Deleting…',
+  'Oui, supprimer pour toujours': 'Yes, delete forever',
+  '⚠️ Dernière confirmation : ton compte sera supprimé pour toujours.': '⚠️ Final confirmation: your account will be deleted forever.',
   'Supprimer mon compte': 'Delete my account',
   'Supprimer définitivement': 'Delete permanently',
   'Écris ton pseudo pour confirmer': 'Type your username to confirm',

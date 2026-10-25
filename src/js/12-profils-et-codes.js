@@ -207,8 +207,8 @@ document.addEventListener('click', function(e){
   else if(a==='profile-create'){ profileCreate(); }
   else if(a==='profile-login'){ profileLogin(); }
   else if(a==='profile-logout'){ profileLogout(); }
-  else if(a==='delete-account-open'){ profileUi.deleting = true; profileUi.err = ''; render(); }
-  else if(a==='delete-account-cancel'){ profileUi.deleting = false; profileUi.err = ''; render(); }
+  else if(a==='delete-account-open'){ profileUi.deleting = true; profileUi.err = ''; profileUi.deleteConfirm = false; profileUi.delPseudo = ''; profileUi.delPin = ''; render(); }
+  else if(a==='delete-account-cancel'){ profileUi.deleting = false; profileUi.err = ''; profileUi.deleteConfirm = false; profileUi.delPseudo = ''; profileUi.delPin = ''; render(); }
   else if(a==='delete-account-go'){ deleteMyAccount(); }
 });
 document.addEventListener('keydown', function(e){
@@ -402,19 +402,27 @@ function renderDeleteAccount(){
   if(!(authOn() && currentProfile)) return '';
   if(isAdmin()) return '';
   if(!profileUi.deleting) return '<div style="margin-top:10px;"><button class="btn ghost small" data-action="delete-account-open">Supprimer mon compte</button></div>';
+  var step2 = !!profileUi.deleteConfirm;
   return '<div class="delete-panel" role="group" aria-label="Supprimer mon compte"><strong>🗑️ Supprimer mon compte « '+esc(currentProfile.pseudo)+' »</strong>'
     + '<p class="muted" style="font-size:13px; margin:6px 0 8px;">Ton accès (pseudo + code), tes amis et ta présence en ligne sont effacés. <b>Ça ne se rattrape pas.</b> Ton pseudo peut rester dans l\'historique des parties de ligue déjà jouées (il reste visible comme avant).</p>'
-    + '<label for="deletePseudo">Écris ton pseudo pour confirmer</label><input type="text" id="deletePseudo" maxlength="24" autocomplete="off" style="margin-bottom:8px;">'
-    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" style="margin-bottom:10px;">'
+    + '<label for="deletePseudo">Écris ton pseudo pour confirmer</label><input type="text" id="deletePseudo" maxlength="24" autocomplete="off" value="'+esc(profileUi.delPseudo||'')+'" style="margin-bottom:8px;">'
+    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" value="'+esc(profileUi.delPin||'')+'" style="margin-bottom:10px;">'
+    + (step2 ? '<div class="error-text" role="alert">⚠️ Dernière confirmation : ton compte sera supprimé pour toujours.</div>' : '')
     + (profileUi.err ? '<div class="error-text">'+esc(profileUi.err)+'</div>' : '')
-    + '<div class="row"><button class="btn danger" style="flex:1;" data-action="delete-account-go" '+(profileUi.busy?'disabled':'')+'>Supprimer définitivement</button><button class="btn ghost" data-action="delete-account-cancel">Annuler</button></div></div>';
+    + '<div class="row"><button class="btn danger" style="flex:1;" data-action="delete-account-go" '+(profileUi.busy?'disabled':'')+'>'+(profileUi.busy ? 'Suppression en cours…' : (step2 ? 'Oui, supprimer pour toujours' : 'Supprimer définitivement'))+'</button><button class="btn ghost" data-action="delete-account-cancel">Annuler</button></div></div>';
 }
+// ce que le joueur écrit est gardé en mémoire (un redessin de l'écran ne l'efface plus)
+document.addEventListener('input', function(e){
+  if(!e.target) return;
+  if(e.target.id==='deletePseudo'){ profileUi.delPseudo = e.target.value; profileUi.deleteConfirm = false; }
+  else if(e.target.id==='deletePin'){ profileUi.delPin = e.target.value; profileUi.deleteConfirm = false; }
+});
 async function deleteMyAccount(){
   if(profileUi.busy || !currentProfile || isAdmin()) return;
-  var typed = ((document.getElementById('deletePseudo')||{}).value || '').trim(), pin = ((document.getElementById('deletePin')||{}).value || '').trim();
+  var typed = (profileUi.delPseudo || (document.getElementById('deletePseudo')||{}).value || '').trim(), pin = (profileUi.delPin || (document.getElementById('deletePin')||{}).value || '').trim();
   if(profileKey(typed) !== profileKey(currentProfile.pseudo)){ profileUi.err = 'Le pseudo ne correspond pas.'; render(); return; }
   if(!/^[0-9]{4,6}$/.test(pin)){ profileUi.err = 'Entre ton code (4 à 6 chiffres).'; render(); return; }
-  if(!confirmT('Dernière confirmation : supprimer ton compte pour toujours ?')) return;
+  if(!profileUi.deleteConfirm){ profileUi.deleteConfirm = true; profileUi.err = ''; render(); return; } // 1er clic : on demande confirmation dans la page (pas de fenêtre du navigateur : elle peut être bloquée)
   profileUi.busy = true; profileUi.err = ''; render();
   try{
     var key = currentProfile.key, ref = claudeDb.doc('profiles/'+key), snap = await ref.get(), d = snap.exists ? snap.data() : {};
@@ -432,7 +440,7 @@ async function deleteMyAccount(){
     try{ ['rikiki_fb_name','rikiki_last','rikiki_resume','rikiki_recent_names','rikiki_claim_'+key].forEach(function(k){ localStorage.removeItem(k); }); localStorage.setItem('rikiki_fb_uid', 'p-'+Math.random().toString(36).slice(2,10)+nowMs().toString(36)); sessionStorage.removeItem('rikiki_mock_uid'); }catch(e){}
     setFlash('deleted', ''); location.reload();
   }catch(e){
-    console.error(e); profileUi.busy = false;
+    console.error(e); profileUi.busy = false; profileUi.deleteConfirm = false;
     profileUi.err = (e && e.ui) ? e.ui : 'Suppression impossible : '+dbErrorText(e); render();
   }
 }
