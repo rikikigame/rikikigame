@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.0.8 — 25 octobre 2026
+
+Quand un compte est supprimé, l'adresse technique gardée dans le profil vidé (qui contenait le pseudo) est remplacée par une adresse neutre « supprime@rikiki.invalid ». Aucun autre changement.
+
 ## 1.0.7 — 25 octobre 2026
 
 Correctif : « Supprimer mon compte » ne faisait rien dans certains navigateurs, parce que la dernière confirmation passait par une fenêtre du navigateur qui peut être bloquée. La confirmation se fait maintenant dans la page (un second bouton « Oui, supprimer pour toujours »), un message « Suppression en cours… » s'affiche, et ce que tu écris dans les champs n'est plus effacé quand l'écran se redessine.

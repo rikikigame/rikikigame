@@ -209,6 +209,7 @@
       profileUi.deleteConfirm = true; var d2 = renderDeleteAccount();
       ok('suppression : 2e étape dans la page (pas de fenêtre du navigateur)', d2.indexOf('Oui, supprimer pour toujours')>0 && d2.indexOf('Dernière confirmation')>0);
       profileUi.delPseudo = ''; profileUi.delPin = ''; profileUi.deleteConfirm = false;
+      ok('suppression : l\'adresse gardée dans le profil vidé ne contient pas le pseudo', DELETED_EMAIL==='supprime@rikiki.invalid' && /@rikiki[.]invalid$/.test(DELETED_EMAIL));
       adminUid = 'u1'; ok('suppression : jamais proposée à l\'organisateur', renderDeleteAccount()==='');
       fbAuth = oldAuth; currentProfile = oldCp; adminUid = oldAdm; profileUi.deleting = oldDel;
       // v78 : jeu automatique quand une seule carte est jouable
