@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.0.6 — 25 octobre 2026
+
+Les pages légales (mentions légales, confidentialité, conditions, cookies) indiquent le pseudo « K.vroom » comme éditeur au lieu du nom réel. Elles précisent que l'identité complète est communiquée aux autorités sur demande. Aucun changement dans le jeu.
+
 ## 1.0.5 — 25 octobre 2026
 
 Correctif : le nettoyage automatique ne supprime plus que les salles d'attente et les parties commencées puis abandonnées. Avant, il supprimait aussi d'anciennes parties terminées sans étiquette de statut (23 copies de parties, sans effet sur la ligue ni sur l'analyse).
