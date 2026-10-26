@@ -2,13 +2,13 @@
 <meta name="theme-color" content="#0E1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Rikiki"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0E1320;color:#EEF0F6}html{background:#0E1320}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add('is-home')</script><title>Rikiki · jeu de cartes à plis et annonces, gratuit en ligne</title>
 <meta name="description" content="Rikiki : jeu de cartes à plis et annonces (famille des « Oh Hell »), gratuit, dans le navigateur. Parties en ligne entre amis, robots, ligue et classement, mode vraies cartes. Sans publicité ni cookie de suivi.">
 <meta name="robots" content="index,follow">
-<link rel="canonical" href="https://rikikigame.github.io/rikikigame/">
+<link rel="canonical" href="https://rikikigame.com/">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Rikiki"><meta property="og:locale" content="fr_BE">
 <meta property="og:title" content="Rikiki · jeu de cartes à plis et annonces"><meta property="og:description" content="Gratuit, en ligne entre amis, avec robots, ligue et classement. Sans publicité ni cookie de suivi.">
-<meta property="og:url" content="https://rikikigame.github.io/rikikigame/">
+<meta property="og:url" content="https://rikikigame.com/">
 <!-- v73 : les images ne peuvent venir que du site, de données intégrées et de KLIPY (GIF) : un lien d'image piégé ne peut plus espionner les joueurs -->
 <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob: https://static.klipy.com">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rikiki","url":"https://rikikigame.github.io/rikikigame/","applicationCategory":"GameApplication","operatingSystem":"Tout navigateur récent","inLanguage":["fr","en"],"isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"description":"Jeu de cartes à plis et annonces, gratuit, jouable en ligne entre amis ou contre des robots, avec ligue et classement."}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rikiki","url":"https://rikikigame.com/","applicationCategory":"GameApplication","operatingSystem":"Tout navigateur récent","inLanguage":["fr","en"],"isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"description":"Jeu de cartes à plis et annonces, gratuit, jouable en ligne entre amis ou contre des robots, avec ligue et classement."}</script>
 </head><body>
 <style>
 /* v73 : polices hébergées par le site (plus aucune requête vers Google Fonts : l'adresse IP des joueurs ne part plus chez Google). Sous-ensembles latin et latin-ext. */
@@ -1031,7 +1031,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.2.0';
+var APP_VERSION = '1.2.1';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);

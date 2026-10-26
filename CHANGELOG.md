@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.2.1 — 26 octobre 2026
+
+Référencement : l'adresse « officielle » donnée aux moteurs de recherche (balise canonique, aperçu de partage, fiche du jeu) est maintenant rikikigame.com au lieu de l'ancienne adresse github.io, et un fichier `robots.txt` indique où trouver le plan du site. Aucun changement dans le jeu.
+
 ## 1.2.0 — 25 octobre 2026
 
 Petit réglage interne du profil. Aucun changement visible pour les joueurs. Règles Firebase inchangées.
