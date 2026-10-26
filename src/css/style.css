@@ -997,3 +997,12 @@
 .tv-card{ position:absolute; transform:translate(-50%,-50%); z-index:3; }
 .tv-card.win .card{ box-shadow:0 0 0 3px #FF9A3C, 0 0 14px 4px rgba(255,154,60,0.7); }
 .tv-felt{ margin-top:4px; min-height:0 !important; padding:8px 12px; }
+
+/* 1.7.0 : grandes cartes (tablette, personnes âgées) */
+html.big-cards .card.trick-size{ --w:78px; }
+html.big-cards .card.trump-size{ --w:80px; }
+html.big-cards .card.mini{ --w:50px; }
+html.big-cards .roll-row .card.mini{ --w:38px; }
+html.big-cards .card.tv-size{ --w:78px; }
+html.big-cards .card.tv-size-s{ --w:62px; }
+html.big-cards .tv-nm{ font-size:14px; } html.big-cards .tv-mt, html.big-cards .tv-sc{ font-size:12px; }
