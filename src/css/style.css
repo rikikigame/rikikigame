@@ -981,3 +981,19 @@
 .bug-offer{ position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:61; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:14px; background:#1b2338; color:#EEF0F6; border:1px solid #E8A33D; box-shadow:0 6px 24px rgba(0,0,0,.45); font-size:14px; }
 .bug-offer span{ flex:1; min-width:160px; }
 .bug-back{ z-index:62; }
+
+/* 1.6.0 : vue table (test) */
+.card.tv-size{ --w:46px; } .card.tv-size-s{ --w:34px; }
+.table-view{ position:relative; width:100%; max-width:540px; margin:6px auto 0; aspect-ratio:1/0.98; }
+.tv-oval{ position:absolute; inset:15% 7%; border-radius:50%; background:radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 70%); border:2px solid rgba(255,255,255,0.14); box-shadow:inset 0 0 40px rgba(0,0,0,0.35); }
+.tv-seat{ position:absolute; transform:translate(-50%,-50%); width:100px; text-align:center; z-index:2; line-height:1.15; }
+.tv-av{ position:relative; width:44px; height:44px; margin:0 auto; border-radius:50%; border:3px solid #888; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:26px; }
+.tv-seat.active .tv-av{ box-shadow:0 0 0 3px #FF9A3C, 0 0 14px 4px rgba(255,154,60,0.7); }
+.tv-seat.me .tv-nm{ text-decoration:underline; }
+.tv-dealer{ position:absolute; right:-6px; bottom:-4px; width:18px; height:18px; border-radius:50%; background:#fff; color:#1B2236; font:700 11px/18px system-ui; }
+.tv-nm{ margin-top:3px; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tv-mt{ font-size:10.5px; opacity:.8; white-space:nowrap; } .tv-sc{ font-size:11px; font-weight:700; opacity:.9; }
+.tv-blind{ margin-top:2px; display:flex; justify-content:center; }
+.tv-card{ position:absolute; transform:translate(-50%,-50%); z-index:3; }
+.tv-card.win .card{ box-shadow:0 0 0 3px #FF9A3C, 0 0 14px 4px rgba(255,154,60,0.7); }
+.tv-felt{ margin-top:4px; min-height:0 !important; padding:8px 12px; }
