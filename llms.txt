@@ -5,7 +5,9 @@
 Site : https://rikikigame.com/
 
 ## Pour comprendre le jeu
-- Règles : dans le jeu, bouton « Règles » (tuto animé d'une minute).
+- Règles (français) : https://rikikigame.com/regles-rikiki.html
+- Rules (English): https://rikikigame.com/rikiki-rules.html
+- Dans le jeu : bouton « Règles » (tuto animé d'une minute).
 - Principe : à chaque manche, chacun annonce combien de plis il fera ; réussir son annonce rapporte des points.
 
 ## Pages légales
