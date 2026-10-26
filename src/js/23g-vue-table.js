@@ -18,7 +18,7 @@ function tableSeatPositions(n){
   var out = [];
   for(var i = 0; i < n; i++){
     var a = (90 + i * 360 / n) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-    var rx = n >= 6 ? 27 : 19, ry = n >= 6 ? 24 : 17; // à 6 joueurs ou plus, les cartes du pli sont posées plus loin du centre
+    var rx = n >= 6 ? 21 : 19, ry = n >= 6 ? 21 : 17; // à 6 joueurs ou plus, les cartes du pli sont posées plus loin du centre
     out.push({ x: +(50 + 41 * c).toFixed(1), y: +(50 + 40 * s).toFixed(1), cx: +(50 + rx * c).toFixed(1), cy: +(50 + ry * s).toFixed(1) });
   }
   return out;

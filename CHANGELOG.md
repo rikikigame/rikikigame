@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.6.1 — 26 octobre 2026
+
+Vue table (test) : les cartes posées devant chaque joueur sont plus grandes (62 px, 50 px à 6 joueurs ou plus) et rapprochées du centre ; elles peuvent se chevaucher légèrement.
+
 ## 1.6.0 — 26 octobre 2026
 
 Nouveau (en test) : **Vue table**. Une option dans ⚙️ Paramètres (« Vue table (test) », éteinte par défaut) affiche la partie avec les joueurs assis autour d'une table, toi en bas, chacun avec un avatar d'animal, sa carte du pli devant lui, ses annonces et son score ; le donneur porte un « D ». Même jeu, seul l'affichage change. Aucun changement de règles Firebase.
