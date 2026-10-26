@@ -1039,7 +1039,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.4.0';
+var APP_VERSION = '1.5.0';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -5732,6 +5732,7 @@ function renderEntry(){
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
   html += renderPollBanner(); // v64 : sondage du nom du paquet
+  html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
   if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
@@ -7972,6 +7973,7 @@ var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
   version: APP_VERSION, tour: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
+    '<strong>Tournoi du dimanche</strong> : chaque dimanche, les parties de ligue en ligne forment un tournoi (2 parties minimum). Un bandeau sur l\'accueil t\'invite à jouer, puis annonce le résultat à 21 h. Classement et palmarès dans Ligue › En ligne.',
     '<strong>Signaler un bug</strong> : dans ⚙️ Paramètres, un bouton pour nous dire en une phrase ce qui ne va pas. Si le jeu plante, il te propose aussi d\'envoyer un rapport (jamais sans ton clic).',
     'Le jeu a <strong>sa propre adresse : rikikigame.com</strong>. En bas de l\'accueil, tu trouves les pages <strong>Confidentialité, Conditions, Cookies et Mentions légales</strong>.',
     '<strong>Supprimer mon compte</strong> : dans ton profil, tu peux effacer ton compte (il faut écrire ton pseudo et ton code).',
@@ -8404,8 +8406,8 @@ function rivalCardHtml(memberId){
    Points d'une partie : le dernier gagne 1 point, chaque place au-dessus en ajoute 1 (le 1er d'une partie à 5 : 5 points ; ex æquo = même place).
    Classé à partir de TOURNEY_MIN_GAMES parties ; à égalité de points : plus de victoires, puis moins de parties.
    Rien n'est enregistré à part : tout est recalculé depuis les parties de ligue (aucun changement des règles Firebase). */
-// INTERRUPTEUR : false = le tournoi n'est PAS affiché (code prêt, encore à travailler avant de l'activer).
-var TOURNEY_READY = false;
+// INTERRUPTEUR : true = le tournoi est affiché (activé en 1.5.0) ; false = caché.
+var TOURNEY_READY = true;
 var TOURNEY_MIN_GAMES = 2, TOURNEY_TZ = 'Europe/Brussels';
 
 // date du jour en Belgique : { key:'2026-10-18', weekday:0..6 (0 = dimanche) }
@@ -8472,6 +8474,46 @@ function tournamentHtml(){
   if(top.length) html += '<p class="tourney-hof"><b>Palmarès</b> : ' + top.map(function(id){ return '👑 '+esc(nm(id))+' ×'+wins[id]; }).join(' · ') + '</p>';
   return html + '</section>';
 }
+
+
+/* ===== 1.5.0 : bandeau d'accueil le dimanche + annonce du résultat à 21 h (heure belge) =====
+   Dimanche avant 21 h : invitation. Dimanche dès 21 h : résultat du soir (provisoire, les parties jouées avant minuit comptent encore).
+   Le joueur peut fermer le bandeau (une fois par phase et par dimanche). Aucune notification : le bandeau se voit à l'ouverture du jeu. */
+var TOURNEY_ANNOUNCE_HOUR = 21, TOURNEY_SEEN_KEY = 'rikiki_tourney_seen';
+function tourneyHourOf(ms){
+  try{
+    var h = new Intl.DateTimeFormat('en-GB', { timeZone: TOURNEY_TZ, hour:'2-digit', hourCycle:'h23' }).formatToParts(new Date(ms)).filter(function(p){ return p.type==='hour'; })[0];
+    return (+h.value) % 24;
+  }catch(e){ return new Date(ms).getUTCHours(); }
+}
+function tourneyPhase(ms){
+  var d = tourneyDayOf(ms); if(d.weekday!==0) return { phase:null, key:d.key };
+  return { phase: tourneyHourOf(ms) >= TOURNEY_ANNOUNCE_HOUR ? 'result' : 'invite', key:d.key };
+}
+function tourneyHomeBannerHtml(){
+  if(!TOURNEY_READY || !(usingFirebase || usingMock)) return '';
+  var ph = tourneyPhase(nowMs()); if(!ph.phase) return '';
+  var seen = ''; try{ seen = localStorage.getItem(TOURNEY_SEEN_KEY) || ''; }catch(e){}
+  if(seen === ph.key+'|'+ph.phase) return '';
+  var t = computeTournaments(league.games || []).filter(function(k){ return k.key===ph.key; })[0], body;
+  if(ph.phase==='invite'){
+    body = '<strong>Tournoi du dimanche : c\'est aujourd\'hui !</strong><small>Joue au moins '+TOURNEY_MIN_GAMES+' parties de ligue en ligne. Résultat annoncé ce soir à '+TOURNEY_ANNOUNCE_HOUR+' h.</small>';
+  } else if(t && t.ranked.length){
+    var medals = ['🥇','🥈','🥉'], nm = function(id){ var m = memberById(id); return m ? m.name : '?'; };
+    body = '<strong>Résultat du tournoi de ce soir</strong><small>'+t.ranked.slice(0,3).map(function(r, i){ return medals[i]+' '+esc(nm(r.id))+' ('+r.pts+' pts)'; }).join(' · ')+' · provisoire jusqu\'à minuit</small>';
+  } else {
+    body = '<strong>Tournoi du dimanche</strong><small>Personne n\'est encore classé : il reste jusqu\'à minuit pour jouer '+TOURNEY_MIN_GAMES+' parties de ligue en ligne.</small>';
+  }
+  return '<div class="poll-banner tourney-banner" role="status"><span class="poll-ico">🏆</span><span>'+body+'</span>'
+    + '<button class="btn ghost small" data-action="league-openscreen">Ligue</button>'
+    + '<button class="btn ghost small" data-action="tourney-dismiss" aria-label="Masquer">✕</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="tourney-dismiss"]') : null; if(!el) return;
+  var ph = tourneyPhase(nowMs());
+  try{ localStorage.setItem(TOURNEY_SEEN_KEY, ph.key+'|'+ph.phase); }catch(err){}
+  render();
+});
 /* ===================== 1.4.0 : « Signaler un bug » =====================
    - Bouton « 🐞 Signaler un bug » dans ⚙️ Paramètres : le joueur écrit une phrase, le jeu y joint des infos techniques
      (version, appareil, partie en cours, dernières erreurs) et range le tout dans Firebase : bugReports/{compte}_{date}.

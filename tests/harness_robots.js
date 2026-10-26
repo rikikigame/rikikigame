@@ -238,6 +238,7 @@
       ok('tournoi : a et b ont 7 points (4+3 / 3+4), a gagne le départage (1 V chacun, même nombre de parties -> premier trouvé)', tr[0].ranked[0].pts===7 && tr[0].ranked[1].pts===7 && tr[0].ranked[2].pts===4 && tr[0].ranked[3].pts===2);
       ok('tournoi : un seul passage = pas classé', computeTournaments([tg[0]])[0].ranked.length===0);
       ok('tournoi : heure belge (dimanche 23h30 UTC = lundi 01h30 à Bruxelles)', tourneyDayOf(Date.UTC(2026,9,18,23,30)).weekday===1);
+      ok('tournoi 1.5.0 : dimanche avant 21 h = invitation, dès 21 h = résultat, lundi = rien (heure belge)', tourneyPhase(Date.UTC(2026,9,18,18,30)).phase==='invite' && tourneyPhase(Date.UTC(2026,9,18,19,30)).phase==='result' && tourneyPhase(Date.UTC(2026,9,19,10,0)).phase===null && tourneyHourOf(Date.UTC(2026,9,18,19,30))===21);
       // v74 : contrats ruinés (pire ennemi / victime préférée)
       var rvRes = rivalStatsFromLog([{ bidOrder:['a','b','c'], trump:null, bids:{a:0,b:1,c:0}, tricksWon:{a:0,b:0,c:1}, played:[{suit:'H',rank:'9',value:9},{suit:'H',rank:'K',value:13},{suit:'H',rank:'A',value:14}] }]);
       ok('ennemi : c (As) ruine le contrat de b (Roi, 2e du pli) ; a ne perd rien', rvRes.b && rvRes.b.c===1 && !rvRes.a && !rvRes.c, JSON.stringify(rvRes));

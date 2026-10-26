@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.5.0 — 26 octobre 2026
+
+Nouveau : le **tournoi du dimanche** est activé. Chaque dimanche (heure de Belgique), les parties de ligue en ligne jouées ce jour-là forment un tournoi (classé à partir de 2 parties), affiché en haut de Ligue › En ligne avec un palmarès. Le dimanche, un bandeau sur l'accueil invite à jouer, puis **annonce le résultat du soir à 21 h** (provisoire jusqu'à minuit). Aucun changement de règles Firebase.
+
 ## 1.4.0 — 26 octobre 2026
 
 Nouveau : **Signaler un bug**. Un bouton dans ⚙️ Paramètres permet d'écrire une phrase ; le jeu y joint sa version, l'appareil, l'écran ou la partie en cours et les dernières erreurs (jamais le code secret ni les cartes). Si le jeu rencontre une erreur, il propose d'envoyer un rapport (jamais sans clic). Les signalements sont rangés dans Firebase (`bugReports`), lisibles par l'organisateur seulement dans Ligue › Entretien, et effacés automatiquement après 180 jours. **Règles Firebase modifiées : les publier AVANT le code.** Pages de confidentialité (FR/EN) mises à jour.
