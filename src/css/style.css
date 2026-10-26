@@ -983,7 +983,7 @@
 .bug-back{ z-index:62; }
 
 /* 1.6.0 : vue table (test) */
-.card.tv-size{ --w:46px; } .card.tv-size-s{ --w:34px; }
+.card.tv-size{ --w:62px; } .card.tv-size-s{ --w:50px; }
 .table-view{ position:relative; width:100%; max-width:540px; margin:6px auto 0; aspect-ratio:1/0.98; }
 .tv-oval{ position:absolute; inset:15% 7%; border-radius:50%; background:radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.10), rgba(255,255,255,0.03) 70%); border:2px solid rgba(255,255,255,0.14); box-shadow:inset 0 0 40px rgba(0,0,0,0.35); }
 .tv-seat{ position:absolute; transform:translate(-50%,-50%); width:100px; text-align:center; z-index:2; line-height:1.15; }
