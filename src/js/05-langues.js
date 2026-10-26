@@ -160,7 +160,7 @@ var I18N_EN = { exact: {
   // --- profil ---
   "Pseudo":"Username", "Ton pseudo":"Your username", "Code PIN (6 chiffres)":"PIN code (6 digits)", "Se connecter":"Sign in", "Créer mon profil":"Create my profile",
   "Se déconnecter":"Sign out", "Code oublié ?":"Forgot your code?", "Code oublié":"Forgot code", "Envoyer la demande":"Send the request", "Annuler":"Cancel", "Fermer":"Close",
-  "Nouveau code (4 chiffres)":"New code (4 digits)", "Changer mon code":"Change my code", "Code actuel":"Current code", "Enregistrer":"Save",
+  "Nouveau code (4 chiffres)":"New code (4 digits)", "Nouveau code (8 à 12 chiffres)":"New code (8 to 12 digits)", "Entre ton pseudo et ton code PIN.":"Enter your username and your PIN code.", "Entre ton code.":"Enter your code.", "Le nouveau code doit faire 8 à 12 chiffres, pas trop simples (ni 12345678, ni 00000000…).":"The new code must be 8 to 12 digits, not too simple (no 12345678, no 00000000…).", "Changer mon code":"Change my code", "Code actuel":"Current code", "Enregistrer":"Save",
   "👤 Tu joues en":"👤 You're playing as a", "invité":"guest", "Crée un profil pour la ligue et pour te retrouver sur tous tes appareils.":"Create a profile for the league and to find yourself on all your devices.",
   "👤 Connecté :":"👤 Signed in:", "Tes parties comptent pour ton profil, sur n'importe quel appareil.":"Your games count for your profile, on any device.",
   "Code oublié ? Demande à l'organisateur de t'en générer un nouveau. Sécurité simple, entre amis : n'utilise pas le code de ta carte bancaire 😉":"Forgot your code? Ask the organiser to generate a new one. Simple security between friends: don't use your bank card PIN 😉",

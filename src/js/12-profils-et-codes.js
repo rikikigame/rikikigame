@@ -45,7 +45,7 @@ function readProfileForm(){
   var tm = document.getElementById('profileTerms'); if(tm) profileUi.terms = !!tm.checked; // v73 : la case survit à un réaffichage
   return { pseudo: ps ? ps.value.trim().slice(0,24) : '', pin: pn ? pn.value.trim() : '', terms: !!profileUi.terms };
 }
-function validPin(pin){ return /^[0-9]{4,6}$/.test(pin); } // connexion : les anciens codes (4 à 6 chiffres) restent valables
+function validPin(pin){ return /^[0-9]{4,12}$/.test(pin); } // connexion : les anciens codes (4 à 6 chiffres) et le code long de l'organisateur (8 à 12) sont valables
 // v73 : tout NOUVEAU code fait 4 chiffres (choix du propriétaire : simple à retenir) et n'est pas trop simple.
 // (v60 l'avait mis à 6 chiffres : 1 000 000 de possibilités au lieu de 10 000. Les codes de 6 chiffres déjà créés continuent de marcher à la connexion.)
 // Le mot de passe Firebase est « rikiki: » + code : il dépasse toujours les 6 caractères minimum exigés par Firebase.
@@ -54,6 +54,13 @@ function validNewPin(pin){
   if(/^(\d)\1{3}$/.test(pin)) return false;                                                    // 0000, 1111…
   if('01234567890123'.indexOf(pin)>=0 || '98765432109876'.indexOf(pin)>=0) return false;       // 1234, 4321, 6789…
   return ['1212','2121','6969','1122','2580','1313','2000'].indexOf(pin)<0;
+}
+// 1.2.0 : code PLUS LONG pour l'organisateur seulement (8 à 12 chiffres, pas de suite ni de répétition). Les autres joueurs gardent 4 chiffres.
+function validAdminPin(pin){
+  if(!/^[0-9]{8,12}$/.test(pin)) return false;
+  if(/^(\d)\1+$/.test(pin)) return false;                                                       // 00000000, 11111111…
+  if('0123456789012345'.indexOf(pin)>=0 || '9876543210987654'.indexOf(pin)>=0) return false;   // 12345678, 87654321…
+  return !/^(\d\d)\1+$/.test(pin);                                                              // 12121212…
 }
 // v42 : noms qui se ressemblent (Tom / tom2 / Tôm / Thom…) parmi les joueurs qui ont déjà un profil en ligne
 function looseName(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
@@ -108,7 +115,7 @@ async function profileLogin(){
   var f = readProfileForm(), key = profileKey(f.pseudo);
   profileUi.err = '';
   if(nowMs() < profileUi.lockUntil){ profileUi.err = 'Trop d\'essais : réessaie dans '+Math.ceil((profileUi.lockUntil-nowMs())/1000)+' s.'; render(); return; }
-  if(key.length < 2 || !validPin(f.pin)){ profileUi.err = 'Entre ton pseudo et ton code PIN (4 à 6 chiffres).'; render(); return; }
+  if(key.length < 2 || !validPin(f.pin)){ profileUi.err = 'Entre ton pseudo et ton code PIN.'; render(); return; }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authProfileLogin(f, key); }
@@ -146,7 +153,7 @@ function renderProfileBox(){
   if(currentProfile && authOn() && authAnon()){
     html += '<div><strong>🔒 Sécurise ton profil « '+esc(currentProfile.pseudo)+' »</strong><div class="muted" style="font-size:12.5px; margin:2px 0 8px;">Le jeu passe aux comptes sécurisés : confirme ton code une seule fois.</div></div>'
       + '<input type="hidden" id="profilePseudo" value="'+esc(currentProfile.pseudo)+'">'
-      + '<input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="Ton code" style="margin-bottom:10px;">'
+      + '<input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="Ton code" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-login" '+(profileUi.busy?'disabled':'')+'>Confirmer</button><button class="btn ghost" data-action="profile-logout">Ce n\'est pas moi</button></div>';
     if(profileUi.err) html += '<div class="error-text">'+esc(profileUi.err)+'</div>';
   } else if(currentProfile){
@@ -167,7 +174,7 @@ function renderProfileBox(){
       ? 'Choisis un pseudo et un code à 4 chiffres que tu retiendras (ni 1234, ni 0000). Tu en auras besoin pour te reconnecter.'
       : 'Entre le pseudo et le code de ton profil.')+'</p>';
     html += '<label for="profilePseudo">Pseudo</label><input type="text" id="profilePseudo" maxlength="24" autocomplete="username" placeholder="Ton pseudo" value="'+esc(profileUi.pseudo!=null ? profileUi.pseudo : (myProfile.name||''))+'" style="margin-bottom:10px;">';
-    html += '<label for="profilePin">'+(creating ? 'Code (4 chiffres)' : 'Code PIN')+'</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="'+(creating?'4':'6')+'" autocomplete="'+(creating?'new-password':'current-password')+'" placeholder="••••" style="margin-bottom:12px;">';
+    html += '<label for="profilePin">'+(creating ? 'Code (4 chiffres)' : 'Code PIN')+'</label><input type="password" id="profilePin" inputmode="numeric" pattern="[0-9]*" maxlength="'+(creating?'4':'12')+'" autocomplete="'+(creating?'new-password':'current-password')+'" placeholder="••••" style="margin-bottom:12px;">';
     if(creating){
       if(LEGAL_READY) html += '<label class="terms-row"><input type="checkbox" id="profileTerms"'+(profileUi.terms?' checked':'')+'> <span>J\'ai 13 ans ou plus et j\'accepte les <a href="'+legalHref('conditions.html')+'" target="_blank" rel="noopener">conditions d\'utilisation</a> et la <a href="'+legalHref('confidentialite.html')+'" target="_blank" rel="noopener">politique de confidentialité</a>.</span></label>';
       html += '<button class="btn" style="width:100%;" data-action="profile-create" '+(profileUi.busy?'disabled':'')+'>Créer mon profil</button>';
@@ -260,7 +267,9 @@ function migrationImportIfPresent(){
 async function profileChangePin(){
   var cur = (document.getElementById('pinCurrent')||{}).value || '', nw = (document.getElementById('pinNew')||{}).value || '';
   profileUi.err = ''; profileUi.ok = '';
-  if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 4 chiffres, pas trop simples (ni 1234, ni 0000…).'; render(); return; }
+  if(isAdmin()){
+    if(!validAdminPin(nw.trim())){ profileUi.err = 'Le nouveau code doit faire 8 à 12 chiffres, pas trop simples (ni 12345678, ni 00000000…).'; render(); return; }
+  } else if(!validNewPin(nw)){ profileUi.err = 'Le nouveau code doit faire 4 chiffres, pas trop simples (ni 1234, ni 0000…).'; render(); return; }
   profileUi.busy = true; render();
   if(authOn()){
     try{ await authChangePin(cur.trim(), nw.trim()); profileUi.busy=false; profileUi.mode=null; profileUi.ok='Code changé ✓'; }
@@ -307,8 +316,8 @@ function renderClaimsList(){
 function renderProfileExtras(){
   var html = '';
   if(profileUi.mode==='change'){
-    html += '<div style="margin-top:10px;"><label for="pinCurrent">Code actuel</label><input type="password" id="pinCurrent" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="margin-bottom:8px;">'
-      + '<label for="pinNew">Nouveau code (4 chiffres)</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="4" style="margin-bottom:10px;">'
+    html += '<div style="margin-top:10px;"><label for="pinCurrent">Code actuel</label><input type="password" id="pinCurrent" inputmode="numeric" pattern="[0-9]*" maxlength="12" style="margin-bottom:8px;">'
+      + '<label for="pinNew">'+(isAdmin()?'Nouveau code (8 à 12 chiffres)':'Nouveau code (4 chiffres)')+'</label><input type="password" id="pinNew" inputmode="numeric" pattern="[0-9]*" maxlength="'+(isAdmin()?'12':'4')+'" style="margin-bottom:10px;">'
       + '<div class="row"><button class="btn" style="flex:1;" data-action="profile-change-pin" '+(profileUi.busy?'disabled':'')+'>Enregistrer</button><button class="btn secondary" data-action="profile-mode" data-mode="">Annuler</button></div></div>';
   } else if(profileUi.mode==='reset'){
     html += '<div style="margin-top:10px;"><label for="resetPseudo">Pseudo de l\'ami qui a oublié son code</label><input type="text" id="resetPseudo" maxlength="24" style="margin-bottom:10px;">'
@@ -407,7 +416,7 @@ function renderDeleteAccount(){
   return '<div class="delete-panel" role="group" aria-label="Supprimer mon compte"><strong>🗑️ Supprimer mon compte « '+esc(currentProfile.pseudo)+' »</strong>'
     + '<p class="muted" style="font-size:13px; margin:6px 0 8px;">Ton accès (pseudo + code), tes amis et ta présence en ligne sont effacés. <b>Ça ne se rattrape pas.</b> Ton pseudo peut rester dans l\'historique des parties de ligue déjà jouées (il reste visible comme avant).</p>'
     + '<label for="deletePseudo">Écris ton pseudo pour confirmer</label><input type="text" id="deletePseudo" maxlength="24" autocomplete="off" value="'+esc(profileUi.delPseudo||'')+'" style="margin-bottom:8px;">'
-    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="current-password" placeholder="••••" value="'+esc(profileUi.delPin||'')+'" style="margin-bottom:10px;">'
+    + '<label for="deletePin">Ton code</label><input type="password" id="deletePin" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="current-password" placeholder="••••" value="'+esc(profileUi.delPin||'')+'" style="margin-bottom:10px;">'
     + (step2 ? '<div class="error-text" role="alert">⚠️ Dernière confirmation : ton compte sera supprimé pour toujours.</div>' : '')
     + (profileUi.err ? '<div class="error-text">'+esc(profileUi.err)+'</div>' : '')
     + '<div class="row"><button class="btn danger" style="flex:1;" data-action="delete-account-go" '+(profileUi.busy?'disabled':'')+'>'+(profileUi.busy ? 'Suppression en cours…' : (step2 ? 'Oui, supprimer pour toujours' : 'Supprimer définitivement'))+'</button><button class="btn ghost" data-action="delete-account-cancel">Annuler</button></div></div>';
@@ -422,7 +431,7 @@ async function deleteMyAccount(){
   if(profileUi.busy || !currentProfile || isAdmin()) return;
   var typed = (profileUi.delPseudo || (document.getElementById('deletePseudo')||{}).value || '').trim(), pin = (profileUi.delPin || (document.getElementById('deletePin')||{}).value || '').trim();
   if(profileKey(typed) !== profileKey(currentProfile.pseudo)){ profileUi.err = 'Le pseudo ne correspond pas.'; render(); return; }
-  if(!/^[0-9]{4,6}$/.test(pin)){ profileUi.err = 'Entre ton code (4 à 6 chiffres).'; render(); return; }
+  if(!validPin(pin)){ profileUi.err = 'Entre ton code.'; render(); return; }
   if(!profileUi.deleteConfirm){ profileUi.deleteConfirm = true; profileUi.err = ''; render(); return; } // 1er clic : on demande confirmation dans la page (pas de fenêtre du navigateur : elle peut être bloquée)
   profileUi.busy = true; profileUi.err = ''; render();
   try{
