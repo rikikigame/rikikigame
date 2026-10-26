@@ -401,6 +401,7 @@ function renderPrefsModal(){
       + '<span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span>'
       + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
   });
+  html += '<button class="pref-row" data-action="bug-open"><span class="pref-ico">🐞</span><span class="pref-txt"><b>Signaler un bug</b><small>Un souci, une idée ? Dis-le en une phrase.</small></span></button>';
   var diag = window.__RIKIKI_APP ? '<p class="pref-note">Appli iPhone · session audio : '+(navigator.audioSession ? navigator.audioSession.type : 'absente')+' · lecteur muet : '+unmuteState+'</p>' : '';
   return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p>'+diag+(LEGAL_READY ? '<p class="pref-note pref-legal">'+legalLinksHtml()+'</p>' : '')+'</div></div>';
 }
