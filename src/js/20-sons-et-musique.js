@@ -386,6 +386,7 @@ var PREF_ROWS = [
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
   { action:'table-view-toggle', on:function(){ return tableViewOn; }, icon:function(){ return '🎴'; }, title:'Vue table (test)', hint:'Les joueurs autour d\'une table, comme au poker' },
+  { action:'big-cards-toggle', on:function(){ return bigCardsOn; }, icon:function(){ return '🂡'; }, title:'Grandes cartes', hint:'Cartes plus grandes : tablette, personnes qui voient moins bien' },
   { action:'autoplay-toggle', on:function(){ return autoPlayOn; }, icon:function(){ return '🃏'; }, title:'Jeu automatique', hint:'Joue pour toi la carte quand tu n\'as pas le choix' },
   { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
   { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
@@ -697,8 +698,8 @@ function renderHand(g){
   var adv = null; // pas d'aide pendant le jeu
   // grandes cartes qui se chevauchent (on voit toujours le coin : chiffre + couleur)
   var appEl = document.getElementById('app');
-  var avail = Math.max(260, Math.min(720, (appEl ? appEl.clientWidth : 390) - 32));
-  var W = avail < 440 ? (n<=3 ? 90 : 78) : (n<=3 ? 110 : 96);
+  var avail = Math.max(260, Math.min(bigCardsOn ? 1000 : 720, (appEl ? appEl.clientWidth : 390) - 32));
+  var W = Math.round((avail < 440 ? (n<=3 ? 90 : 78) : (n<=3 ? 110 : 96)) * bigCardsFactor()); // 1.7.0 : « Grandes cartes »
   var rowsCount = 1, perRow = n, step = n>1 ? Math.min(W + 8, (avail - W)/(n-1)) : 0;
   if(n>1 && step < W*0.36){ rowsCount = 2; perRow = Math.ceil(n/2); step = Math.min(W + 8, (avail - W)/Math.max(1, perRow-1)); }
   var html = '<div class="hand-fan'+(canPlay?' playable':'')+'" style="--cw:'+W+'px; --ov:'+(step - W).toFixed(1)+'px;">';
