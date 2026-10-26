@@ -1,7 +1,7 @@
 /* Test « partie complète avec des robots » : injecté par build_test_pages.py dans srv/bots.html (jamais dans le vrai jeu).
    Paramètres de l'adresse : ?n=4 (nombre de joueurs, toi compris) &mode=quick|up */
 (function(){
-  var q = new URLSearchParams(location.search), N = parseInt(q.get('n')||'4',10), MODE = q.get('mode')||'quick', AFK = q.get('afk')==='1';
+  var q = new URLSearchParams(location.search), N = parseInt(q.get('n')||'4',10), MODE = q.get('mode')||'quick', AFK = q.get('afk')==='1'; if(q.get('table')==='1'){ tableViewOn = true; }
   var errs = [], checks = [];
   window.addEventListener('error', function(e){ errs.push('erreur : '+e.message); });
   window.addEventListener('unhandledrejection', function(e){ errs.push('promesse refusée : '+(e.reason && e.reason.message || e.reason)); });

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 const CHROME = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/usr/bin/chromium', '/usr/bin/google-chrome'].find(existsSync);
 if (!CHROME) { console.error('Chrome introuvable'); process.exit(2); }
-const CAS = [[3, 'quick'], [4, 'quick'], [6, 'quick'], [5, 'up'], [3, 'quick', '&afk=1']];
+const CAS = [[3, 'quick'], [4, 'quick'], [6, 'quick', '&table=1'], [5, 'up'], [3, 'quick', '&afk=1']];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 let mal = 0;
 // Une partie complète dans un Chrome neuf. Renvoie null si le navigateur n'a pas répondu (démarrage à froid lent sur les machines GitHub).

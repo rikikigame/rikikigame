@@ -385,6 +385,7 @@ var PREF_ROWS = [
   { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
+  { action:'table-view-toggle', on:function(){ return tableViewOn; }, icon:function(){ return '🎴'; }, title:'Vue table (test)', hint:'Les joueurs autour d\'une table, comme au poker' },
   { action:'autoplay-toggle', on:function(){ return autoPlayOn; }, icon:function(){ return '🃏'; }, title:'Jeu automatique', hint:'Joue pour toi la carte quand tu n\'as pas le choix' },
   { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
   { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
@@ -591,6 +592,7 @@ function renderTable(g){
   html += '<div class="trump">'+(g.trumpCard ? cardHtml(g.trumpCard, {size:'trump-size'}) : '<div class="none">Sans<br>atout</div>')+'<div class="eyebrow">Atout</div></div></div>';
   html += renderAfkBanner(g); // v64 : joueur absent (vote)
 
+  if(tableViewOn){ html += tableViewHtml(g, ending, bidding, isMe, blind, blindHands, handSize); } else {
   // colonne des joueurs en rouleau
   var rollKey = g.round+'|'+g.status+'|'+g.turnPlayerId;
   lastRollKey = rollKey;
@@ -643,6 +645,7 @@ function renderTable(g){
     }
   }
   html += '</div></div>';
+  }
 
   html += '<div class="hand-zone"><div class="eyebrow">Ta main</div>'+renderHand(g)+'</div>';
   return html;

@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.6.0 — 26 octobre 2026
+
+Nouveau (en test) : **Vue table**. Une option dans ⚙️ Paramètres (« Vue table (test) », éteinte par défaut) affiche la partie avec les joueurs assis autour d'une table, toi en bas, chacun avec un avatar d'animal, sa carte du pli devant lui, ses annonces et son score ; le donneur porte un « D ». Même jeu, seul l'affichage change. Aucun changement de règles Firebase.
+
 ## 1.5.0 — 26 octobre 2026
 
 Nouveau : le **tournoi du dimanche** est activé. Chaque dimanche (heure de Belgique), les parties de ligue en ligne jouées ce jour-là forment un tournoi (classé à partir de 2 parties), affiché en haut de Ligue › En ligne avec un palmarès. Le dimanche, un bandeau sur l'accueil invite à jouer, puis **annonce le résultat du soir à 21 h** (provisoire jusqu'à minuit). Aucun changement de règles Firebase.
