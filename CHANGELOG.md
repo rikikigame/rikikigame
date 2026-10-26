@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.3.0 — 26 octobre 2026
+
+Référencement : deux nouvelles pages publiques de règles, **Règles du Rikiki** (français) et **How to play Rikiki (Oh Hell)** (anglais), avec questions fréquentes et liens entre les deux langues. Le plan du site (`sitemap.xml`) les liste, un lien « Règles du Rikiki / How to play » apparaît en bas de l'accueil, et le titre, la description et la fiche de la page d'accueil visent les mots-clés français et anglais. Aucun changement dans le jeu lui-même.
+
 ## 1.2.1 — 26 octobre 2026
 
 Référencement : l'adresse « officielle » donnée aux moteurs de recherche (balise canonique, aperçu de partage, fiche du jeu) est maintenant rikikigame.com au lieu de l'ancienne adresse github.io, et un fichier `robots.txt` indique où trouver le plan du site. Aucun changement dans le jeu.

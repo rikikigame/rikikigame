@@ -11,10 +11,15 @@ var CONSENT_KEY = 'rikiki_consent', GIF_CONSENT_KEY = 'rikiki_gif_ok', CONSENT_T
 var LEGAL_LINKS = [['confidentialite.html','Confidentialité','Privacy'], ['conditions.html','Conditions','Terms'], ['cookies.html','Cookies','Cookies'], ['mentions-legales.html','Mentions légales','Legal notice']];
 // v1.1.0 : pages légales en anglais (*.en.html) pour les joueurs qui ont choisi l'anglais
 function legalHref(f){ return (typeof LANG!=='undefined' && LANG==='en') ? f.replace(/\.html$/, '.en.html') : f; }
+// 1.3.0 : page de règles publique (référencement), en français ou en anglais selon la langue choisie
+function rulesPageLinkHtml(){
+  var en = (typeof LANG!=='undefined' && LANG==='en');
+  return '<a href="'+(en ? 'rikiki-rules.html' : 'regles-rikiki.html')+'" target="_blank" rel="noopener">'+(en ? 'How to play' : 'Règles du Rikiki')+'</a>';
+}
 function legalLinksHtml(){
   if(!LEGAL_READY) return '';
   var en = (typeof LANG!=='undefined' && LANG==='en');
-  return LEGAL_LINKS.map(function(l){ return '<a href="'+legalHref(l[0])+'" target="_blank" rel="noopener">'+(en ? l[2] : l[1])+'</a>'; }).join(' · ');
+  return rulesPageLinkHtml() + ' · ' + LEGAL_LINKS.map(function(l){ return '<a href="'+legalHref(l[0])+'" target="_blank" rel="noopener">'+(en ? l[2] : l[1])+'</a>'; }).join(' · ');
 }
 function consentRead(){
   try{ var c = JSON.parse(localStorage.getItem(CONSENT_KEY) || 'null'); if(c && typeof c.at==='number' && Date.now()-c.at < CONSENT_TTL) return c; }catch(e){}
