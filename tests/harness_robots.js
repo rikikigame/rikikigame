@@ -266,7 +266,8 @@
       ok('légal en veille : reCAPTCHA (Google) n\'est jamais chargé, même si un ancien accord est enregistré', act0===0);
       if(cs0===null) localStorage.removeItem(CONSENT_KEY); else localStorage.setItem(CONSENT_KEY, cs0); window.firebase = fb0; appCheckStarted = as0;
       ok('code : un nouveau code fait 4 chiffres (1234, 0000, 4321 refusés ; 4821 accepté ; 6 chiffres refusé à la création)', validNewPin('4821') && !validNewPin('1234') && !validNewPin('0000') && !validNewPin('4321') && !validNewPin('1111') && !validNewPin('482916') && !validNewPin('481'));
-      ok('code : à la connexion, les anciens codes de 4 à 6 chiffres restent acceptés', validPin('4821') && validPin('482916') && !validPin('48') && !validPin('4829163'));
+      ok('code organisateur : 8 à 12 chiffres, sans suite ni répétition (12345678, 00000000, 12121212, 1234567 refusés ; 58302147 accepté) ; la connexion accepte 4 à 12 chiffres', validAdminPin('58302147') && validAdminPin('583021479415') && !validAdminPin('12345678') && !validAdminPin('00000000') && !validAdminPin('12121212') && !validAdminPin('1234567') && !validAdminPin('5830214794151') && validPin('4821') && validPin('58302147') && !validPin('123') && !validPin('12ab'));
+      ok('code : à la connexion, les codes de 4 à 12 chiffres sont acceptés', validPin('4821') && validPin('482916') && !validPin('48') && !validPin('4829163123456'));
       LEGAL_READY = true; // les contrôles suivants vérifient la partie légale activée
       // v73 : vie privée et accessibilité
       ok('GIF : seul static.klipy.com est accepté (ni un autre site, ni un faux « klipy.com » dans le chemin)', looksLikeGifUrl('https://static.klipy.com/ii/abc/def.gif') && !looksLikeGifUrl('https://evil.example/pixel.gif') && !looksLikeGifUrl('https://evil.example/x?klipy.com') && !looksLikeGifUrl('https://static.klipy.com.evil.example/a.gif') && !looksLikeGifUrl('http://static.klipy.com/a.gif'));
