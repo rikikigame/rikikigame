@@ -88,6 +88,7 @@ function renderEntry(){
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
   html += renderPollBanner(); // v64 : sondage du nom du paquet
+  html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
   if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
