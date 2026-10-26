@@ -975,3 +975,9 @@
 .resume-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:14px;background:#ffffff12;border:1px solid var(--orange,#f08040)}.resume-banner b{letter-spacing:.08em}
 
 .delete-panel{margin-top:12px;padding:12px 14px;border:1px solid #c0504d;border-radius:12px;background:#ffffff0a}.btn.danger{background:#b3402f;color:#fff}.btn.danger:hover{background:#c24d3b}
+
+/* 1.4.0 : signaler un bug */
+#bug-root{ position:relative; z-index:60; }
+.bug-offer{ position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:61; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 12px; border-radius:14px; background:#1b2338; color:#EEF0F6; border:1px solid #E8A33D; box-shadow:0 6px 24px rgba(0,0,0,.45); font-size:14px; }
+.bug-offer span{ flex:1; min-width:160px; }
+.bug-back{ z-index:62; }

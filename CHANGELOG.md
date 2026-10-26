@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.4.0 — 26 octobre 2026
+
+Nouveau : **Signaler un bug**. Un bouton dans ⚙️ Paramètres permet d'écrire une phrase ; le jeu y joint sa version, l'appareil, l'écran ou la partie en cours et les dernières erreurs (jamais le code secret ni les cartes). Si le jeu rencontre une erreur, il propose d'envoyer un rapport (jamais sans clic). Les signalements sont rangés dans Firebase (`bugReports`), lisibles par l'organisateur seulement dans Ligue › Entretien, et effacés automatiquement après 180 jours. **Règles Firebase modifiées : les publier AVANT le code.** Pages de confidentialité (FR/EN) mises à jour.
+
 ## 1.3.0 — 26 octobre 2026
 
 Référencement : deux nouvelles pages publiques de règles, **Règles du Rikiki** (français) et **How to play Rikiki (Oh Hell)** (anglais), avec questions fréquentes et liens entre les deux langues. Le plan du site (`sitemap.xml`) les liste, un lien « Règles du Rikiki / How to play » apparaît en bas de l'accueil, et le titre, la description et la fiche de la page d'accueil visent les mots-clés français et anglais. Aucun changement dans le jeu lui-même.

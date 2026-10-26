@@ -267,6 +267,14 @@
       if(cs0===null) localStorage.removeItem(CONSENT_KEY); else localStorage.setItem(CONSENT_KEY, cs0); window.firebase = fb0; appCheckStarted = as0;
       ok('code : un nouveau code fait 4 chiffres (1234, 0000, 4321 refusés ; 4821 accepté ; 6 chiffres refusé à la création)', validNewPin('4821') && !validNewPin('1234') && !validNewPin('0000') && !validNewPin('4321') && !validNewPin('1111') && !validNewPin('482916') && !validNewPin('481'));
       ok('code organisateur : 8 à 12 chiffres, sans suite ni répétition (12345678, 00000000, 12121212, 1234567 refusés ; 58302147 accepté) ; la connexion accepte 4 à 12 chiffres', validAdminPin('58302147') && validAdminPin('583021479415') && !validAdminPin('12345678') && !validAdminPin('00000000') && !validAdminPin('12121212') && !validAdminPin('1234567') && !validAdminPin('5830214794151') && validPin('4821') && validPin('58302147') && !validPin('123') && !validPin('12ab'));
+      // 1.4.0 : signalement de bug (contenu, échappement, envoi + relecture côté organisateur)
+      (function(){
+        var r = buildBugReport('Ça bloque <b>ici</b>\u0001 ' + 'x'.repeat(900), 'auto', { version:'9.9.9', ua:'UA'.repeat(200), errors:[1,2,3,4,5,6,7].map(function(i){ return { at:i, m:'e'+i+'y'.repeat(300) }; }), at:123 });
+        ok('bug : le texte est limité à 500 signes, sans caractère de contrôle ; au plus 5 erreurs de 180 signes ; type « auto »', r.msg.length===500 && r.msg.indexOf('\u0001')<0 && r.ctx.errors.length===5 && r.ctx.errors[4].m.length===180 && r.ctx.ua.length===160 && r.kind==='auto' && r.__plain.v==='9.9.9' && r.__plain.msg.length===200);
+        ok('bug : un type inconnu devient « manuel »', buildBugReport('abc def', 'zzz', {}).kind==='manuel');
+        var html = bugListHtml([{ id:'a_1', at:Date.now(), msg:'<img src=x onerror=alert(1)>', kind:'manuel', ctx:{ v:'1', who:'<i>Tom</i>', errors:[{ m:'<script>' }] } }]);
+        ok('bug : la liste de l\'organisateur échappe tout le texte du joueur', html.indexOf('<img')<0 && html.indexOf('<script>')<0 && html.indexOf('<i>Tom')<0 && html.indexOf('&lt;img')>=0);
+      })();
       ok('code : à la connexion, les codes de 4 à 12 chiffres sont acceptés', validPin('4821') && validPin('482916') && !validPin('48') && !validPin('4829163123456'));
       LEGAL_READY = true; // les contrôles suivants vérifient la partie légale activée
       // v73 : vie privée et accessibilité

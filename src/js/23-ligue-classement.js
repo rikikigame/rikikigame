@@ -367,6 +367,7 @@ function renderLeague(){
   }
   html += renderBackupPanel();
   html += renderMaintenancePanel();
+  html += renderBugPanel();
   return html;
 }
 
