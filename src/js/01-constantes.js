@@ -6,7 +6,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.7.0';
+var APP_VERSION = '1.7.1';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -19,6 +19,8 @@ function versionIsNewer(a, b){ // vrai si la version a est strictement plus réc
   for(var i=0; i<3; i++){ if(x[i] !== y[i]) return x[i] > y[i]; }
   return false;
 }
+// 1.7.1 : vrai si un joueur tourne sur une version plus ANCIENNE que la mienne (avant, la comparaison se faisait avec Number(), qui échoue sur « 1.7.0 » : tout le monde était signalé).
+function playerIsBehind(v){ return versionIsNewer(APP_VERSION, v); }
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)

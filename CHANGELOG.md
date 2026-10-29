@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.7.1 — 29 octobre 2026
+
+Correctif : dans le salon, le message « ⚠ ancienne version : doit recharger la page » s'affichait à côté de tous les autres joueurs, même ceux qui étaient à jour (la comparaison des versions ne marchait plus depuis les numéros « 1.x.x »). Il n'apparaît plus que pour un joueur réellement en retard.
+
 ## 1.7.0 — 26 octobre 2026
 
 Nouveau : **Grandes cartes**. Une option dans ⚙️ Paramètres agrandit la main du bas, les cartes du pli, l'atout et les petites cartes (environ 30 %), pour les tablettes et les personnes qui voient moins bien. Elle est **activée d'office sur tablette et grand écran** (largeur d'au moins 768 px) et éteinte sur téléphone ; chacun peut la changer, le choix est gardé sur l'appareil. Aucun changement de règles Firebase.
