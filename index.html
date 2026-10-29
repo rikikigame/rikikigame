@@ -1064,7 +1064,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.7.0';
+var APP_VERSION = '1.7.1';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -1077,6 +1077,8 @@ function versionIsNewer(a, b){ // vrai si la version a est strictement plus réc
   for(var i=0; i<3; i++){ if(x[i] !== y[i]) return x[i] > y[i]; }
   return false;
 }
+// 1.7.1 : vrai si un joueur tourne sur une version plus ANCIENNE que la mienne (avant, la comparaison se faisait avec Number(), qui échoue sur « 1.7.0 » : tout le monde était signalé).
+function playerIsBehind(v){ return versionIsNewer(APP_VERSION, v); }
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -6563,7 +6565,7 @@ function renderLobby(g){
   ids.forEach(function(id){
     var p = g.players[id];
     html += '<div class="player-card"><div class="avatar" style="background:'+safeColor(p.color)+'; color:'+inkOn(safeColor(p.color))+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>';
-    html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && !(Number(p.v) >= Number(APP_VERSION))) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
+    html += '<div style="flex:1; min-width:0; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(id===g.hostId?' <span class="badge" style="margin-left:4px;">Hôte</span>':'')+((!p.isBot && id!==myId && playerIsBehind(p.v)) ? '<div class="pts-neg" style="font-size:12px; font-weight:600;">⚠ ancienne version : doit recharger la page</div>' : '')+'</div>';
     if(p.isBot){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';
       else html += '<span class="badge">Bot</span>';
