@@ -86,7 +86,7 @@ async function init(){
     subscribeGame(gameCode, true);
   } else if(qCode){
     clearTimeout(loadWatchdog);
-    entryMode='join'; prefillCode = qCode;
+    entryMode='join'; prefillCode = qCode; inviteLanding = true;
     try{ history.replaceState(null, '', location.pathname); }catch(e){}
     screen='entry';
     render();

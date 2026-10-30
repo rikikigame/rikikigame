@@ -166,6 +166,7 @@ document.addEventListener('click', function(e){
 // teasing : à la première ouverture après une mise à jour (jamais en pleine partie)
 setTimeout(function(){
   try{ if(localStorage.getItem('rikiki_news_seen') === NEWS.tour) return; }catch(e){}
+  if(DEVICE_IS_NEW){ try{ localStorage.setItem('rikiki_news_seen', NEWS.tour); }catch(e){} return; } // 1.8.0 : un nouveau joueur n'a pas à voir « Du nouveau » : rien à comparer
   if(typeof screen !== 'undefined' && screen === 'game') return;
   pollOpen(0);
 }, 3500);

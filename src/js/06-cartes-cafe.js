@@ -157,8 +157,11 @@ function cafeBack(){
     + '<path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="2.4" fill="none"/><path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="8" fill="none" opacity="0.18"/>'
     + '</svg>'; // le texte néon « Café Jacquet » est posé par le CSS (police Sacramento du jeu), pas dans l'image
 }
-var deckTheme = 'hallo'; // v64 : Halloween par défaut ; « cafe » = Café Jacquet ; « classic » = l'ancien jeu (un choix déjà fait sur l'appareil est gardé)
-try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='cafe') ? storedDeck : 'hallo'; }catch(e){}
+// 1.8.0 : Halloween n'est le paquet PAR DÉFAUT que jusqu'au 31 octobre 2026 (heure de Bruxelles, soit avant le 1er novembre 00 h 00 UTC+1) ; ensuite c'est Café Jacquet.
+// Un choix déjà fait sur l'appareil (« hallo », « cafe » ou « classic ») est toujours gardé : Halloween reste disponible dans « Tes cartes ».
+var HALLO_DEFAULT_UNTIL = Date.UTC(2026, 9, 31, 23, 0, 0); // 1er nov. 2026, 00 h 00 à Bruxelles (UTC+1)
+var deckTheme = (Date.now() < HALLO_DEFAULT_UNTIL) ? 'hallo' : 'cafe';
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); if(storedDeck==='classic' || storedDeck==='cafe' || storedDeck==='hallo') deckTheme = storedDeck; }catch(e){}
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
 function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }

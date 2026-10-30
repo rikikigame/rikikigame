@@ -1,11 +1,11 @@
 <!doctype html><html lang="fr"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0E1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Rikiki"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0E1320;color:#EEF0F6}html{background:#0E1320}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add('is-home')</script><title>Rikiki : jeu de cartes en ligne gratuit (Oh Hell) · règles et parties entre amis</title>
-<meta name="description" content="Rikiki, le jeu de cartes à plis et annonces (Oh Hell) : joue gratuitement en ligne avec tes amis ou contre des robots. Ligue, classement, mode vraies cartes, sans pub. Free online Rikiki / Oh Hell card game.">
+<meta name="theme-color" content="#0E1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Rikiki"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" href="icons/icon-192.png"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#0E1320;color:#EEF0F6}html{background:#0E1320}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script>document.documentElement.classList.add('is-home')</script><title>Rikiki (Ascenseur, Oh Hell) : jeu de cartes en ligne gratuit</title>
+<meta name="description" content="Rikiki (l'Ascenseur, Oh Hell), le jeu de cartes à plis et annonces : joue gratuitement en ligne avec tes amis ou contre des robots. Ligue, classement, mode vraies cartes, sans pub. Free online Rikiki / Oh Hell card game.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://rikikigame.com/">
 <meta property="og:type" content="website"><meta property="og:site_name" content="Rikiki"><meta property="og:locale" content="fr_BE">
-<meta property="og:title" content="Rikiki : jeu de cartes en ligne gratuit (Oh Hell)"><meta property="og:description" content="Joue gratuitement avec tes amis ou contre des robots : annonces, plis, ligue et classement. Free online Oh Hell card game.">
-<meta property="og:url" content="https://rikikigame.com/">
+<meta property="og:title" content="Rikiki (Ascenseur, Oh Hell) : jeu de cartes en ligne gratuit"><meta property="og:description" content="Joue gratuitement avec tes amis ou contre des robots : annonces, plis, ligue et classement. Free online Oh Hell card game.">
+<meta property="og:url" content="https://rikikigame.com/"><meta property="og:image" content="https://rikikigame.com/icons/og-image.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="https://rikikigame.com/icons/og-image.png">
 <!-- v73 : les images ne peuvent venir que du site, de données intégrées et de KLIPY (GIF) : un lien d'image piégé ne peut plus espionner les joueurs -->
 <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob: https://static.klipy.com">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Rikiki","url":"https://rikikigame.com/","applicationCategory":"GameApplication","operatingSystem":"Tout navigateur récent","inLanguage":["fr","en"],"isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"description":"Jeu de cartes à plis et annonces (Rikiki, Oh Hell), gratuit, jouable en ligne entre amis ou contre des robots, avec ligue et classement. Free trick-taking card game (Oh Hell, Nomination Whist) to play online.","alternateName":["Rikiki","Oh Hell","Rikiki jeu de cartes"],"genre":"Card game","keywords":"rikiki, rikiki jeu de cartes, règles du rikiki, oh hell, jeu de cartes en ligne gratuit, jeu de plis, card game, trick-taking game, nomination whist"}</script>
@@ -1019,6 +1019,32 @@ html.big-cards .roll-row .card.mini{ --w:38px; }
 html.big-cards .card.tv-size{ --w:78px; }
 html.big-cards .card.tv-size-s{ --w:62px; }
 html.big-cards .tv-nm{ font-size:14px; } html.big-cards .tv-mt, html.big-cards .tv-sc{ font-size:12px; }
+
+/* 1.8.0 : découverte */
+.invite-landing{ max-width:460px; margin:0 auto; padding:24px 16px; }
+.invite-card{ text-align:center; } .invite-card h2{ margin:0 0 6px; font-size:26px; }
+.invite-lbl{ display:block; text-align:left; font-weight:700; margin:14px 0 4px; }
+.invite-input{ width:100%; box-sizing:border-box; font-size:22px; padding:14px; margin-bottom:12px; }
+.invite-go{ width:100%; font-size:20px; padding:16px; margin-bottom:8px; }
+.tip-line{ display:flex; align-items:center; gap:8px; margin:8px 0; padding:10px 12px; border-radius:12px; background:rgba(255,154,60,0.12); border:1px solid rgba(255,154,60,0.45); font-size:15px; }
+.tip-line span{ flex:1; } html.big-text .tip-line{ font-size:17px; }
+.help-back{ z-index:63; } .help-modal{ max-width:440px; }
+
+/* 1.8.0 : visite de l'appli */
+#visite-root{ position:fixed; inset:0; z-index:90; pointer-events:none; }
+.vt-block{ position:fixed; inset:0; pointer-events:auto; background:transparent; }
+.vt-hole{ position:fixed; border-radius:14px; border:2.5px solid #F3C969; box-shadow:0 0 0 9999px rgba(4,7,16,0.80), 0 0 18px 4px rgba(243,201,105,0.55); pointer-events:none; transition:all .25s ease; }
+.vt-dimall{ position:fixed; inset:0; background:rgba(4,7,16,0.80); pointer-events:none; }
+.vt-finger{ position:fixed; font-size:30px; pointer-events:none; animation:vt-point 1s ease-in-out infinite; filter:drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+@keyframes vt-point{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(8px); } }
+.vt-skip{ position:fixed; top:calc(10px + env(safe-area-inset-top,0px)); right:10px; pointer-events:auto; padding:9px 14px; border-radius:999px; border:1px solid rgba(255,255,255,.35); background:rgba(20,26,44,.9); color:#fff; font:700 14px system-ui; cursor:pointer; }
+.vt-box{ position:fixed; left:12px; right:12px; max-width:440px; margin:0 auto; pointer-events:auto; padding:14px 16px; border-radius:16px; background:#111a2e; color:#EEF0F6; border:1.5px solid #F3C969; box-shadow:0 10px 36px rgba(0,0,0,.6); }
+.vt-step{ font-size:12px; opacity:.7; letter-spacing:.08em; }
+.vt-title{ font-size:21px; font-weight:700; margin:2px 0 4px; } .vt-title b{ color:#F3C969; }
+.vt-text{ font-size:16px; line-height:1.4; margin:0; }
+html.big-text .vt-text{ font-size:18px; }
+.vt-promo{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; padding:10px 12px; border-radius:14px; background:rgba(243,201,105,0.10); border:1px solid rgba(243,201,105,0.5); }
+.vt-promo-txt{ flex:1 1 100%; display:flex; flex-direction:row; align-items:baseline; gap:6px; flex-wrap:wrap; font-size:14px; } .vt-promo-txt strong{ font-size:16px; }
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1026,7 +1052,7 @@ html.big-cards .tv-nm{ font-size:14px; } html.big-cards .tv-mt, html.big-cards .
 <h1>Rikiki : jeu de cartes en ligne gratuit</h1>
 <p>Rikiki est un jeu de cartes à plis et annonces (famille des « Oh Hell »), gratuit, qui se joue dans le navigateur : parties en ligne entre amis, robots, ligue et classement, et mode « vraies cartes » (feuille de score). À chaque manche, chaque joueur annonce combien de plis il va faire ; réussir son annonce rapporte des points.</p>
 <p lang="en">Rikiki is a free online trick-taking card game of the Oh Hell family (Nomination Whist, Blob): bid exactly the number of tricks you will win each round. Play with friends or against bots.</p>
-<p><a href="regles-rikiki.html">Règles du Rikiki</a> · <a href="rikiki-rules.html" hreflang="en" lang="en">How to play Rikiki (Oh Hell)</a></p>
+<p><a href="regles-rikiki.html">Règles du Rikiki (l'Ascenseur)</a> · <a href="feuille-de-score-rikiki.html">Feuille de score à imprimer</a> · <a href="rikiki-ascenseur-oh-hell.html">Rikiki, Ascenseur, Oh Hell : quelle différence ?</a> · <a href="rikiki-rules.html" hreflang="en" lang="en">How to play Rikiki (Oh Hell)</a> · <a href="oh-hell-score-sheet.html" hreflang="en" lang="en">Oh Hell score sheet</a></p>
 <p><strong>JavaScript est nécessaire pour jouer.</strong> Active-le dans ton navigateur, puis recharge cette page.</p>
 <p><a href="confidentialite.html">Confidentialité</a> · <a href="conditions.html">Conditions</a> · <a href="cookies.html">Cookies</a> · <a href="mentions-legales.html">Mentions légales</a></p>
 </section></noscript>
@@ -1064,7 +1090,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.7.1';
+var APP_VERSION = '1.8.0';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -1079,6 +1105,11 @@ function versionIsNewer(a, b){ // vrai si la version a est strictement plus réc
 }
 // 1.7.1 : vrai si un joueur tourne sur une version plus ANCIENNE que la mienne (avant, la comparaison se faisait avec Number(), qui échoue sur « 1.7.0 » : tout le monde était signalé).
 function playerIsBehind(v){ return versionIsNewer(APP_VERSION, v); }
+// 1.8.0 : vrai si cet appareil n'a AUCUNE trace d'une visite précédente (calculé tout au début, avant que le jeu n'écrive quoi que ce soit).
+// Sert à ne pas imposer la visite « Nouveautés » aux nouveaux joueurs et à leur proposer la vue table d'office.
+var DEVICE_IS_NEW = (function(){
+  try{ return !['rikiki_fb_uid','rikiki_fb_name','rikiki_last','rikiki_news_seen','rikiki_profile','rikiki_deck','rikiki_consent','rikiki_tips_seen','rikiki_autoplay','rikiki_sfx','rikiki_table_view'].some(function(k){ return localStorage.getItem(k) !== null; }); }catch(e){ return false; }
+})();
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)
@@ -2224,8 +2255,11 @@ function cafeBack(){
     + '<path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="2.4" fill="none"/><path d="M0 22C40 14 90 10 140 4" stroke="#FFC46B" stroke-width="8" fill="none" opacity="0.18"/>'
     + '</svg>'; // le texte néon « Café Jacquet » est posé par le CSS (police Sacramento du jeu), pas dans l'image
 }
-var deckTheme = 'hallo'; // v64 : Halloween par défaut ; « cafe » = Café Jacquet ; « classic » = l'ancien jeu (un choix déjà fait sur l'appareil est gardé)
-try{ var storedDeck = localStorage.getItem('rikiki_deck'); deckTheme = (storedDeck==='classic' || storedDeck==='cafe') ? storedDeck : 'hallo'; }catch(e){}
+// 1.8.0 : Halloween n'est le paquet PAR DÉFAUT que jusqu'au 31 octobre 2026 (heure de Bruxelles, soit avant le 1er novembre 00 h 00 UTC+1) ; ensuite c'est Café Jacquet.
+// Un choix déjà fait sur l'appareil (« hallo », « cafe » ou « classic ») est toujours gardé : Halloween reste disponible dans « Tes cartes ».
+var HALLO_DEFAULT_UNTIL = Date.UTC(2026, 9, 31, 23, 0, 0); // 1er nov. 2026, 00 h 00 à Bruxelles (UTC+1)
+var deckTheme = (Date.now() < HALLO_DEFAULT_UNTIL) ? 'hallo' : 'cafe';
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); if(storedDeck==='classic' || storedDeck==='cafe' || storedDeck==='hallo') deckTheme = storedDeck; }catch(e){}
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
 function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }
@@ -3023,7 +3057,7 @@ async function init(){
     subscribeGame(gameCode, true);
   } else if(qCode){
     clearTimeout(loadWatchdog);
-    entryMode='join'; prefillCode = qCode;
+    entryMode='join'; prefillCode = qCode; inviteLanding = true;
     try{ history.replaceState(null, '', location.pathname); }catch(e){}
     screen='entry';
     render();
@@ -3699,7 +3733,8 @@ function forcedPlayTick(g){
   if(legal.length!==1) return;
   var key = g.round+'|'+(g.currentTrick||[]).length+'|'+myHand.cards.length+'|'+legal[0].suit+legal[0].rank;
   forcedPlayKey = key;
-  showToast('Une seule carte jouable : jouée automatiquement');
+  var ledS = (g.currentTrick && g.currentTrick.length) ? g.currentTrick[0].card.suit : null; // 1.8.0 : on explique POURQUOI, pour que la règle s'apprenne
+  showToast(ledS && legal[0].suit===ledS ? 'Tu n\'avais que du '+CARD_SUIT_NAME.fr[ledS]+' : le jeu a joué ta seule carte autorisée.' : 'Une seule carte jouable : jouée automatiquement');
   setTimeout(function(){
     var cur = gameDoc;
     var still = cur && cur.status==='playing' && cur.turnPlayerId===myId && myHand && myHand.cards && !isBlindRound(cur) && autoPlayOn;
@@ -5364,7 +5399,7 @@ async function acceptInvite(id){
 }
 function gameLink(code){ return location.origin + location.pathname + '?game=' + encodeURIComponent(code); }
 async function shareGameLink(code){
-  var url = gameLink(code), text = 'Viens jouer au Rikiki avec moi ! Code '+code;
+  var url = gameLink(code), text = 'Viens jouer au Rikiki avec moi ! Ouvre le lien, écris ton prénom et touche « Rejoindre ». Code '+code;
   try{
     if(navigator.share){ await navigator.share({ title:'Rikiki', text:text, url:url }); return; }
   }catch(e){ if(e && e.name==='AbortError') return; }
@@ -5417,7 +5452,7 @@ function renderFriendsPanel(){
 }
 function renderLobbyInvite(g){
   var html = '<div class="card-panel" style="margin-bottom:12px; padding:14px 16px;"><div class="row between"><strong>Inviter</strong>'
-    + '<button class="btn secondary small" data-action="share-link">📤 Partager le lien</button></div>';
+    + '<button class="btn secondary small" data-action="share-link">👋 Inviter un nouveau joueur</button></div>';
   if(socialOn()){
     var ids = friendIds().filter(function(fid){ return !g.players[fid]; });
     if(!ids.length) html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Ajoute des amis depuis l\'accueil pour les inviter en un clic.</div>';
@@ -5426,7 +5461,7 @@ function renderLobbyInvite(g){
       html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
         + '<button class="btn small'+(sent?' secondary':'')+'" data-action="friend-invite" data-id="'+esc(fid)+'" '+(sent?'disabled':'')+'>'+(sent?'Invité ✓':'Inviter')+'</button></div>';
     });
-  } else html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Envoie le lien : tes amis arrivent directement dans ce salon.</div>';
+  } else html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Envoie le lien : ton ami écrit son prénom et arrive directement dans ce salon. Rien d\'autre à lui expliquer.</div>';
   return html + '</div>';
 }
 document.addEventListener('click', function(e){
@@ -5735,6 +5770,7 @@ document.addEventListener('click', async function(e){
   if(screen==='entry') clearResume(); // la partie n'existe plus / est finie : on n'insiste pas
 });
 function renderEntry(){
+  var invited = inviteLandingHtml(); if(invited) return invited; // 1.8.0 : arrivée par un lien d'invitation, sans profil
   var html = '<div class="home-c">' + renderProfileFlash() + resumeBannerHtml();
   // --- en-tête ---
   var pseudo = currentProfile ? currentProfile.pseudo : '';
@@ -5760,7 +5796,8 @@ function renderEntry(){
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
-  if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
+  var promo = visitePromoHtml(); html += promo; // 1.8.0 : carte « Première fois ? » (visite de l'appli + règles) pour les nouveaux appareils
+  if(!promo && !tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
   html += '<button class="hc-hero" data-action="quick-create">'
@@ -6488,8 +6525,10 @@ var PREF_ROWS = [
   { action:'sfx-toggle',      on:function(){ return sfxOn; },     icon:function(){ return sfxOn ? '🔊' : '🔇'; }, title:'Bruitages',     hint:'Cartes, coupes, rire de sorcière…' },
   { action:'music-toggle',    on:function(){ return musicOn; },   icon:function(){ return '🎵'; },                  title:'Musique',       hint:'Petite musique pendant la partie' },
   { action:'led-help-toggle', on:function(){ return ledHelpOn; }, icon:function(){ return '💡'; },                  title:'Aide',          hint:'Rappelle la couleur à jouer et entoure la 1re carte du pli' },
-  { action:'table-view-toggle', on:function(){ return tableViewOn; }, icon:function(){ return '🎴'; }, title:'Vue table (test)', hint:'Les joueurs autour d\'une table, comme au poker' },
+  { action:'table-view-toggle', on:function(){ return tableViewOn; }, icon:function(){ return '🎴'; }, title:'Vue table', hint:'Les joueurs autour d\'une table, comme au poker' },
   { action:'big-cards-toggle', on:function(){ return bigCardsOn; }, icon:function(){ return '🂡'; }, title:'Grandes cartes', hint:'Cartes plus grandes : tablette, personnes qui voient moins bien' },
+  { action:'visite-open', plain:true, show:function(){ return screen==='entry'; }, icon:function(){ return '🧭'; }, title:'Visite de l\'appli', hint:'Un petit tour pour comprendre chaque bouton (1 minute)' },
+  { action:'tips-toggle', on:function(){ return tipsOn; }, icon:function(){ return '💡'; }, title:'Conseils', hint:'Petites phrases qui expliquent quoi faire, une seule fois chacune' },
   { action:'autoplay-toggle', on:function(){ return autoPlayOn; }, icon:function(){ return '🃏'; }, title:'Jeu automatique', hint:'Joue pour toi la carte quand tu n\'as pas le choix' },
   { action:'big-text-toggle', on:function(){ return bigTextOn; }, icon:function(){ return '<b>Aa</b>'; },           title:'Grand texte',   hint:'Textes et boutons plus gros, pour mieux lire' },
   { action:'gif-consent-toggle', on:function(){ return gifConsent(); }, icon:function(){ return '🖼️'; }, title:'GIF (KLIPY)', hint:'Chercher et voir des GIF. Le service KLIPY voit ton adresse IP.' },
@@ -6497,9 +6536,12 @@ var PREF_ROWS = [
 ];
 function renderPrefsModal(){
   var html = '<div class="modal-backdrop" data-action="prefs-toggle"><div class="card-panel modal prefs-modal">'
-    + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>';
+    + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>'
+    + '<div style="margin:0 0 10px; padding-right:70px;">'+renderDeckChoice()+'</div>'; // 1.8.0 : changer de paquet, même en pleine partie
   PREF_ROWS.forEach(function(r){
     if(r.action==='sec-consent-toggle' && !LEGAL_READY) return; // reCAPTCHA n'est pas chargé tant que la partie légale est en veille
+    if(r.show && !r.show()) return; // 1.8.0 : ligne affichée seulement dans certains écrans (ex. la visite, sur l'accueil)
+    if(r.plain){ html += '<button class="pref-row" data-action="'+r.action+'"><span class="pref-ico">'+r.icon()+'</span><span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span></button>'; return; }
     var on = r.on();
     html += '<button class="pref-row" data-action="'+r.action+'" aria-pressed="'+on+'">'
       + '<span class="pref-ico">'+r.icon()+'</span>'
@@ -6517,6 +6559,7 @@ function renderTopbar(g){
     + '<div class="actions">'
     + '<button class="btn ghost" data-chat="open" aria-label="Chat">💬<span class="chat-lbl"> Chat</span><span class="top-badge" id="chat-badge-top">'+(chatUnread() ? (chatUnread()>9?'9+':chatUnread()) : '')+'</span></button>'
     + (g.status!=='lobby' ? '<button class="btn ghost" data-action="toggle-scores">Scores</button>' : '')
+    + '<button class="btn ghost" data-action="help-now" aria-label="Que faire maintenant ?" title="Que faire maintenant ?">❓</button>'
     + '<button class="btn ghost" data-action="toggle-rules">Règles</button>'
     + renderSoundButtons()
     + '<button class="btn ghost" data-action="leave">Quitter</button>'
@@ -6529,7 +6572,7 @@ function renderGame(){
   if(g.status!=='lobby' && g.round===0 && g.startedAt && (nowMs()-g.startedAt) < 6000){
     maybeStartIntro('g|'+g.code+'|'+g.startedAt, { rounds:g.roundPlan.length, plan:planText(g.roundPlan), names:g.playerOrder.filter(function(id){ return g.players && g.players[id]; }).map(function(id){ return g.players[id].name; }) });
   }
-  if(g.status==='lobby') html += renderLobbyInvite(g) + renderLobby(g);
+  if(g.status==='lobby') html += tipHtml(g) + renderLobbyInvite(g) + renderLobby(g);
   else if(g.status==='dealing') html += renderDealing(g);
   else if(g.status==='bidding' || g.status==='playing') html += renderTable(g);
   else if((g.status==='round_end' || g.status==='game_over') && finalTrickShowing(g)) html += renderTable(g);
@@ -6751,6 +6794,7 @@ function renderTable(g){
   html += '</div></div>';
   }
 
+  html += tipHtml(g); // 1.8.0 : conseil du moment (une fois, discret)
   html += '<div class="hand-zone"><div class="eyebrow">Ta main</div>'+renderHand(g)+'</div>';
   return html;
 }
@@ -8158,6 +8202,7 @@ document.addEventListener('click', function(e){
 // teasing : à la première ouverture après une mise à jour (jamais en pleine partie)
 setTimeout(function(){
   try{ if(localStorage.getItem('rikiki_news_seen') === NEWS.tour) return; }catch(e){}
+  if(DEVICE_IS_NEW){ try{ localStorage.setItem('rikiki_news_seen', NEWS.tour); }catch(e){} return; } // 1.8.0 : un nouveau joueur n'a pas à voir « Du nouveau » : rien à comparer
   if(typeof screen !== 'undefined' && screen === 'game') return;
   pollOpen(0);
 }, 3500);
@@ -8246,7 +8291,7 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 // v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
-var autoPlayOn = true; try{ autoPlayOn = localStorage.getItem('rikiki_autoplay')!=='0'; }catch(e){} // v78 : activé par défaut
+var autoPlayOn = true; try{ var apStored = localStorage.getItem('rikiki_autoplay'); autoPlayOn = (apStored === null) ? !DEVICE_IS_NEW : apStored !== '0'; }catch(e){} // v78 : activé par défaut ; 1.8.0 : éteint pour un NOUVEAU joueur (le jeu qui joue tout seul l'empêche de comprendre la règle de la couleur)
 var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
 function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
 applyBigText();
@@ -8705,7 +8750,17 @@ setInterval(function(){ bugLoad(true); }, 300000);
    sa carte du pli devant lui, ses annonces et son score. Même jeu, mêmes données : seul l'affichage change.
    Option dans ⚙️ Paramètres (« Vue table (test) »), éteinte par défaut, mémorisée sur l'appareil (rikiki_table_view).
    Appelée par renderTable (20-sons-et-musique.js) à la place du « rouleau » + tapis quand elle est activée. */
-var tableViewOn = false; try{ tableViewOn = localStorage.getItem('rikiki_table_view') === '1'; }catch(e){}
+// 1.8.0 : activée d'office pour les NOUVEAUX joueurs (appareil sans aucune trace d'une visite précédente), plus simple à comprendre.
+// Ceux qui jouent déjà gardent leur réglage actuel (éteinte tant qu'ils ne l'ont pas allumée). La décision est prise une seule fois puis mémorisée.
+var tableViewOn = false;
+try{
+  var tvStored = localStorage.getItem('rikiki_table_view');
+  if(tvStored === null){
+    tvStored = DEVICE_IS_NEW ? '1' : '0';
+    localStorage.setItem('rikiki_table_view', tvStored);
+  }
+  tableViewOn = tvStored === '1';
+}catch(e){}
 var TABLE_ANIMALS = ['🐼','🐵','🐷','🐔','🦊','🐸','🐯','🦁','🐨','🐰','🐶','🐱','🐮','🦄','🐙','🦉'];
 
 // avatar stable : le même joueur garde le même animal sur tous les appareils (calculé depuis son nom)
@@ -8794,6 +8849,201 @@ document.addEventListener('click', function(e){
   bigCardsOn = !bigCardsOn; try{ localStorage.setItem('rikiki_big_cards', bigCardsOn ? '1' : '0'); }catch(err){}
   applyBigCards(); render();
 });
+/* ===================== 1.8.0 : « Découverte » (apprendre à se servir du site, sans être intrusif) =====================
+   1. Écran d'arrivée simplifié pour la personne invitée par un lien (?game=CODE) qui n'a pas de profil : prénom + « Rejoindre », rien d'autre.
+   2. Conseils « au bon moment » : une seule ligne, une seule fois par situation (prêt / annoncer / jouer), qui disparaît dès qu'on agit ou avec ✕.
+      Jamais de fenêtre qui bloque. Réglable dans ⚙️ Paramètres (« Conseils »), mémorisé par appareil.
+   3. Bouton « ? » dans la barre du haut de la partie : explique en 2-3 lignes ce qu'il faut faire À CE MOMENT-LÀ.
+   4. Toucher une carte grisée explique pourquoi (« Tu dois jouer du pique »).
+   Les fenêtres du « ? » vivent dans #tip-root, hors du rendu principal. */
+var inviteLanding = false;
+var tipsOn = true; try{ tipsOn = localStorage.getItem('rikiki_tips') !== '0'; }catch(e){}
+var TIPS_SEEN_KEY = 'rikiki_tips_seen', tipState = { shown:null }, helpOpen = false, lastBlockedCardMs = 0;
+
+// --- 1. arrivée par un lien d'invitation ---
+function inviteLandingHtml(){
+  if(!inviteLanding || currentProfile || !prefillCode) return '';
+  return '<div class="home-c invite-landing"><div class="hc-brand"><h1 class="hc-title">Rikiki</h1></div>'
+    + '<div class="card-panel invite-card"><h2>👋 Tu es invité(e) à jouer !</h2>'
+    + '<p class="muted">Une partie t\'attend. Écris ton prénom, puis touche le bouton.</p>'
+    + '<label for="nameInput" class="invite-lbl">Ton prénom</label>'
+    + '<input type="text" id="nameInput" class="invite-input" maxlength="24" placeholder="Ex. Léa" value="'+esc(myProfile.name || '')+'" autocomplete="given-name">'
+    + '<input type="hidden" id="joinCodeInput" value="'+esc(prefillCode)+'">'
+    + '<button class="btn invite-go" data-action="do-join">Rejoindre la partie</button>'
+    + (errorMsg ? '<div class="error-text">'+esc(errorMsg)+'</div>' : '')
+    + '<button class="btn ghost small" data-action="invite-full">Voir l\'accueil complet</button></div></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="invite-full"],[data-action="do-join"]') : null; if(!el) return;
+  var wasLanding = inviteLanding; inviteLanding = false;
+  if(el.getAttribute('data-action') === 'invite-full'){ render(); }
+  else if(wasLanding){ setTimeout(function(){ if(screen === 'entry') render(); }, 800); } // si la connexion échoue, on retombe sur l'accueil normal
+});
+
+// --- 2. conseils au bon moment ---
+function tipsSeen(){ try{ return JSON.parse(localStorage.getItem(TIPS_SEEN_KEY) || '{}') || {}; }catch(e){ return {}; } }
+function tipsMark(key){ if(!key) return; var s = tipsSeen(); s[key] = 1; try{ localStorage.setItem(TIPS_SEEN_KEY, JSON.stringify(s)); }catch(e){} }
+var TIP_TEXT = {
+  ready: 'Touche « Je suis prêt » quand tu veux. La partie commence quand tout le monde est prêt.',
+  bid:   'À toi d\'annoncer : touche le nombre de plis que tu penses gagner.',
+  play:  'À toi de jouer : touche une carte. Les cartes grisées sont interdites.'
+};
+function tipWanted(g){
+  if(!tipsOn || !g) return null;
+  if(g.status === 'lobby'){ var me = g.players && g.players[myId]; return (me && !me.ready) ? 'ready' : null; }
+  if(g.turnPlayerId !== myId) return null;
+  if(g.status === 'bidding') return 'bid';
+  if(g.status === 'playing') return 'play';
+  return null;
+}
+function tipHtml(g){
+  var want = tipWanted(g);
+  if(tipState.shown && tipState.shown !== want) tipsMark(tipState.shown); // la situation a changé : le joueur a agi, on ne le lui redit plus
+  tipState.shown = want;
+  if(!want || tipsSeen()[want]) return '';
+  return '<div class="tip-line" role="status"><span>💡 '+esc(TIP_TEXT[want])+'</span><button class="btn ghost small" data-action="tip-close" aria-label="Fermer">✕</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="tip-close"],[data-action="tips-toggle"]') : null; if(!el) return;
+  if(el.getAttribute('data-action') === 'tip-close'){ tipsMark(tipState.shown); render(); return; }
+  tipsOn = !tipsOn; try{ localStorage.setItem('rikiki_tips', tipsOn ? '1' : '0'); }catch(err){} render();
+});
+
+// --- 3. bouton « ? » : l'aide du moment ---
+function helpLines(g){
+  var mine = g.turnPlayerId === myId;
+  if(g.status === 'lobby') return ['Touche « Je suis prêt » quand tu veux.', 'Quand tout le monde est prêt, l\'organisateur lance la partie.', 'Pour inviter quelqu\'un : « Inviter un nouveau joueur ».'];
+  if(g.status === 'dealing') return ['Les cartes sont distribuées : un instant.'];
+  if(g.status === 'bidding') return mine
+    ? ['C\'est à toi d\'annoncer.', 'Touche le nombre de plis que tu penses gagner (0 si tu n\'en veux aucun).', 'Un chiffre grisé est interdit : le dernier à annoncer ne peut pas faire tomber le total juste.']
+    : ['Les autres annoncent. Attends ton tour.', 'Tu verras tes cartes en bas de l\'écran.'];
+  if(g.status === 'playing') return mine
+    ? ['C\'est à toi de jouer : touche une carte de ta main.', 'Si tu as la couleur demandée, tu dois la jouer : les autres cartes sont grisées.', 'Tu n\'as pas la couleur ? Joue ce que tu veux (un atout pour couper, par exemple).']
+    : ['Les autres jouent. Attends ton tour.', 'Le plus fort atout gagne le pli, sinon la plus forte carte de la couleur demandée.'];
+  return ['La manche est finie : regarde les points, la suite arrive toute seule.'];
+}
+function tipRoot(){ var r = document.getElementById('tip-root'); if(!r){ r = document.createElement('div'); r.id = 'tip-root'; document.body.appendChild(r); } return r; }
+function helpRender(){
+  var r = tipRoot();
+  if(!helpOpen || !gameDoc){ r.innerHTML = ''; return; }
+  r.innerHTML = '<div class="modal-backdrop help-back" data-action="help-close"><div class="card-panel modal help-modal" role="dialog" aria-modal="true" aria-labelledby="help-title">'
+    + '<h3 id="help-title">❓ Que faire maintenant ?</h3>'
+    + helpLines(gameDoc).map(function(t){ return '<p style="font-size:16px; margin:8px 0;">'+esc(t)+'</p>'; }).join('')
+    + '<div class="row" style="gap:8px; margin-top:12px;"><button class="btn" style="flex:1;" data-action="help-close">J\'ai compris</button>'
+    + '<button class="btn secondary" data-action="toggle-rules">Les règles</button></div></div></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="help-now"],[data-action="help-close"]') : null; if(!el) return;
+  var a = el.getAttribute('data-action');
+  if(a === 'help-close' && e.target !== el && el.classList.contains('help-back')) return; // un clic dans la fenêtre ne la ferme pas
+  helpOpen = (a === 'help-now'); helpRender();
+});
+document.addEventListener('click', function(e){ if(helpOpen && e.target.closest && e.target.closest('[data-action="toggle-rules"]')){ helpOpen = false; helpRender(); } });
+
+// --- 4. carte grisée : on explique pourquoi ---
+function blockedCardTap(e){
+  var g = (typeof gameDoc !== 'undefined') ? gameDoc : null;
+  if(!g || screen !== 'game' || g.status !== 'playing' || Date.now() - lastBlockedCardMs < 1500) return;
+  var els = document.elementsFromPoint ? document.elementsFromPoint(e.clientX, e.clientY) : [];
+  var hit = els.filter(function(x){ return x.classList && x.classList.contains('hand-card') && x.disabled; })[0];
+  if(!hit) return;
+  lastBlockedCardMs = Date.now();
+  var led = (g.currentTrick && g.currentTrick.length) ? g.currentTrick[0].card.suit : null;
+  if(g.turnPlayerId !== myId) showToast('Ce n\'est pas encore à toi de jouer.');
+  else if(led) showToast('Tu dois jouer du ' + CARD_SUIT_NAME.fr[led] + ' (la couleur demandée).');
+}
+document.addEventListener('pointerdown', blockedCardTap, true);
+/* ===================== 1.8.0 : « Visite de l'appli » =====================
+   Une visite guidée de l'ACCUEIL (pas des règles : elles ont déjà leur tuto animé) : on éclaire chaque vrai bouton à tour de rôle et une bulle
+   explique à quoi il sert. Mot clé en doré, main qui pointe, « Passer » toujours visible, ← / → au clavier, Échap pour quitter.
+   - Jamais imposée : une carte « Première fois ? » sur l'accueil des NOUVEAUX appareils (fermable), et une ligne dans ⚙️ Paramètres (accueil) pour la revoir.
+   - État mémorisé dans localStorage rikiki_visite : 'pending' (nouvel appareil, carte affichée), 'done' (terminée) ou 'dismissed' (fermée / ancien appareil).
+   - Tout vit dans #visite-root, hors du rendu principal : un réaffichage de l'accueil ne la casse pas. */
+var VISITE_KEY = 'rikiki_visite';
+var visiteState = (function(){
+  try{ var v = localStorage.getItem(VISITE_KEY); if(v === 'pending' || v === 'done' || v === 'dismissed') return v; var init = DEVICE_IS_NEW ? 'pending' : 'dismissed'; localStorage.setItem(VISITE_KEY, init); return init; }
+  catch(e){ return 'dismissed'; }
+})();
+var visite = { open:false, steps:[], i:0 };
+var VISITE_STEPS = [
+  { sel:'.hc-hello',                      t:'Ton <b>prénom</b>',            d:'Écris-le ici : c\'est ce que les autres joueurs voient à la table. Pas besoin de compte pour jouer.' },
+  { sel:'.hc-avatar',                     t:'Ton <b>profil</b>',            d:'Crée-le avec un pseudo et un code à 4 chiffres : tu retrouves ta fiche, ton classement et tes amis sur tous tes appareils.' },
+  { sel:'[data-action="quick-create"]',   t:'Jouer <b>tout de suite</b>',   d:'Une partie rapide contre des robots, en 5 manches. C\'est le meilleur moyen d\'essayer.' },
+  { sel:'.hc-join',                       t:'Rejoindre <b>un ami</b>',      d:'Il t\'a donné un code à 4 caractères ? Écris-le ici et touche « Rejoindre ». Ou ouvre simplement le lien qu\'il t\'a envoyé.' },
+  { sel:'.hc-tile[data-action="do-create"]', t:'<b>Créer</b> une partie',   d:'Choisis les réglages, ajoute des robots, puis invite tes amis avec le bouton « Inviter un nouveau joueur ».' },
+  { sel:'.hc-tile[data-action="sheet-open"]', t:'Les <b>vraies cartes</b>', d:'Tu joues autour d\'une table avec un vrai jeu : l\'appli compte les annonces, les plis et les points à ta place.' },
+  { sel:'.hc-tile[data-action="league-openscreen"]', t:'La <b>ligue</b>',   d:'Le classement de la saison, la couronne 👑 du premier, les récompenses et le tournoi du dimanche.' },
+  { sel:'.home-friends',                  t:'Tes <b>amis</b>',              d:'Avec un profil, tu ajoutes des amis, tu les vois en ligne et tu les invites en un clic.' },
+  { sel:'.hc-tile[data-action="tuto-open"]', t:'Les <b>règles</b>',         d:'Un tuto animé d\'une minute pour apprendre à jouer au Rikiki.' },
+  { sel:'.hc-snd',                        t:'Les <b>réglages</b>',          d:'Dans ⚙️ Paramètres : tes cartes (3 paquets), les cartes plus grandes, la vue table, les bruitages, la musique, les conseils, le jeu automatique… et « Signaler un bug » si quelque chose ne va pas.' },
+  { sel:'.hc-lang',                       t:'<b>FR</b> / <b>EN</b>',        d:'Change la langue du jeu ici.' },
+  { sel:null,                             t:'<b>Pendant</b> une partie',    d:'Le bouton ❓ en haut te dit quoi faire à ce moment-là. « Scores » montre les points, « Règles » rouvre l\'aide, 💬 ouvre le chat. Le jeu te donne aussi de petits conseils, une seule fois chacun.' }
+];
+function visiteRoot(){ var r = document.getElementById('visite-root'); if(!r){ r = document.createElement('div'); r.id = 'visite-root'; document.body.appendChild(r); } return r; }
+function visiteSet(v){ visiteState = v; try{ localStorage.setItem(VISITE_KEY, v); }catch(e){} }
+function visiteCanStart(){ return screen === 'entry' && !inviteLanding; }
+function visiteStart(){
+  if(!visiteCanStart()){ showToast('La visite se lance depuis l\'accueil.'); return; }
+  showPrefs = false; homeProfileOpen = false; render();
+  setTimeout(function(){
+    visite.steps = VISITE_STEPS.filter(function(s){ return !s.sel || document.querySelector(s.sel); });
+    visite.i = 0; visite.open = true; visiteDraw();
+  }, 60);
+}
+function visiteEnd(done){ visite.open = false; visiteRoot().innerHTML = ''; visiteSet(done ? 'done' : (visiteState === 'done' ? 'done' : 'dismissed')); render(); }
+function visiteDraw(){
+  var r = visiteRoot(); if(!visite.open){ r.innerHTML = ''; return; }
+  var st = visite.steps[visite.i], last = visite.i === visite.steps.length - 1, el = st.sel ? document.querySelector(st.sel) : null;
+  if(el && el.scrollIntoView) el.scrollIntoView({ block:'center', behavior:'auto' });
+  var rect = el ? el.getBoundingClientRect() : null, pad = 6, vw = window.innerWidth, vh = window.innerHeight;
+  var hole = rect ? '<div class="vt-hole" style="left:'+Math.max(4, rect.left-pad)+'px; top:'+Math.max(4, rect.top-pad)+'px; width:'+Math.min(vw-8, rect.width+pad*2)+'px; height:'+(rect.height+pad*2)+'px;"></div>' : '<div class="vt-dimall"></div>';
+  var boxStyle;
+  if(rect){ var below = (rect.bottom + 230 < vh) || rect.top < 240; boxStyle = below ? 'top:'+Math.min(vh-220, rect.bottom+pad+14)+'px;' : 'bottom:'+Math.max(10, vh-rect.top+pad+14)+'px;'; }
+  else boxStyle = 'top:50%; transform:translateY(-50%);';
+  var finger = rect ? '<div class="vt-finger" style="left:'+Math.round(Math.min(vw-40, Math.max(8, rect.left + rect.width/2 - 14)))+'px; top:'+Math.round((rect.bottom + pad + 14 > vh-230 ? rect.top-pad-34 : rect.bottom+pad-6))+'px;" aria-hidden="true">'+((rect.bottom + pad + 14 > vh-230) ? '👇' : '👆')+'</div>' : '';
+  r.innerHTML = '<div class="vt-block"></div>' + hole + finger
+    + '<button class="vt-skip" data-action="visite-skip">Passer ✕</button>'
+    + '<div class="vt-box" role="dialog" aria-modal="true" aria-labelledby="vt-title" style="'+boxStyle+'">'
+    + '<div class="vt-step">'+(visite.i+1)+' / '+visite.steps.length+'</div><div class="vt-title" id="vt-title">'+st.t+'</div><p class="vt-text">'+st.d+'</p>'
+    + '<div class="row" style="gap:8px; margin-top:10px;">'+(visite.i > 0 ? '<button class="btn ghost" data-action="visite-prev">← Retour</button>' : '')
+    + '<button class="btn" style="flex:1;" data-action="visite-next" id="vt-next">'+(last ? 'Terminer ✓' : 'Suivant →')+'</button></div></div>';
+  // on mesure la bulle : sous le bouton éclairé si elle y tient, sinon au-dessus, sinon calée dans l'écran ; la main se met entre les deux
+  var bx = r.querySelector('.vt-box'), fg = r.querySelector('.vt-finger');
+  if(bx && rect){
+    var bh = bx.offsetHeight, gap = pad + 14, spaceBelow = vh - (rect.bottom + gap) - 8, spaceAbove = rect.top - gap - 8, boxBelow = true;
+    bx.style.transform = 'none';
+    if(spaceBelow >= bh){ bx.style.top = (rect.bottom + gap) + 'px'; bx.style.bottom = 'auto'; }
+    else if(spaceAbove >= bh){ bx.style.top = 'auto'; bx.style.bottom = (vh - rect.top + gap) + 'px'; boxBelow = false; }
+    else { bx.style.top = Math.max(8, vh - bh - 8) + 'px'; bx.style.bottom = 'auto'; boxBelow = rect.top < vh/2; }
+    if(fg){ fg.textContent = boxBelow ? '👆' : '👇'; fg.style.top = Math.round(boxBelow ? rect.bottom + pad - 6 : rect.top - pad - 34) + 'px'; }
+  }
+  var nx = document.getElementById('vt-next'); if(nx) nx.focus({ preventScroll:true });
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action^="visite-"]') : null; if(!el) return;
+  var a = el.getAttribute('data-action');
+  if(a === 'visite-open'){ visiteStart(); return; }
+  if(a === 'visite-dismiss'){ visiteSet('dismissed'); render(); return; }
+  if(!visite.open) return;
+  if(a === 'visite-skip'){ visiteEnd(false); return; }
+  if(a === 'visite-prev'){ visite.i = Math.max(0, visite.i - 1); visiteDraw(); return; }
+  if(a === 'visite-next'){ if(visite.i >= visite.steps.length - 1) visiteEnd(true); else { visite.i++; visiteDraw(); } }
+});
+document.addEventListener('keydown', function(e){
+  if(!visite.open) return;
+  if(e.key === 'Escape') visiteEnd(false);
+  else if(e.key === 'ArrowRight' || e.key === 'Enter'){ e.preventDefault(); var n = document.querySelector('[data-action="visite-next"]'); if(n) n.click(); }
+  else if(e.key === 'ArrowLeft'){ var p = document.querySelector('[data-action="visite-prev"]'); if(p) p.click(); }
+});
+window.addEventListener('resize', function(){ if(visite.open) visiteDraw(); });
+// carte « Première fois ? » de l'accueil : les deux visites, l'une à côté de l'autre
+function visitePromoHtml(){
+  if(visiteState !== 'pending') return '';
+  return '<div class="vt-promo" role="region" aria-label="Première fois ?"><div class="vt-promo-txt"><strong>Première fois ?</strong><span>Fais le tour en 1 minute.</span></div>'
+    + '<button class="btn small" data-action="visite-open">🧭 Visiter l\'appli</button>'
+    + '<button class="btn secondary small" data-action="tuto-open">📖 Les règles</button>'
+    + '<button class="btn ghost small" data-action="visite-dismiss" aria-label="Masquer">✕</button></div>';
+}
 /* ===================== events ===================== */
 // clic à l'intérieur d'une fenêtre : ne pas la fermer (sauf via un vrai bouton à l'intérieur, ex. « Fermer »)
 document.addEventListener('click', function(e){

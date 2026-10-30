@@ -7,6 +7,9 @@ Site : https://rikikigame.com/
 ## Pour comprendre le jeu
 - Règles (français) : https://rikikigame.com/regles-rikiki.html
 - Rules (English): https://rikikigame.com/rikiki-rules.html
+- Feuille de score à imprimer : https://rikikigame.com/feuille-de-score-rikiki.html
+- Oh Hell score sheet (printable): https://rikikigame.com/oh-hell-score-sheet.html
+- Rikiki, Ascenseur, Oh Hell : quelle différence ? https://rikikigame.com/rikiki-ascenseur-oh-hell.html
 - Dans le jeu : bouton « Règles » (tuto animé d'une minute).
 - Principe : à chaque manche, chacun annonce combien de plis il fera ; réussir son annonce rapporte des points.
 

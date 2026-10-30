@@ -83,7 +83,7 @@ function resetMiss(){ // le joueur joue lui-même : il est de retour
 // aide « couleur demandée » (1re carte du pli) : DÉSACTIVÉE par défaut (rien n'est affiché) ; le bouton 💡 à côté du son l'active (mémorisé sur l'appareil)
 var ledHelpOn = false; try{ ledHelpOn = localStorage.getItem('rikiki_led_help')==='1'; }catch(e){}
 // v67 : « Grand texte » pour ceux qui voient mal — tout l'écran grossit (textes ET cartes), mémorisé sur l'appareil
-var autoPlayOn = true; try{ autoPlayOn = localStorage.getItem('rikiki_autoplay')!=='0'; }catch(e){} // v78 : activé par défaut
+var autoPlayOn = true; try{ var apStored = localStorage.getItem('rikiki_autoplay'); autoPlayOn = (apStored === null) ? !DEVICE_IS_NEW : apStored !== '0'; }catch(e){} // v78 : activé par défaut ; 1.8.0 : éteint pour un NOUVEAU joueur (le jeu qui joue tout seul l'empêche de comprendre la règle de la couleur)
 var bigTextOn = false; try{ bigTextOn = localStorage.getItem('rikiki_big_text')==='1'; }catch(e){}
 function applyBigText(){ document.documentElement.classList.toggle('big-text', bigTextOn); }
 applyBigText();
