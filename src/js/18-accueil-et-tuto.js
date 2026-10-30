@@ -64,6 +64,7 @@ document.addEventListener('click', async function(e){
   if(screen==='entry') clearResume(); // la partie n'existe plus / est finie : on n'insiste pas
 });
 function renderEntry(){
+  var invited = inviteLandingHtml(); if(invited) return invited; // 1.8.0 : arrivée par un lien d'invitation, sans profil
   var html = '<div class="home-c">' + renderProfileFlash() + resumeBannerHtml();
   // --- en-tête ---
   var pseudo = currentProfile ? currentProfile.pseudo : '';
@@ -89,7 +90,8 @@ function renderEntry(){
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
-  if(!tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
+  var promo = visitePromoHtml(); html += promo; // 1.8.0 : carte « Première fois ? » (visite de l'appli + règles) pour les nouveaux appareils
+  if(!promo && !tutoSeen()) html += '<div class="tt-hello"><span class="tt-hello-txt"><strong>Nouveau au Rikiki ?</strong>Les règles en 1 minute, en animation.</span>'
     + '<button class="btn small" data-action="tuto-open">Voir le tuto</button><button class="btn ghost small" data-action="tuto-dismiss" aria-label="Masquer">✕</button></div>';
   // --- partie rapide ---
   html += '<button class="hc-hero" data-action="quick-create">'

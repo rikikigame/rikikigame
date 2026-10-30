@@ -6,7 +6,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.7.1';
+var APP_VERSION = '1.8.0';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -21,6 +21,11 @@ function versionIsNewer(a, b){ // vrai si la version a est strictement plus réc
 }
 // 1.7.1 : vrai si un joueur tourne sur une version plus ANCIENNE que la mienne (avant, la comparaison se faisait avec Number(), qui échoue sur « 1.7.0 » : tout le monde était signalé).
 function playerIsBehind(v){ return versionIsNewer(APP_VERSION, v); }
+// 1.8.0 : vrai si cet appareil n'a AUCUNE trace d'une visite précédente (calculé tout au début, avant que le jeu n'écrive quoi que ce soit).
+// Sert à ne pas imposer la visite « Nouveautés » aux nouveaux joueurs et à leur proposer la vue table d'office.
+var DEVICE_IS_NEW = (function(){
+  try{ return !['rikiki_fb_uid','rikiki_fb_name','rikiki_last','rikiki_news_seen','rikiki_profile','rikiki_deck','rikiki_consent','rikiki_tips_seen','rikiki_autoplay','rikiki_sfx','rikiki_table_view'].some(function(k){ return localStorage.getItem(k) !== null; }); }catch(e){ return false; }
+})();
 var serverOffset = 0;
 function nowMs(){ return Date.now() + serverOffset; }
 // Moment où CET appareil a vu la fin d'un pli : les pauses (pli affiché, entracte entre manches)

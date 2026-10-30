@@ -3,7 +3,17 @@
    sa carte du pli devant lui, ses annonces et son score. Même jeu, mêmes données : seul l'affichage change.
    Option dans ⚙️ Paramètres (« Vue table (test) »), éteinte par défaut, mémorisée sur l'appareil (rikiki_table_view).
    Appelée par renderTable (20-sons-et-musique.js) à la place du « rouleau » + tapis quand elle est activée. */
-var tableViewOn = false; try{ tableViewOn = localStorage.getItem('rikiki_table_view') === '1'; }catch(e){}
+// 1.8.0 : activée d'office pour les NOUVEAUX joueurs (appareil sans aucune trace d'une visite précédente), plus simple à comprendre.
+// Ceux qui jouent déjà gardent leur réglage actuel (éteinte tant qu'ils ne l'ont pas allumée). La décision est prise une seule fois puis mémorisée.
+var tableViewOn = false;
+try{
+  var tvStored = localStorage.getItem('rikiki_table_view');
+  if(tvStored === null){
+    tvStored = DEVICE_IS_NEW ? '1' : '0';
+    localStorage.setItem('rikiki_table_view', tvStored);
+  }
+  tableViewOn = tvStored === '1';
+}catch(e){}
 var TABLE_ANIMALS = ['🐼','🐵','🐷','🐔','🦊','🐸','🐯','🦁','🐨','🐰','🐶','🐱','🐮','🦄','🐙','🦉'];
 
 // avatar stable : le même joueur garde le même animal sur tous les appareils (calculé depuis son nom)

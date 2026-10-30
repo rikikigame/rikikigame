@@ -329,7 +329,7 @@ async function acceptInvite(id){
 }
 function gameLink(code){ return location.origin + location.pathname + '?game=' + encodeURIComponent(code); }
 async function shareGameLink(code){
-  var url = gameLink(code), text = 'Viens jouer au Rikiki avec moi ! Code '+code;
+  var url = gameLink(code), text = 'Viens jouer au Rikiki avec moi ! Ouvre le lien, écris ton prénom et touche « Rejoindre ». Code '+code;
   try{
     if(navigator.share){ await navigator.share({ title:'Rikiki', text:text, url:url }); return; }
   }catch(e){ if(e && e.name==='AbortError') return; }
@@ -382,7 +382,7 @@ function renderFriendsPanel(){
 }
 function renderLobbyInvite(g){
   var html = '<div class="card-panel" style="margin-bottom:12px; padding:14px 16px;"><div class="row between"><strong>Inviter</strong>'
-    + '<button class="btn secondary small" data-action="share-link">📤 Partager le lien</button></div>';
+    + '<button class="btn secondary small" data-action="share-link">👋 Inviter un nouveau joueur</button></div>';
   if(socialOn()){
     var ids = friendIds().filter(function(fid){ return !g.players[fid]; });
     if(!ids.length) html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Ajoute des amis depuis l\'accueil pour les inviter en un clic.</div>';
@@ -391,7 +391,7 @@ function renderLobbyInvite(g){
       html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
         + '<button class="btn small'+(sent?' secondary':'')+'" data-action="friend-invite" data-id="'+esc(fid)+'" '+(sent?'disabled':'')+'>'+(sent?'Invité ✓':'Inviter')+'</button></div>';
     });
-  } else html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Envoie le lien : tes amis arrivent directement dans ce salon.</div>';
+  } else html += '<div class="muted" style="font-size:12.5px; margin-top:6px;">Envoie le lien : ton ami écrit son prénom et arrive directement dans ce salon. Rien d\'autre à lui expliquer.</div>';
   return html + '</div>';
 }
 document.addEventListener('click', function(e){

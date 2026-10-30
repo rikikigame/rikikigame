@@ -36,7 +36,8 @@ function forcedPlayTick(g){
   if(legal.length!==1) return;
   var key = g.round+'|'+(g.currentTrick||[]).length+'|'+myHand.cards.length+'|'+legal[0].suit+legal[0].rank;
   forcedPlayKey = key;
-  showToast('Une seule carte jouable : jouée automatiquement');
+  var ledS = (g.currentTrick && g.currentTrick.length) ? g.currentTrick[0].card.suit : null; // 1.8.0 : on explique POURQUOI, pour que la règle s'apprenne
+  showToast(ledS && legal[0].suit===ledS ? 'Tu n\'avais que du '+CARD_SUIT_NAME.fr[ledS]+' : le jeu a joué ta seule carte autorisée.' : 'Une seule carte jouable : jouée automatiquement');
   setTimeout(function(){
     var cur = gameDoc;
     var still = cur && cur.status==='playing' && cur.turnPlayerId===myId && myHand && myHand.cards && !isBlindRound(cur) && autoPlayOn;
