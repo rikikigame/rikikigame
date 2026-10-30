@@ -31,6 +31,11 @@ function allowedBids(g, id){
   if(zeroBanned(g, id)){ var nz = all.filter(function(v){ return v!==0; }); if(nz.length) return nz; } // si plus rien d'autre n'est possible, le zéro reste permis
   return all;
 }
+// 1.9.0 : durée approximative d'une partie entre humains (≈ 4,5 s par carte jouée, ≈ 5 s par annonce, ≈ 8 s de donne), arrondie à la minute
+function estimateMinutes(plan, n){
+  var cards = 0; (plan||[]).forEach(function(c){ cards += c; });
+  return Math.max(1, Math.round((cards * n * 4.5 + (plan||[]).length * (n * 5 + 8)) / 60));
+}
 function computeRoundPlan(n, startSize, direction){
   var plan=[];
   var k, m;

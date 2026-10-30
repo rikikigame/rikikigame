@@ -30,7 +30,7 @@ function turnState(g){
 // après 1 s et le dit. Réglable dans ⚙️ Paramètres. Pas pour la manche à une carte cachée. Ce n'est PAS compté comme une absence.
 var FORCED_PLAY_DELAY_MS = 1000, forcedPlayKey = '';
 function forcedPlayTick(g){
-  if(!autoPlayOn || forcedPlayKey || autoActing) return;
+  if(!autoPlayOn || forcedPlayKey || autoActing || fraudOn(g)) return; // 1.9.0 : pas de jeu automatique en mode frauduleux
   if(g.status!=='playing' || g.turnPlayerId!==myId || isBlindRound(g) || !myHand || !myHand.cards || !myHand.cards.length) return;
   var legal = legalCards(g, myHand.cards);
   if(legal.length!==1) return;

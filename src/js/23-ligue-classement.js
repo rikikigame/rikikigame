@@ -150,6 +150,7 @@ function cutStatsFromLog(roundLog){
 
 // Partie en ligne terminée : l'hôte l'enregistre une seule fois.
 function onlineLeagueCheck(g){
+  if(fraudOn(g)) return 'Ne compte pas pour la ligue : mode frauduleux.'; // 1.9.0
   if(g.settings && g.settings.direction==='quick') return 'Ne compte pas pour la ligue : partie rapide.'; // v58 : les parties rapides restent pour s'amuser
   var ids = g.playerOrder || Object.keys(g.players||{});
   var humans = ids.filter(function(id){ return !g.players[id].isBot; });

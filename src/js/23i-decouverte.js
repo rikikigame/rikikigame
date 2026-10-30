@@ -35,14 +35,15 @@ function tipsMark(key){ if(!key) return; var s = tipsSeen(); s[key] = 1; try{ lo
 var TIP_TEXT = {
   ready: 'Touche « Je suis prêt » quand tu veux. La partie commence quand tout le monde est prêt.',
   bid:   'À toi d\'annoncer : touche le nombre de plis que tu penses gagner.',
-  play:  'À toi de jouer : touche une carte. Les cartes grisées sont interdites.'
+  play:  'À toi de jouer : touche une carte. Les cartes grisées sont interdites.',
+  playfraud: '😈 Mode frauduleux : tu peux jouer n\'importe quelle carte. Mais si on te voit, tu perds 5 points !'
 };
 function tipWanted(g){
   if(!tipsOn || !g) return null;
   if(g.status === 'lobby'){ var me = g.players && g.players[myId]; return (me && !me.ready) ? 'ready' : null; }
   if(g.turnPlayerId !== myId) return null;
   if(g.status === 'bidding') return 'bid';
-  if(g.status === 'playing') return 'play';
+  if(g.status === 'playing') return fraudOn(g) ? 'playfraud' : 'play';
   return null;
 }
 function tipHtml(g){
@@ -67,7 +68,7 @@ function helpLines(g){
     ? ['C\'est à toi d\'annoncer.', 'Touche le nombre de plis que tu penses gagner (0 si tu n\'en veux aucun).', 'Un chiffre grisé est interdit : le dernier à annoncer ne peut pas faire tomber le total juste.']
     : ['Les autres annoncent. Attends ton tour.', 'Tu verras tes cartes en bas de l\'écran.'];
   if(g.status === 'playing') return mine
-    ? ['C\'est à toi de jouer : touche une carte de ta main.', 'Si tu as la couleur demandée, tu dois la jouer : les autres cartes sont grisées.', 'Tu n\'as pas la couleur ? Joue ce que tu veux (un atout pour couper, par exemple).']
+    ? (fraudOn(g) ? ['C\'est à toi de jouer : touche une carte, n\'importe laquelle.', '😈 Mode frauduleux : tu peux ne pas fournir la couleur. Si un joueur t\'accuse à raison, tu perds 5 points.', 'Tu veux accuser quelqu\'un ? Touche « 🕵️ J\'accuse » sous la table.'] : ['C\'est à toi de jouer : touche une carte de ta main.', 'Si tu as la couleur demandée, tu dois la jouer : les autres cartes sont grisées.', 'Tu n\'as pas la couleur ? Joue ce que tu veux (un atout pour couper, par exemple).'])
     : ['Les autres jouent. Attends ton tour.', 'Le plus fort atout gagne le pli, sinon la plus forte carte de la couleur demandée.'];
   return ['La manche est finie : regarde les points, la suite arrive toute seule.'];
 }

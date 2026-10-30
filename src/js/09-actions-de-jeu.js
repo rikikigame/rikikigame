@@ -152,6 +152,7 @@ function onGameUpdate(){
   primeUidTrust(gameDoc); // v60 : retient le compte de chaque joueur avant toute distribution
   try{ sfxOnGame(gameDoc); }catch(e){ console.warn('bruitages', e); } // v50
   witnessGame(gameDoc);
+  fraudOnUpdate(gameDoc); // 1.9.0 : mode frauduleux (annonce du résultat, arbitrage de l'organisateur)
   try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
   try{ serveHandRequests(gameDoc); }catch(e){ console.warn(e); } // v45 : l'hôte renvoie une main demandée
   if(gameDoc.status === 'dealing'){
