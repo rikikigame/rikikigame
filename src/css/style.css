@@ -1038,3 +1038,5 @@ html.big-text .vt-text{ font-size:18px; }
 .fraud-bar span{ flex:1; min-width:150px; }
 .fraud-back{ z-index:64; } .fraud-modal{ max-width:420px; }
 .fraud-row{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
+
+.link-back{ z-index:65; } .link-modal{ max-width:440px; }
