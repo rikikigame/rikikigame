@@ -73,7 +73,7 @@ function botLevelCard(botId, g, hand){
 // --- enregistrement (l'hôte, une fois par partie terminée) ---
 var analysisRecording = false;
 async function maybeRecordAnalysis(g){
-  if(!g || g.status!=='game_over' || g.hostId!==myId || g.analysisRecorded || analysisRecording) return;
+  if(!g || g.status!=='game_over' || g.hostId!==myId || g.analysisRecorded || analysisRecording || fraudOn(g)) return; // 1.9.0 : une partie où l'on peut tricher n'entraîne pas les robots
   var lg0 = g.roundLog || [], waitMs = g.lastTrick ? nowMs() - g.lastTrick.at : 99999;
   if((lg0.length < g.roundPlan.length || lg0.some(function(r){ return !r.dealSeed; })) && waitMs < 20000){ // graines pas encore toutes révélées
     setTimeout(function(){ if(gameDoc && gameDoc.code===g.code) onGameUpdate(); }, 4000); return;

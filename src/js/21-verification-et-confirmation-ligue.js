@@ -61,7 +61,7 @@ function auditRound(g, e, sc){
 // bilan de toute la partie : { state:'ok'|'bad'|'partial', issues, scores recalculés }
 function auditGame(g){
   var out = { state:'ok', issues:[], scores:{} };
-  if(!g || !g.playerOrder) return out;
+  if(!g || !g.playerOrder || fraudOn(g)) return out; // 1.9.0 : mode frauduleux, pas de contrôle anti-triche (c'est le jeu)
   var sc = getScoring(g), log = g.roundLog || [], unverified = 0, gid = g.code+'|'+(g.startedAt||g.createdAt);
   g.playerOrder.forEach(function(id){ out.scores[id] = 0; });
   if(witnessed.scoring[gid] && witnessed.scoring[gid] !== JSON.stringify(sc)) out.issues.push('le barème a été modifié en cours de partie');

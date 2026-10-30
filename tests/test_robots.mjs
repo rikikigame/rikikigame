@@ -37,6 +37,8 @@ async function jouerUneFois(n, mode, extra) {
   ch.kill(); await sleep(300); rmSync(prof, { recursive: true, force: true });
   return res;
 }
+// Partie de « chauffe » : le tout premier Chrome est lent sur les machines GitHub ; on ne compte pas son résultat.
+await jouerUneFois(3, 'quick', '').catch(() => null);
 for (const [n, mode, extra = ''] of CAS) {
   let res = null;
   for (let essai = 1; essai <= 3 && !res; essai++) {

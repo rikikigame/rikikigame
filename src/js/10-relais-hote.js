@@ -171,7 +171,7 @@ async function playCardAs(actorId, card, handOverride){
   var handRound = (actorId===myId && myHand) ? myHand.round : g.round;
   var ledSuit = g.currentTrick.length>0 ? g.currentTrick[0].card.suit : null;
   var hasLed = ledSuit ? hand.some(function(c){ return c.suit===ledSuit; }) : false;
-  if(ledSuit && hasLed && card.suit!==ledSuit) return;
+  if(ledSuit && hasLed && card.suit!==ledSuit && !fraudOn(g)) return; // 1.9.0 : en mode frauduleux, tout est permis (les autres peuvent accuser)
   var newTrick = g.currentTrick.concat([{ playerId: actorId, card: card }]);
   var newHandCards = hand.filter(function(c){ return !(c.suit===card.suit && c.rank===card.rank); });
   var ref = claudeDb.doc('games/'+g.code);

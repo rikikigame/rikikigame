@@ -30,11 +30,11 @@
     try{
       await until(function(){ return typeof claudeDb!=='undefined' && claudeDb && myId; }, 20000, 'démarrage du jeu');
       await createGame('Testeur', MODE);
-      await until(function(){ return gameDoc; }, 5000, 'création de la partie');
+      await until(function(){ return gameDoc; }, 20000, 'création de la partie');
       if(MODE==='up') await updateSettings({ startSize: 4 }); // partie courte : 1 à 4 cartes
       for(var i=1;i<(AFK ? N-1 : N);i++){ await addBot(); await sleep(30); }
       if(AFK){ var pa = { players:{} }; pa.players['h-afk'] = { name:'Absent', color:'#888888', joinedAt:nowMs(), ready:true, uid:'U-afk', v:APP_VERSION }; await claudeDb.doc('games/'+gameDoc.code).update(pa); await sleep(60); } // v64 : un faux joueur qui ne joue jamais
-      await toggleReady(); await until(function(){ return gameDoc.players[myId].ready; }, 5000, 'prêt');
+      await toggleReady(); await until(function(){ return gameDoc.players[myId].ready; }, 20000, 'prêt');
       await startGame();
       var t0 = Date.now(), turnsSeen = 0, afkVoted = false;
       while(gameDoc.status!=='game_over'){
@@ -91,20 +91,20 @@
       ok('ajout d\'ami : demande déposée pour Amy', (await claudeDb.doc('friendReq2/amy__zed').get()).exists && !social.addErr, social.addErr);
       currentProfile = { key:'amy', pseudo:'Amy' };
       social.started = false; socialStart();
-      await until(function(){ return social.reqs.zed; }, 6000, 'demande reçue par Amy');
+      await until(function(){ return social.reqs.zed; }, 20000, 'demande reçue par Amy');
       ok('Amy voit la demande de Zed', social.reqs.zed.name.length>0);
       await acceptFriend('zed');
-      await until(function(){ return Object.keys(social.friends).some(function(k){ return social.friends[k] && social.friends[k].pkey==='zed'; }); }, 6000, 'ami accepté');
+      await until(function(){ return Object.keys(social.friends).some(function(k){ return social.friends[k] && social.friends[k].pkey==='zed'; }); }, 20000, 'ami accepté');
       ok('demande acceptée : Zed est dans les amis d\'Amy, la demande disparaît', true);
-      await until(function(){ return !social.reqs.zed; }, 6000, 'demande effacée');
+      await until(function(){ return !social.reqs.zed; }, 20000, 'demande effacée');
       var zedId = Object.keys(social.friends).filter(function(k){ return social.friends[k] && social.friends[k].pkey==='zed'; })[0];
       await inviteFriend(zedId);
       ok('invitation déposée pour Zed', (await claudeDb.doc('invites2/zed__amy').get()).exists);
       currentProfile = { key:'zed', pseudo:'Zed' }; social.unsubs.forEach(function(u){ try{ u(); }catch(e){} }); social.unsubs = []; social.started = false; socialStart();
-      await until(function(){ return social.invites.amy; }, 6000, 'invitation reçue par Zed');
+      await until(function(){ return social.invites.amy; }, 20000, 'invitation reçue par Zed');
       ok('Zed voit l\'invitation d\'Amy', social.invites.amy.code===g.code);
       await dismissInvite('amy');
-      await until(function(){ return !social.invites.amy; }, 6000, 'invitation effacée');
+      await until(function(){ return !social.invites.amy; }, 20000, 'invitation effacée');
       ok('invitation refusée : elle disparaît', true);
       social.unsubs.forEach(function(u){ try{ u(); }catch(e){} }); social.unsubs = [];
       // v64 : thème Halloween — toutes les cartes se dessinent, le dos aussi ; rire et cri audibles sans saturer
@@ -268,6 +268,23 @@
       if(cs0===null) localStorage.removeItem(CONSENT_KEY); else localStorage.setItem(CONSENT_KEY, cs0); window.firebase = fb0; appCheckStarted = as0;
       ok('code : un nouveau code fait 4 chiffres (1234, 0000, 4321 refusés ; 4821 accepté ; 6 chiffres refusé à la création)', validNewPin('4821') && !validNewPin('1234') && !validNewPin('0000') && !validNewPin('4321') && !validNewPin('1111') && !validNewPin('482916') && !validNewPin('481'));
       ok('code organisateur : 8 à 12 chiffres, sans suite ni répétition (12345678, 00000000, 12121212, 1234567 refusés ; 58302147 accepté) ; la connexion accepte 4 à 12 chiffres', validAdminPin('58302147') && validAdminPin('583021479415') && !validAdminPin('12345678') && !validAdminPin('00000000') && !validAdminPin('12121212') && !validAdminPin('1234567') && !validAdminPin('5830214794151') && validPin('4821') && validPin('58302147') && !validPin('123') && !validPin('12ab'));
+      // 1.9.0 : mode frauduleux (qui a joué quoi, carte interdite ou non)
+      (function(){
+        var fg = { playerOrder:['a','b','c'], bidOrder:['a','b','c'], trumpCard:null, round:0, players:{ a:{name:'A'}, b:{name:'B'}, c:{name:'C'} }, settings:{ fraud:true },
+          played:[{suit:'H',rank:'5',value:5},{suit:'S',rank:'2',value:2},{suit:'H',rank:'3',value:3},{suit:'H',rank:'9',value:9}], currentTrick:[], fraudLog:[] };
+        var pl = fraudPlays(fg), oldDealt = dealtFor, oldMe = myId;
+        ok('fraude : la reconstitution attribue chaque carte au bon joueur (le gagnant du pli 1 ouvre le pli 2)', pl.length===4 && pl[0].playerId==='a' && pl[1].playerId==='b' && pl[2].playerId==='c' && pl[3].playerId==='a' && pl[3].first===true && pl[1].led==='H');
+        var hands = { b:[{suit:'S',rank:'2'},{suit:'H',rank:'8'}] };
+        dealtFor = function(g, id){ return hands[id] || null; };
+        var v1 = fraudVerdict(fg, 1); hands.b = [{suit:'S',rank:'2'},{suit:'S',rank:'4'}]; var v2 = fraudVerdict(fg, 1), v0 = fraudVerdict(fg, 0);
+        ok('fraude : pas fourni alors qu\'il avait la couleur = triche ; vraiment sans la couleur = honnête ; l\'ouvreur ne peut pas tricher', v1 && v1.cheat===true && v2 && v2.cheat===false && v0 && v0.cheat===false);
+        hands.c = null; ok('fraude : main inconnue = pas de verdict (rien n\'est puni)', fraudVerdict(fg, 2)===null);
+        dealtFor = oldDealt; myId = 'a';
+        var acc = fraudAccusable(fg); ok('fraude : on accuse les cartes des autres, jamais la première du pli ni la sienne', acc.length>0 && acc.every(function(p){ return p.playerId!=='a' && !p.first; }));
+        fg.fraudLog = [{ round:0, k:1 }]; ok('fraude : une carte déjà jugée ne s\'accuse plus', fraudAccusable(fg).every(function(p){ return p.k!==1; }));
+        myId = oldMe;
+        ok('fraude : mode frauduleux = hors ligue', onlineLeagueCheck(fg).indexOf('frauduleux')>0 && fraudOn(fg) && !fraudOn({ settings:{} }));
+      })();
       ok('version : « ancienne version » seulement si le joueur est vraiment en retard (même version ou plus récente = rien ; ancien numéro entier ou absent = signalé)', !playerIsBehind(APP_VERSION) && !playerIsBehind('99.0.0') && playerIsBehind('0.5.0') && playerIsBehind('79') && playerIsBehind(undefined));
       // 1.4.0 : signalement de bug (contenu, échappement, envoi + relecture côté organisateur)
       (function(){

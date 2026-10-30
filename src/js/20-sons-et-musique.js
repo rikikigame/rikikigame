@@ -491,6 +491,8 @@ function renderLobby(g){
   html += '<div class="settings-summary muted" style="margin-top:6px;">'
     + (direction==='quick' ? ('⚡ Partie rapide · 5 manches, de 1 à '+startSize+' cartes au hasard<br>')
        : (esc(DIRECTION_LABEL[direction]||'')+' · '+plan.length+' manche'+(plan.length>1?'s':'')+' ('+esc(planText(plan))+' cartes)<br>'))
+    + ('⏱ Durée estimée : environ '+estimateMinutes(plan, Math.max(n,2))+' min<br>')
+    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · les robots restent honnêtes<br>' : '')
     + (maxZerosOf(g) ? ('Pas plus de '+maxZerosOf(g)+' zéros d\'affilée<br>') : '')
     + (blindOne ? 'Manche à 1 carte à l\'aveugle<br>' : '')
     + (direction==='quick' ? '⚡ Partie rapide : hors ligue<br>' : '')
@@ -511,12 +513,13 @@ function renderLobby(g){
       + '</select></div></div>';
     if(direction==='quick') html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">⚡ Les parties rapides ne comptent pas pour la ligue.</p>';
     else html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
+    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue ; les robots ne trichent jamais)</label>';
     var bl = botLevelOf(g);
     html += '<div style="margin:0 0 10px;"><label for="botLevelSelect">Niveau des robots</label><select id="botLevelSelect" data-action-change="set-botlevel">'
       + ['facile','humain','fort'].map(function(v){ return '<option value="'+v+'"'+(v===bl?' selected':'')+'>'+BOT_LEVEL_LABEL[v]+(v==='humain'?' (calé sur vos parties)':'')+'</option>'; }).join('') + '</select></div>';
     var tl = turnLimitSec(g);
     html += '<div style="margin:0 0 10px;"><label for="timerSelect">Temps par tour (ensuite une annonce / carte est jouée au hasard)</label><select id="timerSelect" data-action-change="set-timer">'
-      + [0,15,30,45,60,90].map(function(v){ return '<option value="'+v+'"'+(v===tl?' selected':'')+'>'+(v ? v+' secondes' : 'Pas de limite')+'</option>'; }).join('') + '</select></div>';
+      + [0,10,15,30,45,60,90].map(function(v){ return '<option value="'+v+'"'+(v===tl?' selected':'')+'>'+(v ? v+' secondes' : 'Pas de limite')+'</option>'; }).join('') + '</select></div>';
     html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:400; margin:0 0 4px;"><input type="checkbox" id="blindInput" data-action-change="set-blind" '+(blindOne?'checked':'')+'> Manche à 1 carte à l\'aveugle</label>';
 
     html += '<div class="divider"></div><div class="row between"><div class="eyebrow">Barème des points</div><button class="btn ghost" data-action="reset-scoring">Par défaut</button></div>';
@@ -654,6 +657,7 @@ function renderTable(g){
   html += '</div></div>';
   }
 
+  html += fraudBarHtml(g); // 1.9.0 : mode frauduleux (bouton « J'accuse »)
   html += tipHtml(g); // 1.8.0 : conseil du moment (une fois, discret)
   html += '<div class="hand-zone"><div class="eyebrow">Ta main</div>'+renderHand(g)+'</div>';
   return html;
@@ -711,7 +715,7 @@ function renderHand(g){
   if(n>1 && step < W*0.36){ rowsCount = 2; perRow = Math.ceil(n/2); step = Math.min(W + 8, (avail - W)/Math.max(1, perRow-1)); }
   var html = '<div class="hand-fan'+(canPlay?' playable':'')+'" style="--cw:'+W+'px; --ov:'+(step - W).toFixed(1)+'px;">';
   sorted.forEach(function(c, i){
-    var illegal = canPlay && ledSuit && hasLed && c.suit!==ledSuit;
+    var illegal = canPlay && ledSuit && hasLed && c.suit!==ledSuit && !fraudOn(g); // 1.9.0 : aucune carte grisée en mode frauduleux
     var disabled = !canPlay || illegal;
     if(i===0 || (rowsCount===2 && i===perRow)) html += (i>0 ? '</div>' : '') + '<div class="hand-row">';
     var pick = adv && adv.card.suit===c.suit && adv.card.rank===c.rank;
