@@ -480,7 +480,7 @@ function renderLobby(g){
     html += '</div>';
   });
   html += '</div>';
-  if(isHost && n<MAX_PLAYERS) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
+  if(isHost && n<MAX_PLAYERS && !fraudOn(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
 
   html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // v51 : chacun choisit ses cartes
@@ -492,7 +492,7 @@ function renderLobby(g){
     + (direction==='quick' ? ('⚡ Partie rapide · 5 manches, de 1 à '+startSize+' cartes au hasard<br>')
        : (esc(DIRECTION_LABEL[direction]||'')+' · '+plan.length+' manche'+(plan.length>1?'s':'')+' ('+esc(planText(plan))+' cartes)<br>'))
     + ('⏱ Durée estimée : environ '+estimateMinutes(plan, Math.max(n,2))+' min<br>')
-    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · les robots restent honnêtes<br>' : '')
+    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · sans robot<br>' : '')
     + (maxZerosOf(g) ? ('Pas plus de '+maxZerosOf(g)+' zéros d\'affilée<br>') : '')
     + (blindOne ? 'Manche à 1 carte à l\'aveugle<br>' : '')
     + (direction==='quick' ? '⚡ Partie rapide : hors ligue<br>' : '')
@@ -513,7 +513,7 @@ function renderLobby(g){
       + '</select></div></div>';
     if(direction==='quick') html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">⚡ Les parties rapides ne comptent pas pour la ligue.</p>';
     else html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
-    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue ; les robots ne trichent jamais)</label>';
+    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue, sans robot)</label>';
     var bl = botLevelOf(g);
     html += '<div style="margin:0 0 10px;"><label for="botLevelSelect">Niveau des robots</label><select id="botLevelSelect" data-action-change="set-botlevel">'
       + ['facile','humain','fort'].map(function(v){ return '<option value="'+v+'"'+(v===bl?' selected':'')+'>'+BOT_LEVEL_LABEL[v]+(v==='humain'?' (calé sur vos parties)':'')+'</option>'; }).join('') + '</select></div>';
@@ -533,8 +533,9 @@ function renderLobby(g){
   html += '</div>';
 
   if(isHost){
-    var canStart = n>=MIN_PLAYERS && allReady;
-    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie');
+    var fraudBots = fraudOn(g) && ids.some(function(id){ return g.players[id].isBot; });
+    var canStart = n>=MIN_PLAYERS && allReady && !fraudBots;
+    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (fraudBots ? 'Retire les robots (mode frauduleux)' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie'));
     html += '<button class="btn" style="width:100%;" data-action="start-game" '+(canStart?'':'disabled')+'>'+label+'</button>';
   } else {
     html += '<p class="muted" style="font-size:14px; text-align:center;">'+(allReady ? 'L\'hôte va lancer la partie…' : 'Clique sur « Je suis prêt » pour continuer.')+'</p>';

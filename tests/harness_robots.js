@@ -294,6 +294,13 @@
         fg.fraudLog = [{ round:0, k:1 }]; ok('fraude : une carte déjà jugée ne s\'accuse plus', fraudAccusable(fg).every(function(p){ return p.k!==1; }));
         myId = oldMe;
         ok('fraude : mode frauduleux = hors ligue', onlineLeagueCheck(fg).indexOf('frauduleux')>0 && fraudOn(fg) && !fraudOn({ settings:{} }));
+        // 1.10.0 : nouveauté sur l'accueil et aucun robot
+        var oldV = visiteState, oldP = null; try{ oldP = localStorage.getItem('rikiki_fraud_promo'); localStorage.removeItem('rikiki_fraud_promo'); }catch(e){}
+        visiteState = 'dismissed'; var promo1 = fraudPromoHtml(); visiteState = 'pending'; var promo2 = fraudPromoHtml();
+        try{ localStorage.setItem('rikiki_fraud_promo', '1'); }catch(e){} visiteState = 'dismissed'; var promo3 = fraudPromoHtml();
+        visiteState = oldV; try{ if(oldP===null) localStorage.removeItem('rikiki_fraud_promo'); else localStorage.setItem('rikiki_fraud_promo', oldP); }catch(e){}
+        ok('fraude : la carte « Nouveau » s\'affiche (sauf pendant la visite des nouveaux, et une fois fermée)', promo1.indexOf('fraud-create')>0 && promo2==='' && promo3==='');
+        ok('fraude : une partie frauduleuse démarre en rapide, 10 s par tour, hors ligue', FRAUD_SETTINGS.fraud===true && FRAUD_SETTINGS.league===false && FRAUD_SETTINGS.direction==='quick' && FRAUD_SETTINGS.turnTimer===10 && FRAUD_SETTINGS.startSize===5);
       })();
       ok('version : « ancienne version » seulement si le joueur est vraiment en retard (même version ou plus récente = rien ; ancien numéro entier ou absent = signalé)', !playerIsBehind(APP_VERSION) && !playerIsBehind('99.0.0') && playerIsBehind('0.5.0') && playerIsBehind('79') && playerIsBehind(undefined));
       // 1.4.0 : signalement de bug (contenu, échappement, envoi + relecture côté organisateur)

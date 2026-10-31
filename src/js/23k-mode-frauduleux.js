@@ -4,9 +4,10 @@
    cours ou du pli qui vient de se terminer.
    Vérification faite par l'appareil de l'organisateur, qui connaît la donne : main du joueur avant sa carte = donne − cartes déjà jouées.
    Carte interdite (couleur demandée possédée mais non fournie) → le tricheur perd FRAUD_PENALTY points. Accusation fausse → l'accusateur les perd.
-   Règles du mode : partie hors ligue (jamais comptée, jamais analysée), contrôles anti-triche de la ligue coupés pour cette partie. Les robots (acceptés, par exemple
-   pour tester à deux) ne trichent JAMAIS : les accuser est une fausse accusation. */
+   Règles du mode : partie hors ligue (jamais comptée, jamais analysée), SANS ROBOT (entre vrais joueurs uniquement), contrôles anti-triche de la ligue coupés pour cette partie. */
 var FRAUD_PENALTY = 5;
+// réglages d'une partie frauduleuse : rapide (5 manches, 5 cartes au plus), 10 s par tour, hors ligue, SANS robot
+var FRAUD_SETTINGS = { fraud:true, league:false, direction:'quick', startSize:5, blindOne:true, turnTimer:10 };
 var fraudUi = { open:false, busy:false, seenAt:0 };
 function fraudOn(g){ return !!(g && g.settings && g.settings.fraud); }
 
@@ -69,6 +70,21 @@ function fraudAnnounce(g){
 }
 function fraudOnUpdate(g){ try{ fraudAnnounce(g); }catch(e){} try{ fraudHostTick(g); }catch(e){} }
 
+// --- nouveauté sur l'accueil : essayer le mode en un clic (fermable, une seule fois par appareil) ---
+function fraudPromoHtml(){
+  try{ if(localStorage.getItem('rikiki_fraud_promo') === '1') return ''; }catch(e){}
+  if(typeof visiteState !== 'undefined' && visiteState === 'pending') return ''; // un nouveau joueur a d'abord la visite de l'appli
+  if(!(usingFirebase || usingMock)) return '';
+  return '<div class="fraud-promo" role="region" aria-label="Nouveauté"><span class="fraud-promo-ico" aria-hidden="true">😈</span>'
+    + '<span class="fraud-promo-txt"><strong>Nouveau : le mode frauduleux</strong><small>Triche permise, accuse tes amis. 5 manches, 10 s par tour, entre vrais joueurs.</small></span>'
+    + '<button class="btn small" data-action="fraud-create">Essayer</button>'
+    + '<button class="btn ghost small" data-action="fraud-promo-close" aria-label="Masquer">✕</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="fraud-promo-close"]') : null; if(!el) return;
+  try{ localStorage.setItem('rikiki_fraud_promo', '1'); }catch(err){} render();
+});
+
 // --- affichage : bouton « J'accuse » et choix de la carte ---
 function fraudBarHtml(g){
   if(!fraudOn(g) || g.status !== 'playing') return '';
@@ -102,8 +118,10 @@ document.addEventListener('click', function(e){
 document.addEventListener('change', function(e){
   var el = e.target; if(!el || el.getAttribute('data-action-change') !== 'set-fraud') return;
   var g = gameDoc; if(!g || g.hostId !== myId) return;
+  var hasBots = Object.keys(g.players || {}).some(function(id){ return g.players[id].isBot; });
+  if(el.checked && hasBots){ el.checked = false; showToast('Retire d\'abord les robots : le mode frauduleux se joue entre vrais joueurs.'); return; }
   // le mode doit aller VITE (10 à 15 minutes au plus) : format rapide (5 manches), 5 cartes au plus, 10 secondes par tour
-  var patch = el.checked ? { fraud:true, league:false, direction:'quick', startSize:5, turnTimer:10 } : { fraud:false };
+  var patch = el.checked ? FRAUD_SETTINGS : { fraud:false };
   updateSettings(patch).catch(function(err){ console.error(err); });
   if(el.checked) showToast('😈 Mode frauduleux : partie rapide de 5 manches, 10 s par tour.');
 });

@@ -12,6 +12,7 @@ var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
   version: APP_VERSION, tour: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
+    '<strong>😈 Mode frauduleux</strong> : la triche est permise ! Joue n\'importe quelle carte, mais si on te voit tu perds 5 points. Entre vrais joueurs, 5 manches, 10 secondes par tour, hors ligue. Essaie-le depuis l\'accueil.',
     '<strong>Tournoi du dimanche</strong> : chaque dimanche, les parties de ligue en ligne forment un tournoi (2 parties minimum). Un bandeau sur l\'accueil t\'invite à jouer, puis annonce le résultat à 21 h. Classement et palmarès dans Ligue › En ligne.',
     '<strong>Signaler un bug</strong> : dans ⚙️ Paramètres, un bouton pour nous dire en une phrase ce qui ne va pas. Si le jeu plante, il te propose aussi d\'envoyer un rapport (jamais sans ton clic).',
     'Le jeu a <strong>sa propre adresse : rikikigame.com</strong>. En bas de l\'accueil, tu trouves les pages <strong>Confidentialité, Conditions, Cookies et Mentions légales</strong>.',

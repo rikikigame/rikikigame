@@ -1053,6 +1053,11 @@ html.big-text .vt-text{ font-size:18px; }
 .fraud-row{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
 
 .link-back{ z-index:65; } .link-modal{ max-width:440px; }
+
+/* 1.10.0 : nouveauté mode frauduleux sur l'accueil */
+.fraud-promo{ display:flex; align-items:center; gap:10px; margin:10px 0; padding:10px 12px; border-radius:14px; background:rgba(214,64,64,0.14); border:1.5px solid rgba(214,64,64,0.6); }
+.fraud-promo-ico{ font-size:28px; } .fraud-promo-txt{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.fraud-promo-txt strong{ font-size:15px; } .fraud-promo-txt small{ font-size:12.5px; opacity:.8; margin-top:2px; }
 </style>
 <a class="skip-link" href="#app">Aller au jeu</a>
 <main id="app" tabindex="-1"><div class="center-wrap"><span class="boot-suits" role="status" aria-label="Chargement du jeu">♠ ♥ ♣ ♦</span></div></main>
@@ -1098,7 +1103,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.9.1';
+var APP_VERSION = '1.10.0';
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);
@@ -3215,7 +3220,8 @@ async function createGameInner(name, mode){
   var players = {}; players[myId] = { name:name, color:myProfile.color, joinedAt:now, ready:false };
   await ref.set({
     code: code, createdAt: now, hostId: myId, status:'lobby',
-    settings: { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
+    settings: mode==='fraud' ? Object.assign({}, FRAUD_SETTINGS) // 1.10.0 : mode frauduleux, partie rapide de 5 manches, 10 s par tour, hors ligue
+      : { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
     players: players
   });
   gameCode = code;
@@ -3401,7 +3407,7 @@ async function toggleReady(){
 
 async function addBot(){
   var g = gameDoc;
-  if(!g || g.hostId !== myId || g.status!=='lobby') return;
+  if(!g || g.hostId !== myId || g.status!=='lobby' || fraudOn(g)) return; // 1.10.0 : aucun robot en mode frauduleux
   var ids = Object.keys(g.players);
   if(ids.length >= MAX_PLAYERS) return;
   var usedNames = ids.map(function(id){ return g.players[id].name; });
@@ -5810,6 +5816,7 @@ function renderEntry(){
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
+  html += fraudPromoHtml(); // 1.10.0 : nouveauté « mode frauduleux »
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
   var promo = visitePromoHtml(); html += promo; // 1.8.0 : carte « Première fois ? » (visite de l'appli + règles) pour les nouveaux appareils
@@ -6636,7 +6643,7 @@ function renderLobby(g){
     html += '</div>';
   });
   html += '</div>';
-  if(isHost && n<MAX_PLAYERS) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
+  if(isHost && n<MAX_PLAYERS && !fraudOn(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
 
   html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // v51 : chacun choisit ses cartes
@@ -6648,7 +6655,7 @@ function renderLobby(g){
     + (direction==='quick' ? ('⚡ Partie rapide · 5 manches, de 1 à '+startSize+' cartes au hasard<br>')
        : (esc(DIRECTION_LABEL[direction]||'')+' · '+plan.length+' manche'+(plan.length>1?'s':'')+' ('+esc(planText(plan))+' cartes)<br>'))
     + ('⏱ Durée estimée : environ '+estimateMinutes(plan, Math.max(n,2))+' min<br>')
-    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · les robots restent honnêtes<br>' : '')
+    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · sans robot<br>' : '')
     + (maxZerosOf(g) ? ('Pas plus de '+maxZerosOf(g)+' zéros d\'affilée<br>') : '')
     + (blindOne ? 'Manche à 1 carte à l\'aveugle<br>' : '')
     + (direction==='quick' ? '⚡ Partie rapide : hors ligue<br>' : '')
@@ -6669,7 +6676,7 @@ function renderLobby(g){
       + '</select></div></div>';
     if(direction==='quick') html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">⚡ Les parties rapides ne comptent pas pour la ligue.</p>';
     else html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
-    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue ; les robots ne trichent jamais)</label>';
+    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue, sans robot)</label>';
     var bl = botLevelOf(g);
     html += '<div style="margin:0 0 10px;"><label for="botLevelSelect">Niveau des robots</label><select id="botLevelSelect" data-action-change="set-botlevel">'
       + ['facile','humain','fort'].map(function(v){ return '<option value="'+v+'"'+(v===bl?' selected':'')+'>'+BOT_LEVEL_LABEL[v]+(v==='humain'?' (calé sur vos parties)':'')+'</option>'; }).join('') + '</select></div>';
@@ -6689,8 +6696,9 @@ function renderLobby(g){
   html += '</div>';
 
   if(isHost){
-    var canStart = n>=MIN_PLAYERS && allReady;
-    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie');
+    var fraudBots = fraudOn(g) && ids.some(function(id){ return g.players[id].isBot; });
+    var canStart = n>=MIN_PLAYERS && allReady && !fraudBots;
+    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (fraudBots ? 'Retire les robots (mode frauduleux)' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie'));
     html += '<button class="btn" style="width:100%;" data-action="start-game" '+(canStart?'':'disabled')+'>'+label+'</button>';
   } else {
     html += '<p class="muted" style="font-size:14px; text-align:center;">'+(allReady ? 'L\'hôte va lancer la partie…' : 'Clique sur « Je suis prêt » pour continuer.')+'</p>';
@@ -8069,6 +8077,7 @@ var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
   version: APP_VERSION, tour: '64', title: '🎃 Du nouveau sur Rikiki !',
   items: [
+    '<strong>😈 Mode frauduleux</strong> : la triche est permise ! Joue n\'importe quelle carte, mais si on te voit tu perds 5 points. Entre vrais joueurs, 5 manches, 10 secondes par tour, hors ligue. Essaie-le depuis l\'accueil.',
     '<strong>Tournoi du dimanche</strong> : chaque dimanche, les parties de ligue en ligne forment un tournoi (2 parties minimum). Un bandeau sur l\'accueil t\'invite à jouer, puis annonce le résultat à 21 h. Classement et palmarès dans Ligue › En ligne.',
     '<strong>Signaler un bug</strong> : dans ⚙️ Paramètres, un bouton pour nous dire en une phrase ce qui ne va pas. Si le jeu plante, il te propose aussi d\'envoyer un rapport (jamais sans ton clic).',
     'Le jeu a <strong>sa propre adresse : rikikigame.com</strong>. En bas de l\'accueil, tu trouves les pages <strong>Confidentialité, Conditions, Cookies et Mentions légales</strong>.',
@@ -9096,9 +9105,10 @@ function visitePromoHtml(){
    cours ou du pli qui vient de se terminer.
    Vérification faite par l'appareil de l'organisateur, qui connaît la donne : main du joueur avant sa carte = donne − cartes déjà jouées.
    Carte interdite (couleur demandée possédée mais non fournie) → le tricheur perd FRAUD_PENALTY points. Accusation fausse → l'accusateur les perd.
-   Règles du mode : partie hors ligue (jamais comptée, jamais analysée), contrôles anti-triche de la ligue coupés pour cette partie. Les robots (acceptés, par exemple
-   pour tester à deux) ne trichent JAMAIS : les accuser est une fausse accusation. */
+   Règles du mode : partie hors ligue (jamais comptée, jamais analysée), SANS ROBOT (entre vrais joueurs uniquement), contrôles anti-triche de la ligue coupés pour cette partie. */
 var FRAUD_PENALTY = 5;
+// réglages d'une partie frauduleuse : rapide (5 manches, 5 cartes au plus), 10 s par tour, hors ligue, SANS robot
+var FRAUD_SETTINGS = { fraud:true, league:false, direction:'quick', startSize:5, blindOne:true, turnTimer:10 };
 var fraudUi = { open:false, busy:false, seenAt:0 };
 function fraudOn(g){ return !!(g && g.settings && g.settings.fraud); }
 
@@ -9161,6 +9171,21 @@ function fraudAnnounce(g){
 }
 function fraudOnUpdate(g){ try{ fraudAnnounce(g); }catch(e){} try{ fraudHostTick(g); }catch(e){} }
 
+// --- nouveauté sur l'accueil : essayer le mode en un clic (fermable, une seule fois par appareil) ---
+function fraudPromoHtml(){
+  try{ if(localStorage.getItem('rikiki_fraud_promo') === '1') return ''; }catch(e){}
+  if(typeof visiteState !== 'undefined' && visiteState === 'pending') return ''; // un nouveau joueur a d'abord la visite de l'appli
+  if(!(usingFirebase || usingMock)) return '';
+  return '<div class="fraud-promo" role="region" aria-label="Nouveauté"><span class="fraud-promo-ico" aria-hidden="true">😈</span>'
+    + '<span class="fraud-promo-txt"><strong>Nouveau : le mode frauduleux</strong><small>Triche permise, accuse tes amis. 5 manches, 10 s par tour, entre vrais joueurs.</small></span>'
+    + '<button class="btn small" data-action="fraud-create">Essayer</button>'
+    + '<button class="btn ghost small" data-action="fraud-promo-close" aria-label="Masquer">✕</button></div>';
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="fraud-promo-close"]') : null; if(!el) return;
+  try{ localStorage.setItem('rikiki_fraud_promo', '1'); }catch(err){} render();
+});
+
 // --- affichage : bouton « J'accuse » et choix de la carte ---
 function fraudBarHtml(g){
   if(!fraudOn(g) || g.status !== 'playing') return '';
@@ -9194,8 +9219,10 @@ document.addEventListener('click', function(e){
 document.addEventListener('change', function(e){
   var el = e.target; if(!el || el.getAttribute('data-action-change') !== 'set-fraud') return;
   var g = gameDoc; if(!g || g.hostId !== myId) return;
+  var hasBots = Object.keys(g.players || {}).some(function(id){ return g.players[id].isBot; });
+  if(el.checked && hasBots){ el.checked = false; showToast('Retire d\'abord les robots : le mode frauduleux se joue entre vrais joueurs.'); return; }
   // le mode doit aller VITE (10 à 15 minutes au plus) : format rapide (5 manches), 5 cartes au plus, 10 secondes par tour
-  var patch = el.checked ? { fraud:true, league:false, direction:'quick', startSize:5, turnTimer:10 } : { fraud:false };
+  var patch = el.checked ? FRAUD_SETTINGS : { fraud:false };
   updateSettings(patch).catch(function(err){ console.error(err); });
   if(el.checked) showToast('😈 Mode frauduleux : partie rapide de 5 manches, 10 s par tour.');
 });
@@ -9220,6 +9247,11 @@ document.addEventListener('click', function(e){
     var nq = document.getElementById('nameInput'), nv = nq ? nq.value.trim() : '';
     if(!nv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance la partie rapide.'; entryMode='create'; render(); var f = document.getElementById('nameInput'); if(f){ f.focus(); f.scrollIntoView({ block:'center' }); } return; }
     createGame(nv || myProfile.name, 'quick');
+  }
+  else if(action==='fraud-create'){
+    var nf = document.getElementById('nameInput'), nfv = nf ? nf.value.trim() : '';
+    if(!nfv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance le mode frauduleux.'; entryMode='create'; render(); var ff = document.getElementById('nameInput'); if(ff){ ff.focus(); ff.scrollIntoView({ block:'center' }); } return; }
+    createGame(nfv || myProfile.name, 'fraud');
   }
   else if(action==='do-join'){
     var nameEl2 = document.getElementById('nameInput');
