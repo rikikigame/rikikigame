@@ -88,6 +88,7 @@ function renderEntry(){
   // --- titre ---
   html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
+  html += fraudPromoHtml(); // 1.10.0 : nouveauté « mode frauduleux »
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
   var promo = visitePromoHtml(); html += promo; // 1.8.0 : carte « Première fois ? » (visite de l'appli + règles) pour les nouveaux appareils

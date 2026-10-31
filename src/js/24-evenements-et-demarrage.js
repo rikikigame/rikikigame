@@ -20,6 +20,11 @@ document.addEventListener('click', function(e){
     if(!nv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance la partie rapide.'; entryMode='create'; render(); var f = document.getElementById('nameInput'); if(f){ f.focus(); f.scrollIntoView({ block:'center' }); } return; }
     createGame(nv || myProfile.name, 'quick');
   }
+  else if(action==='fraud-create'){
+    var nf = document.getElementById('nameInput'), nfv = nf ? nf.value.trim() : '';
+    if(!nfv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance le mode frauduleux.'; entryMode='create'; render(); var ff = document.getElementById('nameInput'); if(ff){ ff.focus(); ff.scrollIntoView({ block:'center' }); } return; }
+    createGame(nfv || myProfile.name, 'fraud');
+  }
   else if(action==='do-join'){
     var nameEl2 = document.getElementById('nameInput');
     var codeEl = document.getElementById('joinCodeInput');

@@ -20,7 +20,8 @@ async function createGameInner(name, mode){
   var players = {}; players[myId] = { name:name, color:myProfile.color, joinedAt:now, ready:false };
   await ref.set({
     code: code, createdAt: now, hostId: myId, status:'lobby',
-    settings: { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
+    settings: mode==='fraud' ? Object.assign({}, FRAUD_SETTINGS) // 1.10.0 : mode frauduleux, partie rapide de 5 manches, 10 s par tour, hors ligue
+      : { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
     players: players
   });
   gameCode = code;
@@ -206,7 +207,7 @@ async function toggleReady(){
 
 async function addBot(){
   var g = gameDoc;
-  if(!g || g.hostId !== myId || g.status!=='lobby') return;
+  if(!g || g.hostId !== myId || g.status!=='lobby' || fraudOn(g)) return; // 1.10.0 : aucun robot en mode frauduleux
   var ids = Object.keys(g.players);
   if(ids.length >= MAX_PLAYERS) return;
   var usedNames = ids.map(function(id){ return g.players[id].name; });

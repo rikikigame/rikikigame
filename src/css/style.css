@@ -1040,3 +1040,8 @@ html.big-text .vt-text{ font-size:18px; }
 .fraud-row{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; }
 
 .link-back{ z-index:65; } .link-modal{ max-width:440px; }
+
+/* 1.10.0 : nouveauté mode frauduleux sur l'accueil */
+.fraud-promo{ display:flex; align-items:center; gap:10px; margin:10px 0; padding:10px 12px; border-radius:14px; background:rgba(214,64,64,0.14); border:1.5px solid rgba(214,64,64,0.6); }
+.fraud-promo-ico{ font-size:28px; } .fraud-promo-txt{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.fraud-promo-txt strong{ font-size:15px; } .fraud-promo-txt small{ font-size:12.5px; opacity:.8; margin-top:2px; }
