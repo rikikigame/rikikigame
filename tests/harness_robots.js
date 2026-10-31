@@ -37,13 +37,23 @@
       await toggleReady(); await until(function(){ return gameDoc.players[myId].ready; }, 20000, 'prêt');
       await startGame();
       var t0 = Date.now(), turnsSeen = 0, afkVoted = false;
+      var illegalProbe = null;
       while(gameDoc.status!=='game_over'){
         if(Date.now()-t0 > 900000) throw new Error('la partie ne se termine pas (statut : '+gameDoc.status+', manche '+gameDoc.round+')');
+        if(illegalProbe===null && gameDoc.status==='playing' && gameDoc.turnPlayerId===myId && !fraudOn(gameDoc) && gameDoc.currentTrick.length>0 && myHand && myHand.cards){
+          // 1.9.0 : le mode frauduleux ne doit JAMAIS assouplir le jeu classique : une carte qui ne suit pas la couleur doit être refusée pour de vrai
+          var ledP = gameDoc.currentTrick[0].card.suit, offP = myHand.cards.filter(function(c){ return c.suit!==ledP; })[0];
+          if(offP && myHand.cards.some(function(c){ return c.suit===ledP; })){
+            var n0 = gameDoc.currentTrick.length; await playCardAs(myId, offP); await sleep(80);
+            illegalProbe = (gameDoc.currentTrick.length===n0 && gameDoc.turnPlayerId===myId);
+          }
+        }
         await actForMe(); await sleep(15);
         if(AFK){ var pp = gameDoc.players['h-afk']; if(pp && pp.miss>=AFK_AFTER && !pp.excluded && !afkVoted){ afkVoted = true; await afkVote('h-afk', 'bot'); } }
       }
       var g = gameDoc;
       ok('la partie va jusqu\'au bout', g.status==='game_over');
+      ok('classique : une carte qui ne suit pas la couleur est refusée (essai réel pendant la partie)', illegalProbe===true, illegalProbe===null ? 'essai jamais tenté' : 'la carte interdite a été ACCEPTÉE');
       ok('toutes les manches sont jouées', (g.roundLog||[]).length===g.roundPlan.length, 'journal '+(g.roundLog||[]).length+' / '+g.roundPlan.length);
       ok('nombre de joueurs', g.playerOrder.length===N, g.playerOrder.length);
       (g.roundLog||[]).forEach(function(e, i){

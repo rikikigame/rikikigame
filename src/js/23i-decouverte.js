@@ -90,6 +90,30 @@ document.addEventListener('click', function(e){
 });
 document.addEventListener('click', function(e){ if(helpOpen && e.target.closest && e.target.closest('[data-action="toggle-rules"]')){ helpOpen = false; helpRender(); } });
 
+// --- 3 bis. partager un lien : copier sans permission, sinon l'afficher dans la page ---
+async function copyTextSafe(text){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); return true; } }catch(e){}
+  try{ // repli : copie « à l'ancienne » depuis un clic de l'utilisateur
+    var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed; top:0; left:0; opacity:0;';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    var ok = document.execCommand && document.execCommand('copy'); document.body.removeChild(ta); return !!ok;
+  }catch(e){ return false; }
+}
+function linkBoxShow(url, text){
+  tipRoot().innerHTML = '<div class="modal-backdrop link-back" data-action="link-close"><div class="card-panel modal link-modal" role="dialog" aria-modal="true" aria-labelledby="link-title">'
+    + '<h3 id="link-title">👋 Invite un nouveau joueur</h3>'
+    + '<p class="muted" style="font-size:14px; margin:0 0 8px;">Envoie ce lien par message : ton ami écrit son prénom et arrive directement dans ce salon.</p>'
+    + '<input type="text" id="link-url" readonly value="'+esc(url)+'" style="width:100%; box-sizing:border-box; font-size:15px;">'
+    + '<div class="row" style="gap:8px; margin-top:10px;"><button class="btn" style="flex:1;" data-action="link-copy" data-url="'+esc(url)+'">Copier le lien</button>'
+    + '<button class="btn secondary" data-action="link-close">Fermer</button></div></div></div>';
+  var i = document.getElementById('link-url'); if(i){ i.focus(); i.select(); }
+}
+document.addEventListener('click', function(e){
+  var el = e.target.closest ? e.target.closest('[data-action="link-copy"],[data-action="link-close"]') : null; if(!el) return;
+  if(el.getAttribute('data-action') === 'link-close'){ if(e.target !== el && el.classList.contains('link-back')) return; tipRoot().innerHTML = ''; return; }
+  copyTextSafe(el.getAttribute('data-url')).then(function(ok){ if(ok){ showToast('Lien copié ✓'); tipRoot().innerHTML = ''; } else { var i = document.getElementById('link-url'); if(i){ i.focus(); i.select(); } showToast('Sélectionne le lien et copie-le (appui long).'); } });
+});
+
 // --- 4. carte grisée : on explique pourquoi ---
 function blockedCardTap(e){
   var g = (typeof gameDoc !== 'undefined') ? gameDoc : null;

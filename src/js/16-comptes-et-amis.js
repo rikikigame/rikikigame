@@ -333,8 +333,10 @@ async function shareGameLink(code){
   try{
     if(navigator.share){ await navigator.share({ title:'Rikiki', text:text, url:url }); return; }
   }catch(e){ if(e && e.name==='AbortError') return; }
-  try{ await navigator.clipboard.writeText(url); showToast('Lien copié ✓ Colle-le dans ta conversation'); }
-  catch(e){ prompt('Copie ce lien :', url); }
+  // 1.9.0 : plus de fenêtre « prompt » du navigateur (bloquée dans l'appli iPhone et dans beaucoup de navigateurs : le bouton ne faisait rien).
+  // On copie si on peut, sinon on affiche le lien DANS la page, sélectionné, avec un bouton « Copier ».
+  if(await copyTextSafe(url)){ showToast('Lien copié ✓ Colle-le dans ta conversation'); return; }
+  linkBoxShow(url, text);
 }
 // --- affichage ---
 function renderInviteBanner(){

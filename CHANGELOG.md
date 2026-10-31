@@ -8,7 +8,12 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.9.1 — 31 octobre 2026
+
+Correctif : le bouton « Inviter un nouveau joueur » (ex-« Partager le lien ») ne faisait rien quand le navigateur refusait la copie ou n'avait pas de partage intégré (ordinateur, appli iPhone) : une fenêtre du navigateur, souvent bloquée, était la seule issue. Le lien est maintenant copié, ou affiché dans la page avec un bouton « Copier le lien ».
+
 ## 1.9.0 — 31 octobre 2026
+
 
 Nouveau : **Mode frauduleux** 😈 (réglage du salon). La triche est permise : on peut jouer n'importe quelle carte, y compris ne pas fournir la couleur. Les autres voient seulement une carte posée, mais peuvent accuser (« 🕵️ J'accuse ») une carte du pli en cours ou du pli précédent. L'appareil de l'organisateur vérifie : tricheur pris = −5 points, fausse accusation = −5 points pour l'accusateur. Partie hors ligue et jamais analysée, pas de jeu automatique. Les robots sont acceptés (pour tester à deux, par exemple) mais ne trichent jamais : les accuser est une fausse accusation. Le mode va vite : en le cochant, la partie passe en format rapide (5 manches, 5 cartes au plus) avec 10 secondes par tour. Le salon affiche aussi la **durée estimée** de toute partie. Aucun changement de règles Firebase.
 
