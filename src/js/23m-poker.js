@@ -31,7 +31,7 @@ function renderCasinoLobby(g){
   var isHost = g.hostId === myId, n = ids.length, bj = bjOn(g), rl = rlOn(g), minPlayers = (bj || rl) ? 1 : MIN_PLAYERS;
   var allReady = n > 0 && ids.every(function(id){ return g.players[id].ready; });
   var html = '<div class="card-panel" style="margin-bottom:12px;">';
-  html += '<div class="row between"><h2 style="font-size:24px;">'+(bj ? 'Salon blackjack <span class="quick-chip">♥ Blackjack</span>' : rl ? 'Salon roulette <span class="quick-chip">🎡 Roulette</span>' : 'Salon poker <span class="quick-chip">♠ Texas Hold\'em</span>')+'</h2><span class="badge">'+n+' / '+MAX_PLAYERS+'</span></div>';
+  html += '<div class="row between"><h2 style="font-size:24px;">'+(bj ? 'Salon blackjack <span class="quick-chip">♥ Blackjack</span>' : rl ? 'Salon roulette <span class="quick-chip">🎡 Roulette</span>' : 'Salon poker <span class="quick-chip">♠ Texas Hold\'em</span>')+'</h2><span class="badge">'+n+' / '+maxPlayersOf(g)+'</span></div>';
   html += '<p class="muted" style="font-size:13.5px; margin:4px 0 8px;">Donne le code <strong style="color:var(--navy); letter-spacing:0.1em;">'+esc(g.code)+'</strong> à tes amis. <strong>Tous les jetons sont faux</strong> : on ne joue jamais avec de l\'argent.</p>';
   html += '<div class="player-list">';
   ids.forEach(function(id){
@@ -49,7 +49,7 @@ function renderCasinoLobby(g){
     html += '</div>';
   });
   html += '</div>';
-  if(isHost && n < MAX_PLAYERS) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
+  if(isHost && n < maxPlayersOf(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
   if(!rl) html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // la roulette n'utilise pas de cartes : pas de choix de paquet dans son salon
   var START = 'Tu démarres avec tes points de ligue du mois dernier (750 si tu débutes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
