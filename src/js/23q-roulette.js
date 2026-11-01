@@ -33,7 +33,7 @@ async function rlWrite(g, st, extra){
   await claudeDb.doc('games/'+g.code).update(patch);
 }
 function rlRestartRound(g){
-  var st0 = g.rl, st = rlStartRound(st0.seats, st0.startStacks, st0.n, st0.total, st0.history.slice(0, Math.max(0, st0.history.length - (st0.result ? 1 : 0))));
+  var st0 = g.rl, ro = miniRoster(g, st0, st0.startStacks), st = rlStartRound(ro.seats, ro.stacks, st0.n, st0.total, st0.history.slice(0, Math.max(0, st0.history.length - (st0.result ? 1 : 0))));
   if(st) rlBeginRound(g, st);
 }
 async function rlFinish(g, st0){
@@ -43,7 +43,7 @@ async function rlFinish(g, st0){
 }
 function rlNextRound(g){
   if(g.finishAfter){ rlFinish(g, g.rl); return; }
-  var st0 = g.rl, st = rlStartRound(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.history);
+  var st0 = g.rl, ro = miniRoster(g, st0, st0.stacks), st = rlStartRound(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.history);
   if(st) rlBeginRound(g, st);
 }
 async function rlApply(g, fn){

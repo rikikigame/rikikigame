@@ -1694,7 +1694,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.12.1';
+var APP_VERSION = '1.13.0';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -4099,9 +4099,17 @@ async function joinGameInner(codeRaw, name){
   if(!snap.exists){ errorMsg="Cette partie n'existe pas."; render(); return; }
   var data = snap.data();
   if(data.players && data.players[myId]){ gameCode=code; persistLocal(); subscribeGame(code); return; }
-  if(data.status !== 'lobby'){ errorMsg='Cette partie a déjà commencé.'; render(); return; }
-  if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette partie est complète.'; render(); return; }
   name = (name||'').trim().slice(0,24) || 'Joueur';
+  if(data.status !== 'lobby'){
+    // 1.13.0 : une table de casino en cours accepte un nouvel arrivant (il s'assoit à la main suivante), sauf si elle est complète
+    if(!lateJoinPossible(data)){ errorMsg='Cette partie a déjà commencé.'; render(); return; }
+    if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette table est complète.'; render(); return; }
+    if(usingFirebase){ try{ localStorage.setItem('rikiki_fb_name', name); }catch(e){} }
+    try{ await lateJoinRequest(code, name); }catch(e){ console.error(e); errorMsg="Impossible de rejoindre cette table pour l'instant : réessaie dans un moment."; render(); return; }
+    gameCode = code; persistLocal(); subscribeGame(code);
+    return;
+  }
+  if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette partie est complète.'; render(); return; }
   if(usingFirebase){ try{ localStorage.setItem('rikiki_fb_name', name); }catch(e){} }
   var patch = { players:{} };
   patch.players[myId] = { name:name, color:myProfile.color, joinedAt:nowMs(), ready:false };
@@ -4147,6 +4155,8 @@ function subscribeGame(code, fromRestore){
       }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
+      if(gameDoc.players && gameDoc.players[myId] && lateWait === code) lateWait = '';
+      if((!gameDoc.players || !gameDoc.players[myId]) && lateWait === code && miniOn(gameDoc)){ screen='game'; render(); return; } // 1.13.0 : demande pour rejoindre envoyée, j'attends que l'organisateur m'ajoute
       if(!gameDoc.players || !gameDoc.players[myId]){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }
@@ -6157,14 +6167,14 @@ var social = { friends:{}, presence:{}, reqs:{}, invites:{}, unsubs:[], started:
 var ONLINE_MS = 90000, INVITE_MS = 15*60000;
 function socialOn(){ return !!currentProfile && !(authOn() && authAnon()); }
 function presenceStatus(){
-  if(screen==='game' && gameDoc){ return { code: gameDoc.code, status: gameDoc.status==='lobby' ? 'lobby' : 'playing' }; }
+  if(screen==='game' && gameDoc){ return { code: gameDoc.code, status: gameDoc.status==='lobby' ? 'lobby' : 'playing', kind: gameDoc.kind || '', full: !!(gameDoc.players && Object.keys(gameDoc.players).length >= maxPlayersOf(gameDoc)) }; }
   if(screen==='sheet') return { code:null, status:'cards' };
   return { code:null, status:'idle' };
 }
 async function presenceBeat(){
   if(!socialOn()) return;
   var st = presenceStatus();
-  try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status })); }catch(e){ console.warn('présence', e); }
+  try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status, kind: st.kind || '', full: !!st.full })); }catch(e){ console.warn('présence', e); }
 }
 var presenceTimer = null, lastPresenceKey = null;
 function presenceTick(){
@@ -6202,7 +6212,7 @@ function friendStatusText(fid){
   var p = social.presence[fid];
   if(!p || nowMs() - p.at >= ONLINE_MS) return 'hors ligne';
   if(p.status==='lobby') return 'dans un salon ('+esc(p.code)+')';
-  if(p.status==='playing') return 'en partie';
+  if(p.status==='playing') return /^(poker|blackjack|roulette)$/.test(p.kind||'') ? ({ poker:'au poker', blackjack:'au blackjack', roulette:'à la roulette' }[p.kind] + (p.full ? ' (table complète)' : '')) : 'en partie';
   if(p.status==='cards') return 'joue aux vraies cartes';
   return 'en ligne';
 }
@@ -6321,7 +6331,7 @@ function renderFriendsPanel(){
     ids.forEach(function(fid){
       var on = friendOnline(fid), pr = social.presence[fid];
       html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
-        + (on && pr && pr.status==='lobby' && pr.code ? '<button class="btn small" data-action="friend-join" data-code="'+esc(pr.code)+'">Rejoindre</button>' : '<button class="btn ghost small" data-action="friend-remove" data-id="'+esc(fid)+'" title="Retirer">✕</button>')
+        + (on && pr && pr.code && !pr.full && (pr.status==='lobby' || (pr.status==='playing' && /^(poker|blackjack|roulette)$/.test(pr.kind||''))) ? '<button class="btn small" data-action="friend-join" data-code="'+esc(pr.code)+'">Rejoindre</button>' : '<button class="btn ghost small" data-action="friend-remove" data-id="'+esc(fid)+'" title="Retirer">✕</button>')
         + '</div>';
     });
     html += '<div class="row" style="gap:6px; margin-top:10px;"><input type="text" id="friendPseudo" maxlength="24" placeholder="Pseudo de ton ami (tape 2 lettres)" list="friend-suggest" autocomplete="off" style="flex:1; min-width:0;">'+friendSuggestHtml()+'<button class="btn secondary small" data-action="friend-add">Ajouter</button></div>';
@@ -9141,7 +9151,7 @@ var NEWS = {
   version: APP_VERSION, tour: '1.11', title: '🎰 Du nouveau sur Rikiki !',
   items: [
     '<!--casino--><strong>🎰 Le Casino de Fredo</strong> : Fredo a toujours aimé les jeux d\'argent. Un soir, il s\'est dit qu\'un casino au café, ce serait quand même sympa. Il a ouvert une table, puis deux, puis trois. Tu le trouves sur l\'accueil, dans « Mini casino ».',
-    '<!--casino--><strong>🎟️ Tes jetons de départ</strong> : au casino, tu démarres avec tes points de ligue du mois dernier (750 si tu débutes). Et chaque jour passé en haut du classement du mois en cours te rapporte un petit bonus pour tes prochaines parties : 3 jetons en 1re place, 2 dans les 3 premiers, 1 dans les 10 premiers. On joue ensuite tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
+    '<!--casino--><strong>🎟️ Tes jetons sont sauvegardés</strong> : ce que tu gagnes ou perds au casino est enregistré, et tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils ; sans profil, sur ce téléphone). La toute première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Tombé sous 100 jetons ? La maison te prête de quoi rejouer. On joue tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
     '<!--casino--><strong>🃏 Poker</strong> : Texas Hold\'em de 2 à 8 joueurs, avec des blindes qui montent au fil des mains, le tapis et les pots annexes. Tes cartes restent secrètes, et celui qui a le plus de jetons à la fin gagne.',
     '<!--casino--><strong>🂡 Blackjack</strong> : seul contre le croupier ou à plusieurs. Mise de 10 à 500, blackjack payé 3 pour 2, et tu peux doubler. De 5 à 20 manches.',
     '<!--casino--><strong>🎡 Roulette</strong> : roulette européenne à 37 cases, seul ou à plusieurs. Pose tes jetons sur un numéro (35 contre 1), une couleur, pair ou impair, une douzaine ou une colonne, puis regarde la bille tourner. De 5 à 20 tours.',
@@ -9192,8 +9202,8 @@ var NEWS_SLIDES = [
     s:function(){ return '<div class="news-sign tt-a" data-noi18n>Casino de Fredo</div><div class="news-chips tt-a"'+ttD(500)+' aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; } },
   { casino:true, t:'Trois jeux à la table', d:'Seul, entre amis ou avec des robots. On joue tant qu\'il reste des jetons. Tu choisis ton jeu dans « Mini casino », sur l\'accueil.',
     s:function(){ return '<div class="tt-results">'+[['♠ Poker', 'Texas Hold\'em'], ['🃏 Blackjack', 'contre le croupier'], ['🎡 Roulette', 'rouge, noir, numéros…']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="muted">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
-  { casino:true, t:'Tes jetons de départ 🎟️', d:'Tu démarres avec tes points de ligue du mois dernier (750 si tu débutes). Et chaque jour passé en haut du classement du mois en cours te rapporte un petit bonus pour tes prochaines parties.',
-    s:function(){ return '<div class="tt-results">'+[['Tes points du mois dernier', '1180'], ['Bonus de ce mois-ci', '+24'], ['Si tu débutes', '750']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
+  { casino:true, t:'Tes jetons sont sauvegardés 🎟️', d:'Ce que tu gagnes ou perds au casino est enregistré : tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils). La première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Sous 100 jetons, la maison te prête de quoi rejouer.',
+    s:function(){ return '<div class="tt-results">'+[['Ta première fois', '750'], ['Tu gagnes 200', '950'], ['Tu repars avec', '950']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
   { casino:true, t:'Nouvelles cartes 🎴', d:'Un nouveau jeu de cartes, où les symboles sont de vrais jetons de casino. Tu le choisis dans ⚙️ Paramètres, rubrique « Tes cartes ».', s:newsCards },
   { casino:true, t:'Une vraie ambiance 🎷', d:'Un décor animé, du jazz de club, des bruitages de jetons, de cartes et de roulette, et un croupier à chaque table. Tu peux tout couper dans ⚙️ Paramètres.', s:newsChips },
   { t:'La ligue repart chaque mois 🏆', d:'Le classement du mois repart de zéro le 1er de chaque mois : chacun a sa chance. Tes stats et le classement « Général » restent, et tu peux revoir les mois passés.',
@@ -10503,41 +10513,59 @@ function pkRanking(st){
 }
 
 /* ---------- robots ---------- */
-function pkPreflopStrength(hole){
-  var a = RANK_VALUE[hole[0].rank], b = RANK_VALUE[hole[1].rank];
-  var hi = Math.max(a, b), lo = Math.min(a, b), suited = hole[0].suit === hole[1].suit;
-  var s = (hi + lo * 0.5) / 21;
-  if(a === b) s = 0.5 + hi / 28;
-  if(suited) s += 0.04;
-  if(hi - lo === 1) s += 0.03;
-  return Math.min(0.98, s);
-}
-function pkPostflopStrength(hole, board){
-  var sc = pkBest(hole.concat(board));
-  var cat = sc[0], base = [0.18, 0.5, 0.72, 0.8, 0.88, 0.92, 0.97, 0.99, 1][cat];
-  if(cat === 1){ // paire : meilleure si elle utilise une carte de la main
-    var pv = sc[1], mine = hole.some(function(c){ return RANK_VALUE[c.rank] === pv; });
-    base = mine ? (pv >= 11 ? 0.58 : 0.5) : 0.3;
+// Chances de gagner (une égalité compte pour une demi-victoire) contre nOpp mains au hasard, par tirages au sort (Monte-Carlo).
+function pkEquity(hole, board, nOpp, sims, rng){
+  var used = {}, deck = [], need = 5 - board.length, wins = 0, i, j, k, o, t;
+  hole.concat(board).forEach(function(c){ used[c.rank + c.suit] = 1; });
+  buildDeck().forEach(function(c){ if(!used[c.rank + c.suit]) deck.push(c); });
+  var m = need + 2 * nOpp;
+  for(i = 0; i < sims; i++){
+    for(j = 0; j < m; j++){ k = j + Math.floor(rng() * (deck.length - j)); t = deck[j]; deck[j] = deck[k]; deck[k] = t; }
+    var full = board.concat(deck.slice(0, need)), mine = pkBest(hole.concat(full)), best = true, ties = 0;
+    for(o = 0; o < nOpp; o++){
+      var c = pkCompare(mine, pkBest([deck[need + 2 * o], deck[need + 2 * o + 1]].concat(full)));
+      if(c < 0){ best = false; break; }
+      if(c === 0) ties++;
+    }
+    if(best) wins += 1 / (ties + 1);
   }
-  return base;
+  return wins / sims;
 }
-// rend { type, to } ; rng() entre 0 et 1
-function pkBotDecide(st, id, hole, rng){
-  var o = pkOptions(st, id);
-  var s = st.board.length ? pkPostflopStrength(hole, st.board) : pkPreflopStrength(hole);
-  s += (rng() - 0.5) * 0.18;
-  var potOdds = o.toCall / Math.max(1, o.pot + o.toCall);
-  var size = function(frac){ return Math.max(o.minTo, Math.min(o.maxTo, st.current + Math.round(o.pot * frac / st.bb) * st.bb)); };
-  if(o.canCheck){
-    if(o.canRaise && s > 0.66 && rng() < 0.65) return { type: 'raise', to: size(0.4 + rng() * 0.4) };
-    if(o.canRaise && s < 0.35 && rng() < 0.06) return { type: 'raise', to: size(0.5) };
+// Il faut une main plus forte pour miser quand il reste plus d'adversaires (indexé par le nombre d'adversaires)
+var PK_BOT_STRONG = [0, 0.64, 0.50, 0.42, 0.37, 0.33, 0.30, 0.28];
+// rend { type, to } ; rng() entre 0 et 1 ; sims = nombre de tirages (moins de tirages = plus rapide, un peu moins précis)
+function pkBotDecide(st, id, hole, rng, sims){
+  var o = pkOptions(st, id), bb = st.bb, stack = st.stacks[id], pot = o.pot, street = st.board.length;
+  var nOpp = Math.max(1, st.order.filter(function(p){ return p !== id && !st.folded[p]; }).length);
+  var eq = pkEquity(hole, st.board, nOpp, sims || 90, rng);
+  var strong = PK_BOT_STRONG[Math.min(nOpp, 7)], facing = o.toCall > 0;
+  var raiseTo = function(frac){ return Math.max(o.minTo, Math.min(o.maxTo, st.current + Math.round(pot * frac / bb) * bb)); };
+  var shove = o.maxTo <= 12 * bb + st.bets[id]; // moins de 12 grosses blindes derrière : tapis ou rien
+  // une mise adverse annonce une main plus forte qu'une main au hasard (surtout si elle est grosse et tardive)
+  var betFrac = facing ? o.toCall / Math.max(1, pot - o.toCall) : 0;
+  var disc = facing ? Math.min(0.2, 0.06 + 0.12 * Math.min(1, betFrac)) * (street ? 1 : 0.6) : 0;
+  var adj = eq - disc + (rng() - 0.5) * 0.05;
+  if(!facing){ // personne n'a misé : on peut checker
+    if(o.canRaise){
+      if(shove && eq > strong + 0.05) return { type: 'allin' };
+      if(eq > strong + 0.14 && (!street || rng() < 0.6)) return { type: 'raise', to: street ? raiseTo(0.55 + rng() * 0.35) : Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+      if(eq > strong && rng() < 0.7) return { type: 'raise', to: street ? raiseTo(0.4 + rng() * 0.3) : Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+      if(street >= 3 && nOpp <= 2 && eq > 0.2 && eq < strong - 0.1 && rng() < 0.12) return { type: 'raise', to: raiseTo(0.6) }; // bluff : on mise quand tout le monde a checké
+    }
     return { type: 'check' };
   }
-  if(o.canRaise && s > 0.82 && rng() < 0.6) return { type: s > 0.95 && rng() < 0.4 ? 'allin' : 'raise', to: size(0.6 + rng() * 0.6) };
-  if(s > potOdds + 0.12 || (o.toCall <= st.bb && s > 0.3)) return { type: 'call' };
-  if(rng() < 0.04) return { type: 'call' };
+  var unraised = !street && st.current <= bb; // avant le flop, personne n'a relancé : on ouvre
+  var commit = o.toCall / Math.max(1, stack); // part de mon tapis que ce coup me coûte
+  if(shove && adj > potOdds(o) + 0.04 && eq > strong - 0.03) return { type: 'allin' };
+  if(o.canRaise && unraised && eq > strong + 0.03 && rng() < 0.85) return { type: 'raise', to: Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+  if(o.canRaise && eq > strong + 0.16 && adj > potOdds(o) + 0.12 && rng() < 0.6) return { type: eq > 0.9 && rng() < 0.4 ? 'allin' : 'raise', to: raiseTo(0.7 + rng() * 0.5) };
+  if(commit > 0.5 && adj < 0.55) return { type: 'fold' }; // je ne mets pas la moitié de mon tapis avec une main moyenne
+  if(adj > potOdds(o) + 0.03) return { type: 'call' };
+  if(o.toCall <= bb && eq > 0.28) return { type: 'call' }; // petit prix : on regarde
+  if(rng() < 0.03) return { type: 'call' };
   return { type: 'fold' };
 }
+function potOdds(o){ return o.toCall / Math.max(1, o.pot + o.toCall); }
 // tapis de 52 cartes : 2 cartes par joueur en jeu + 5 cartes communes
 function pkDeal(order, seed){
   var deck = shuffle(buildDeck(), mulberry32(seed)), holes = {}, i;
@@ -10600,7 +10628,7 @@ function renderCasinoLobby(g){
   if(isHost && n < maxPlayersOf(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
   if(!rl) html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // la roulette n'utilise pas de cartes : pas de choix de paquet dans son salon
-  var START = 'Tu démarres avec tes points de ligue du mois dernier (750 si tu débutes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
+  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; sous 100, la maison te prête de quoi rejouer) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
   html += '<div class="card-panel" style="margin-bottom:12px;"><div class="row between"><h2 style="font-size:20px;">Partie</h2></div>';
   html += '<div class="muted" style="font-size:13.5px; line-height:1.6;">'+(rl
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT
@@ -10659,7 +10687,7 @@ async function pokerWrite(g, st, extra){
 function pokerRestartHand(g){
   var st0 = g.poker, seats = st0.seats, i = seats.indexOf(st0.dealer);
   var prev = seats[(i - 1 + seats.length) % seats.length];
-  var st = pkStartHand(seats, st0.startStacks, st0.n, st0.total, prev);
+  var ro = miniRoster(g, st0, st0.startStacks), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
   if(st) pokerBeginHand(g, st);
 }
 async function pokerFinish(g, st0){
@@ -10670,7 +10698,7 @@ async function pokerFinish(g, st0){
 function pokerNextHand(g){
   var st0 = g.poker;
   if(g.finishAfter){ pokerFinish(g, st0); return; }
-  var st = pkStartHand(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.dealer);
+  var ro = miniRoster(g, st0, st0.stacks), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
   if(st) pokerBeginHand(g, st);
 }
 async function pokerApply(g, id, act){
@@ -11136,18 +11164,20 @@ var showMiniMenu = false;
 
 /* ---------- routage commun poker / blackjack ---------- */
 function miniStart(g){ return pokerOn(g) ? startPoker() : (rlOn(g) ? startRoulette() : startBlackjack()); }
-function miniHostTick(g){ if(pokerOn(g)) pokerHostTick(g); else if(bjOn(g)) bjHostTick(g); else if(rlOn(g)) rlHostTick(g); }
-function miniTimerTick(g){ if(pokerOn(g)) pokerTimerTick(g); else if(bjOn(g)) bjTimerTick(g); else if(rlOn(g)) rlTimerTick(g); }
+function miniHostTick(g){ try{ lateHostTick(g); }catch(e){ console.warn(e); } if(pokerOn(g)) pokerHostTick(g); else if(bjOn(g)) bjHostTick(g); else if(rlOn(g)) rlHostTick(g); }
+function miniTimerTick(g){ try{ walletTick(g); }catch(e){ console.warn(e); } if(pokerOn(g)) pokerTimerTick(g); else if(bjOn(g)) bjTimerTick(g); else if(rlOn(g)) rlTimerTick(g); }
 function miniHelpLines(g){ return pokerOn(g) ? pokerHelpLines(g) : (rlOn(g) ? rlHelpLines(g) : bjHelpLines(g)); }
 function renderMini(g){
-  var html = '';
+  var html = '', mst = g.poker || g.bj || g.rl;
+  if(g.status !== 'lobby' && !(g.players && g.players[myId])) return renderLateWaiting(g) + (showPrefs ? renderPrefsModal() : ''); // demande envoyée, pas encore ajouté
+  if(g.status !== 'lobby' && g.status.slice(-4) !== '_end' && mst && mst.seats && mst.seats.indexOf(myId) < 0) html += renderLateWaiting(g); // ajouté, assis à la prochaine main
   if(g.status === 'lobby') html += renderLobbyInvite(g) + renderCasinoLobby(g);
   else html += pokerOn(g) ? renderPoker(g) : (rlOn(g) ? renderRoulette(g) : renderBlackjack(g));
   if(showPrefs) html += renderPrefsModal();
   if(showRules) html += pokerOn(g) ? renderPokerRules() : (rlOn(g) ? renderRlRules() : renderBjRules());
   return html;
 }
-function miniClearSecrets(){ pokerSecret = null; bjSecret = null; rlSecret = null; }
+function miniClearSecrets(){ pokerSecret = null; bjSecret = null; rlSecret = null; lateWait = ''; lateHostStop(); }
 
 /* ---------- menu « Mini casino » (poker, blackjack, roulette ; le mode frauduleux se coche dans le salon d'une partie normale) ---------- */
 function renderMiniMenu(){
@@ -11200,7 +11230,7 @@ async function bjWrite(g, st, extra){
   await claudeDb.doc('games/'+g.code).update(patch);
 }
 function bjRestartRound(g){
-  var st0 = g.bj, st = bjStartRound(st0.seats, st0.startStacks, st0.n, st0.total, st0.lastBets);
+  var st0 = g.bj, ro = miniRoster(g, st0, st0.startStacks), st = bjStartRound(ro.seats, ro.stacks, st0.n, st0.total, st0.lastBets);
   if(st) bjBeginRound(g, st);
 }
 async function bjFinish(g, st0){
@@ -11210,7 +11240,7 @@ async function bjFinish(g, st0){
 }
 function bjNextRound(g){
   if(g.finishAfter){ bjFinish(g, g.bj); return; }
-  var st0 = g.bj, st = bjStartRound(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.lastBets);
+  var st0 = g.bj, ro = miniRoster(g, st0, st0.stacks), st = bjStartRound(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.lastBets);
   if(st) bjBeginRound(g, st);
 }
 async function bjApply(g, fn){
@@ -11620,7 +11650,7 @@ async function rlWrite(g, st, extra){
   await claudeDb.doc('games/'+g.code).update(patch);
 }
 function rlRestartRound(g){
-  var st0 = g.rl, st = rlStartRound(st0.seats, st0.startStacks, st0.n, st0.total, st0.history.slice(0, Math.max(0, st0.history.length - (st0.result ? 1 : 0))));
+  var st0 = g.rl, ro = miniRoster(g, st0, st0.startStacks), st = rlStartRound(ro.seats, ro.stacks, st0.n, st0.total, st0.history.slice(0, Math.max(0, st0.history.length - (st0.result ? 1 : 0))));
   if(st) rlBeginRound(g, st);
 }
 async function rlFinish(g, st0){
@@ -11630,7 +11660,7 @@ async function rlFinish(g, st0){
 }
 function rlNextRound(g){
   if(g.finishAfter){ rlFinish(g, g.rl); return; }
-  var st0 = g.rl, st = rlStartRound(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.history);
+  var st0 = g.rl, ro = miniRoster(g, st0, st0.stacks), st = rlStartRound(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.history);
   if(st) rlBeginRound(g, st);
 }
 async function rlApply(g, fn){
@@ -11913,7 +11943,7 @@ function croupierFor(g){
      jour en 1re place, 2 par jour dans les 3 premiers, 1 par jour dans les 10 premiers (cumulables), 150 au maximum.
    Rien n'est enregistré : tout se recalcule depuis les parties de la ligue (publiques). Chaque joueur écrit son propre nombre dans players[id].bank quand
    il entre dans le salon ; l'organisateur le lit au lancement (bornes 100 à 5000 ; 750 pour les robots et les valeurs absentes). */
-var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 5000, CASINO_BONUS_MAX = 150;
+var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, CASINO_BONUS_MAX = 150; // plafond : le solde sauvegardé peut grandir (voir le portefeuille ci-dessous)
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
@@ -11940,11 +11970,39 @@ function leagueTopDays(key, memberId){
 function casinoBonusFromDays(d){ return Math.min(CASINO_BONUS_MAX, Math.round(d.first * CASINO_BONUS_FIRST + d.top3 * CASINO_BONUS_TOP3 + d.top10 * CASINO_BONUS_TOP10)); }
 function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CASINO_BANK_MAX, Math.round(elo) + casinoBonusFromDays(days))); }
 
+// 1.13.0 : PORTEFEUILLE. Les jetons gagnés ou perdus sont sauvegardés : avec un profil dans `wallets/{profil}` (suit le joueur sur tous ses appareils ;
+// règle Firebase « wallets »), toujours aussi sur l'appareil (`rikiki_wallet`, seule sauvegarde sans profil). Les points de ligue ne servent plus que pour
+// la TOUTE première fois ou après une faillite (moins de CASINO_BANK_MIN jetons : la maison prête de quoi rejouer).
+function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
+async function walletRead(){
+  var ref = walletRef(), remote = null, local = null;
+  if(ref){ try{ var s = await ref.get(); if(s.exists){ var d = s.data(); if(d && typeof d.chips === 'number' && isFinite(d.chips)) remote = d.chips; } }catch(e){ console.warn('portefeuille', e); } }
+  try{ var raw = localStorage.getItem('rikiki_wallet'); if(raw !== null && isFinite(Number(raw))) local = Number(raw); }catch(e){}
+  return remote !== null ? remote : local;
+}
+async function walletSave(chips){
+  chips = Math.max(0, Math.min(CASINO_BANK_MAX, Math.round(Number(chips))));
+  if(!isFinite(chips)) return;
+  try{ localStorage.setItem('rikiki_wallet', String(chips)); }catch(e){}
+  var ref = walletRef();
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+}
+var walletSaved = '';
+// à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
+function walletTick(g){
+  var st = g && (g.poker || g.bj || g.rl);
+  if(!st || !st.result || !st.stacks || !st.seats || st.seats.indexOf(myId) < 0 || typeof st.stacks[myId] !== 'number') return;
+  var key = g.code + '|' + st.n + '|' + st.stacks[myId];
+  if(key === walletSaved) return;
+  walletSaved = key; walletSave(st.stacks[myId]);
+}
 async function myCasinoBank(){
+  var w = await walletRead();
+  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
   try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons de départ)', e); }
   var me = myMember(); if(!me) return CASINO_BASE_NEW;
   var prev = prevMonthKey(), row = computeLeague(prev, 'online').ranked.filter(function(r){ return r.id === me.id; })[0];
-  var base = row ? row.elo : CASINO_BASE_NEW; // l'Elo du mois dernier, sinon 750
+  var base = row ? row.elo : CASINO_BASE_NEW; // première fois ou faillite : l'Elo du mois dernier, sinon 750
   return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id)); // + le bonus du mois en cours
 }
 
@@ -11962,6 +12020,71 @@ function miniSendBank(g){
 function miniStartStack(g, id){
   var p = g.players[id], b = p && !p.isBot ? Number(p.bank) : 0;
   return (b >= CASINO_BANK_MIN) ? Math.min(CASINO_BANK_MAX, Math.round(b)) : CASINO_BASE_NEW;
+}
+/* ===================== 1.13.0 : rejoindre une table de casino EN COURS de partie =====================
+   Une partie commencée n'accepte les écritures que des comptes déjà présents (règles Firebase de sécurité) : un nouvel arrivant ne peut donc pas
+   s'ajouter lui-même. Il dépose une DEMANDE dans son propre document `lateJoin/{code}__{son compte}` (nouvelle règle : il ne peut écrire que le sien).
+   L'organisateur (le croupier) lit les demandes de sa table, ajoute le joueur à `players` (c'est l'organisateur qui écrit, il en a le droit), puis
+   le nouveau joueur s'assoit à la main / manche / tour SUIVANT avec ses jetons de départ (`miniRoster`). Refusé si la table est complète.
+   Règle Firebase à publier AVANT le code : voir regles-firebase.json, nœud « lateJoin ». */
+var lateWait = ''; // code de la table que j'ai demandé à rejoindre et où l'organisateur ne m'a pas encore ajouté
+var lateWatch = { code: '', unsub: null, busy: false, adding: {} };
+
+function lateJoinPossible(data){ return !!(data && miniOn(data) && typeof data.status === 'string' && data.status !== 'lobby' && data.status.slice(-4) !== '_end'); }
+
+// côté nouvel arrivant : j'envoie ma demande (mon nom, ma couleur, mes jetons de départ)
+async function lateJoinRequest(code, name){
+  var uid = myKeyId(), bank = CASINO_BASE_NEW;
+  try{ bank = await myCasinoBank(); }catch(e){}
+  var doc = { id: myId, name: name, color: myProfile.color, uid: uid, code: code, bank: bank, at: nowMs(), __plain: { code: code, uid: uid } };
+  await claudeDb.doc('lateJoin/' + code + '__' + uid).set(doc);
+  lateWait = code;
+}
+
+// côté organisateur : lire les demandes de cette table et ajouter les joueurs
+function lateHostStop(){ if(lateWatch.unsub){ try{ lateWatch.unsub(); }catch(e){} } lateWatch = { code: '', unsub: null, busy: false, adding: {} }; }
+function lateHostTick(g){
+  if(!g || g.hostId !== myId || g.status === 'lobby' || !miniOn(g)){ if(lateWatch.code) lateHostStop(); return; }
+  if(lateWatch.code === g.code) return;
+  lateHostStop(); lateWatch.code = g.code;
+  try{
+    lateWatch.unsub = claudeDb.watchBox('lateJoin', 'code', g.code, function(list){ lateHostApply(list); }, function(e){ console.warn('demandes pour rejoindre', e); });
+  }catch(e){ console.warn(e); }
+}
+async function lateHostApply(list){
+  var g = gameDoc;
+  if(!g || g.hostId !== myId || g.code !== lateWatch.code || lateWatch.busy) return;
+  var cap = maxPlayersOf(g), count = Object.keys(g.players || {}).length, patch = { players: {} }, add = [];
+  (list || []).slice().sort(function(a, b){ return ((a.data && a.data.at) || 0) - ((b.data && b.data.at) || 0); }).forEach(function(r){
+    var d = r.data;
+    if(!d || d.code !== g.code || typeof d.id !== 'string' || typeof d.uid !== 'string' || (g.players && g.players[d.id]) || lateWatch.adding[d.id] || count + add.length >= cap) return;
+    var bank = Number(d.bank);
+    patch.players[d.id] = { name: String(d.name || 'Joueur').slice(0, 24), color: safeColor(d.color), joinedAt: nowMs(), ready: true, uid: d.uid, late: true,
+      bank: (isFinite(bank) && bank >= CASINO_BANK_MIN) ? Math.min(CASINO_BANK_MAX, Math.round(bank)) : CASINO_BASE_NEW };
+    add.push(d.id);
+  });
+  if(!add.length) return;
+  lateWatch.busy = true; add.forEach(function(id){ lateWatch.adding[id] = true; });
+  try{ await claudeDb.doc('games/' + g.code).update(patch); }
+  catch(e){ console.error(e); add.forEach(function(id){ delete lateWatch.adding[id]; }); }
+  finally{ lateWatch.busy = false; }
+}
+
+// les joueurs arrivés en cours de partie s'assoient au début de la main / manche / tour suivant, avec leurs jetons de départ
+function miniRoster(g, st0, stacksOf){
+  var seats = st0.seats.slice(), stacks = Object.assign({}, stacksOf), cap = maxPlayersOf(g);
+  Object.keys(g.players || {}).filter(function(id){ return seats.indexOf(id) < 0; })
+    .sort(function(a, b){ return (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0); })
+    .forEach(function(id){ if(seats.length < cap){ seats.push(id); stacks[id] = miniStartStack(g, id); } });
+  return { seats: seats, stacks: stacks };
+}
+
+// ce que voit un joueur qui n'est pas encore à la table (demande envoyée, ou ajouté mais pas encore assis)
+function renderLateWaiting(g){
+  var added = g.players && g.players[myId], when = pokerOn(g) ? 'main' : (rlOn(g) ? 'tour' : 'manche');
+  return '<div class="card-panel" style="text-align:center; margin-top:14px;"><div style="font-size:28px;">🪑</div>'
+    + '<h3 style="margin:6px 0;">'+(added ? 'Tu t\'assois à la prochaine '+when : 'Demande envoyée')+'</h3>'
+    + '<p class="muted" style="margin:0 0 6px;">'+(added ? 'Ta place est réservée, avec tes jetons de départ.' : 'L\'organisateur t\'ajoute à la table dès qu\'il voit ta demande (quelques secondes). Tu joues à la prochaine '+when+'.')+'</p></div>';
 }
 /* ===================== events ===================== */
 // clic à l'intérieur d'une fenêtre : ne pas la fermer (sauf via un vrai bouton à l'intérieur, ex. « Fermer »)

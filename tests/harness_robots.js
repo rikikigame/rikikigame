@@ -71,6 +71,16 @@
       ok('règle ligue (4 joueurs humains minimum) : refusée comme prévu', !!minH, 'aucun refus alors qu\'un seul humain joue');
       // v60 : protections contre l'injection de code
       ok('esc() échappe les guillemets', esc('"><img src=x onerror=1>\'').indexOf('"')===-1 && esc('a\'b').indexOf("'")===-1, esc('"\''));
+      try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
+      var firstBank = await myCasinoBank();
+      ok('portefeuille : la toute première fois, on part avec les jetons de départ (ligue ou 750)', firstBank >= CASINO_BANK_MIN && firstBank <= 5000, String(firstBank));
+      await walletSave(1234);
+      ok('portefeuille : on repart avec ce qu\'on a gagné ou perdu', (await myCasinoBank()) === 1234);
+      await walletSave(98765);
+      ok('portefeuille : un gros solde n\'est pas coupé à 5000', (await myCasinoBank()) === 98765);
+      await walletSave(40);
+      ok('portefeuille : sous 100 jetons, la maison prête de quoi rejouer (retour au départ)', (await myCasinoBank()) === firstBank, String(await myCasinoBank()));
+      try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
       var merged = mockDeepMerge({ bj: { n: 1, ins: { a: 5 }, hands: { a: [1], 'a#2': [2] } }, status: 'x' }, { bj: replaceWhole({ n: 2, ins: {}, hands: { a: [] } }) });
       ok('une nouvelle manche REMPLACE l\'état du casino (plus d\'assurance ni de main séparée de la manche d\'avant)', merged.bj.n === 2 && Object.keys(merged.bj.ins).length === 0 && !('a#2' in merged.bj.hands) && !('__replace' in merged.bj) && merged.status === 'x', JSON.stringify(merged));
       var mergedNew = mockDeepMerge({}, { bj: replaceWhole({ n: 1 }) });
@@ -396,7 +406,7 @@
       ok('jetons de départ : sans classement du mois dernier, la base est 750 + le bonus du mois en cours', await myCasinoBank() === casinoBankFrom(CASINO_BASE_NEW, dCur), String(await myCasinoBank()));
       league.members = [{ id:'mX', name:'Zed', userId:'autre' }];
       ok('jetons de départ : sans fiche de ligue (invité, nouveau) = 750', await myCasinoBank() === CASINO_BASE_NEW);
-      ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:99999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:99999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
+      ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:999999999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:999999999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
       league.games = lgG; league.members = lgM; league.loaded = lgL;
       var cv1 = casinoVisibleWith('#casino', null, false), cv2 = casinoVisibleWith('', '1', false), cv3 = casinoVisibleWith('', null, false), cv4 = casinoVisibleWith('#casino-off', '1', false), cv5 = casinoVisibleWith('', null, true);
       ok('Mini casino caché : visible seulement avec le lien secret (#casino), mémorisé, retiré par #casino-off, ou si CASINO_PUBLIC', cv1.show && cv1.store==='1' && cv2.show && !cv3.show && !cv4.show && cv4.store==='0' && cv5.show);

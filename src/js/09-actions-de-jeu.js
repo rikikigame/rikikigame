@@ -49,9 +49,17 @@ async function joinGameInner(codeRaw, name){
   if(!snap.exists){ errorMsg="Cette partie n'existe pas."; render(); return; }
   var data = snap.data();
   if(data.players && data.players[myId]){ gameCode=code; persistLocal(); subscribeGame(code); return; }
-  if(data.status !== 'lobby'){ errorMsg='Cette partie a déjà commencé.'; render(); return; }
-  if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette partie est complète.'; render(); return; }
   name = (name||'').trim().slice(0,24) || 'Joueur';
+  if(data.status !== 'lobby'){
+    // 1.13.0 : une table de casino en cours accepte un nouvel arrivant (il s'assoit à la main suivante), sauf si elle est complète
+    if(!lateJoinPossible(data)){ errorMsg='Cette partie a déjà commencé.'; render(); return; }
+    if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette table est complète.'; render(); return; }
+    if(usingFirebase){ try{ localStorage.setItem('rikiki_fb_name', name); }catch(e){} }
+    try{ await lateJoinRequest(code, name); }catch(e){ console.error(e); errorMsg="Impossible de rejoindre cette table pour l'instant : réessaie dans un moment."; render(); return; }
+    gameCode = code; persistLocal(); subscribeGame(code);
+    return;
+  }
+  if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette partie est complète.'; render(); return; }
   if(usingFirebase){ try{ localStorage.setItem('rikiki_fb_name', name); }catch(e){} }
   var patch = { players:{} };
   patch.players[myId] = { name:name, color:myProfile.color, joinedAt:nowMs(), ready:false };
@@ -97,6 +105,8 @@ function subscribeGame(code, fromRestore){
       }
       gameDoc = Object.assign({}, snap.data(), { code: code }); // snap.data() est gelé : ne jamais le muter
       gameDoc.roundLog = buildRoundLog(snap.data());
+      if(gameDoc.players && gameDoc.players[myId] && lateWait === code) lateWait = '';
+      if((!gameDoc.players || !gameDoc.players[myId]) && lateWait === code && miniOn(gameDoc)){ screen='game'; render(); return; } // 1.13.0 : demande pour rejoindre envoyée, j'attends que l'organisateur m'ajoute
       if(!gameDoc.players || !gameDoc.players[myId]){
         screen='entry'; errorMsg="Tu ne fais plus partie de cette partie."; clearResume(); clearLocal(); render(); return;
       }

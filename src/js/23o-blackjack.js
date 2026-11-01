@@ -11,18 +11,20 @@ var showMiniMenu = false;
 
 /* ---------- routage commun poker / blackjack ---------- */
 function miniStart(g){ return pokerOn(g) ? startPoker() : (rlOn(g) ? startRoulette() : startBlackjack()); }
-function miniHostTick(g){ if(pokerOn(g)) pokerHostTick(g); else if(bjOn(g)) bjHostTick(g); else if(rlOn(g)) rlHostTick(g); }
-function miniTimerTick(g){ if(pokerOn(g)) pokerTimerTick(g); else if(bjOn(g)) bjTimerTick(g); else if(rlOn(g)) rlTimerTick(g); }
+function miniHostTick(g){ try{ lateHostTick(g); }catch(e){ console.warn(e); } if(pokerOn(g)) pokerHostTick(g); else if(bjOn(g)) bjHostTick(g); else if(rlOn(g)) rlHostTick(g); }
+function miniTimerTick(g){ try{ walletTick(g); }catch(e){ console.warn(e); } if(pokerOn(g)) pokerTimerTick(g); else if(bjOn(g)) bjTimerTick(g); else if(rlOn(g)) rlTimerTick(g); }
 function miniHelpLines(g){ return pokerOn(g) ? pokerHelpLines(g) : (rlOn(g) ? rlHelpLines(g) : bjHelpLines(g)); }
 function renderMini(g){
-  var html = '';
+  var html = '', mst = g.poker || g.bj || g.rl;
+  if(g.status !== 'lobby' && !(g.players && g.players[myId])) return renderLateWaiting(g) + (showPrefs ? renderPrefsModal() : ''); // demande envoyée, pas encore ajouté
+  if(g.status !== 'lobby' && g.status.slice(-4) !== '_end' && mst && mst.seats && mst.seats.indexOf(myId) < 0) html += renderLateWaiting(g); // ajouté, assis à la prochaine main
   if(g.status === 'lobby') html += renderLobbyInvite(g) + renderCasinoLobby(g);
   else html += pokerOn(g) ? renderPoker(g) : (rlOn(g) ? renderRoulette(g) : renderBlackjack(g));
   if(showPrefs) html += renderPrefsModal();
   if(showRules) html += pokerOn(g) ? renderPokerRules() : (rlOn(g) ? renderRlRules() : renderBjRules());
   return html;
 }
-function miniClearSecrets(){ pokerSecret = null; bjSecret = null; rlSecret = null; }
+function miniClearSecrets(){ pokerSecret = null; bjSecret = null; rlSecret = null; lateWait = ''; lateHostStop(); }
 
 /* ---------- menu « Mini casino » (poker, blackjack, roulette ; le mode frauduleux se coche dans le salon d'une partie normale) ---------- */
 function renderMiniMenu(){
@@ -75,7 +77,7 @@ async function bjWrite(g, st, extra){
   await claudeDb.doc('games/'+g.code).update(patch);
 }
 function bjRestartRound(g){
-  var st0 = g.bj, st = bjStartRound(st0.seats, st0.startStacks, st0.n, st0.total, st0.lastBets);
+  var st0 = g.bj, ro = miniRoster(g, st0, st0.startStacks), st = bjStartRound(ro.seats, ro.stacks, st0.n, st0.total, st0.lastBets);
   if(st) bjBeginRound(g, st);
 }
 async function bjFinish(g, st0){
@@ -85,7 +87,7 @@ async function bjFinish(g, st0){
 }
 function bjNextRound(g){
   if(g.finishAfter){ bjFinish(g, g.bj); return; }
-  var st0 = g.bj, st = bjStartRound(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.lastBets);
+  var st0 = g.bj, ro = miniRoster(g, st0, st0.stacks), st = bjStartRound(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.lastBets);
   if(st) bjBeginRound(g, st);
 }
 async function bjApply(g, fn){
