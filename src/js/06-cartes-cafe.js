@@ -160,8 +160,9 @@ function cafeBack(){
 // 1.8.0 : Halloween n'est le paquet PAR DÉFAUT que jusqu'au 31 octobre 2026 (heure de Bruxelles, soit avant le 1er novembre 00 h 00 UTC+1) ; ensuite c'est Café Jacquet.
 // Un choix déjà fait sur l'appareil (« hallo », « cafe » ou « classic ») est toujours gardé : Halloween reste disponible dans « Tes cartes ».
 var HALLO_DEFAULT_UNTIL = Date.UTC(2026, 9, 31, 23, 0, 0); // 1er nov. 2026, 00 h 00 à Bruxelles (UTC+1)
-var deckTheme = (Date.now() < HALLO_DEFAULT_UNTIL) ? 'hallo' : 'cafe';
+var deckTheme = casinoVisible() ? 'casino' : ((Date.now() < HALLO_DEFAULT_UNTIL) ? 'hallo' : 'cafe'); // 1.11.1 : Casino par défaut dès que le casino est visible (lien secret, puis pour tout le monde)
 try{ var storedDeck = localStorage.getItem('rikiki_deck'); if(storedDeck==='classic' || storedDeck==='cafe' || storedDeck==='hallo' || (storedDeck==='casino' && casinoVisible())) deckTheme = storedDeck; }catch(e){}
+var chosenDeck = deckTheme; // le paquet CHOISI pour jouer ; l'accueil, lui, reste toujours en Casino (voir renderInner)
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
 function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : (deckTheme==='casino' ? casinoSymInline(suit) : SUIT_SYMBOL[suit]); } // 1.11.0 : jetons de casino
@@ -192,7 +193,7 @@ function applyDeckTheme(){
   }
 }
 applyDeckTheme();
-function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo' || (t==='casino' && casinoVisible())) ? t : 'cafe'; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
+function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo' || (t==='casino' && casinoVisible())) ? t : 'cafe'; chosenDeck = deckTheme; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
 function renderDeckChoice(){
   var peek = [{suit:'H',rank:'K'},{suit:'C',rank:'Q'},{suit:'S',rank:'J'},{suit:'S',rank:'A'}].map(function(c){ return cardHtml(Object.assign({ value:RANK_VALUE[c.rank] }, c), { size:'peek' }); }).join('') + '<div class="card back peek"></div>';
   return '<div class="deck-choice"><strong>Tes cartes</strong><span class="seg">'
@@ -221,6 +222,7 @@ function cardHtml(card, opts){
       + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   }
   else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';
+  else if(deckTheme==='casino' && !small && card.rank==='A') middle = '<div class="pip ace-chip">'+casinoSymInline(card.suit)+'</div>'; // 1.11.1 : le jeton de la couleur au milieu de l'as
   else if(!small && !face && PIP_LAYOUT[card.rank]) middle = pipsHtml(card.rank, sym);
   else middle = '<div class="pip'+(face?' face':'')+'">'+(face ? '<span class="fl">'+r+'</span><span class="fs">'+sym+'</span>' : sym)+'</div>';
   if(cafe) cls += ' cafe-art' + (card.rank==='A' ? ' cafe-ace' : '');

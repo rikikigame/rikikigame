@@ -195,6 +195,11 @@ var TUTO_STEPS = [
       + '<div class="tt-res tt-a"'+ttD(0)+'><span>Léa</span><span class="muted">annonce 1 · fait 1</span><span class="tt-ok">réussi</span></div>'
       + '<div class="tt-res tt-a"'+ttD(300)+'><span>Tom</span><span class="muted">annonce 0 · fait 1</span><span class="tt-ko">raté</span></div>'
       + '<div class="tt-res tt-a"'+ttD(600)+'><span>Toi</span><span class="muted">annonce 1 · fait 1</span><span class="tt-ok">réussi</span></div></div>'; } },
+  { t:'Les points et la victoire', d:'Contrat réussi : <strong>'+ONLINE_DEFAULT_SCORING.bonus+' points + '+ONLINE_DEFAULT_SCORING.perTrick+' par pli</strong> que tu as fait. Contrat raté : <strong>−'+ONLINE_DEFAULT_SCORING.missPerTrick+' points par pli d\'écart</strong> entre ton annonce et ton résultat (l\'hôte peut changer ces chiffres). Après la dernière manche, <strong>celui qui a le plus de points gagne la partie</strong>. À côté de tes points, tu vois aussi ta <strong>précision</strong> : le pourcentage de manches où ton annonce était exacte.',
+    s:function(){ var sc = ONLINE_DEFAULT_SCORING; return '<div class="tt-results">'
+      + '<div class="tt-res tt-a"'+ttD(0)+'><span>Toi</span><span class="muted">annonce 2 · fait 2</span><span class="tt-ok">+'+(sc.bonus + 2*sc.perTrick)+' pts</span></div>'
+      + '<div class="tt-res tt-a"'+ttD(400)+'><span>Tom</span><span class="muted">annonce 1 · fait 3</span><span class="tt-ko">−'+(sc.missFixed + 2*sc.missPerTrick)+' pts</span></div>'
+      + '<div class="tt-label tt-a"'+ttD(900)+'>Précision : 7 manches exactes sur 10 = 70 %</div></div>'; } },
   { t:'Pas plus de 3 zéros d\'affilée', d:'Annoncer 0 est permis… mais <strong>pas plus de 3 manches de suite</strong>. Au 4e zéro, c\'est interdit : il faudra tenter au moins un pli.',
     s:function(){ return '<div class="tt-picks">'+['0','0','0','0'].map(function(v,i){ var no = i===3; return '<span class="tt-pick tt-a'+(no?' no':'')+'"'+ttD(i*350)+'><span class="tt-mt">manche '+(i+1)+'</span><span class="tt-dig">'+v+'</span>'+(no?'<span class="tt-x">✕</span>':'')+'</span>'; }).join('')+'</div>'; } },
   { t:'La manche à l\'aveugle', d:'À 1 carte, tu <strong>ne vois pas ta propre carte</strong>… mais tu vois celles de tous les autres, comme si chacun la tenait sur son front. Annonce en fonction !',

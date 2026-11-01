@@ -53,7 +53,10 @@ function coletteLine(g, st){
 }
 function croupierFor(g){
   if(pokerOn(g) && g.poker) return croupierHtml('albert', albertLine(g, g.poker));
-  if(bjOn(g) && g.bj) return croupierHtml('fredo', fredoLine(g, g.bj));
+  if(bjOn(g) && g.bj){
+    var fl = fredoLine(g, g.bj), rv = g.status === 'blackjack_end' ? '' : bjRevealStyle(g.bj); // « Je reste à 17 » seulement une fois les cartes retournées et tirées
+    return rv ? croupierHtml('fredo', 'La maison retourne sa carte…', fl, rv) : croupierHtml('fredo', fl);
+  }
   if(rlOn(g) && g.rl){ var m = coletteLine(g, g.rl); return croupierHtml('colette', m.line, m.late, m.lateStyle); }
   return '';
 }

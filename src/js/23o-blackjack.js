@@ -31,7 +31,7 @@ function renderMiniMenu(){
   };
   return '<div class="modal-backdrop" data-action="minigames-close"><div class="card-panel modal">'
     + '<button class="btn secondary small close-x" data-action="minigames-close">Fermer</button>'
-    + '<h3>Mini casino</h3><p class="muted" style="margin:0 0 4px;">Entre ton prénom en haut de l\'accueil, puis choisis. Jetons fictifs : aucun argent en jeu.</p>'
+    + '<h3>Mini casino</h3><p class="muted" style="margin:0 0 4px;">Entre ton prénom en haut de l\'accueil, puis choisis. Tous les jetons sont faux : on ne joue jamais avec de l\'argent.</p>'
     + item('poker-create', '♠', 'Poker Texas Hold\'em', '2 à 8 joueurs · robots possibles')
     + item('blackjack-create', '♥', 'Blackjack', 'Seul contre le croupier, ou à plusieurs')
     + item('roulette-create', '🎡', 'Roulette', 'Seul ou à plusieurs · rouge, noir, numéros…')
@@ -208,6 +208,14 @@ function bjBetAdjust(g, how){
 }
 
 /* ---------- écran ---------- */
+// durée de la révélation du croupier : sa carte cachée se retourne (0,5 s), puis chaque carte tirée arrive (voir bjHandHtml). Le total, les gains et
+// la phrase de Fredo n'apparaissent qu'après, pour ne pas gâcher le suspense (même après un rechargement de l'écran : on part de l'heure de l'écriture).
+function bjRevealWait(st){
+  if(!st.result) return 0;
+  var draws = Math.max(0, st.dealer.length - 2), total = (draws ? 520 + (draws - 1) * 390 : 0) + 500 + 150;
+  return Math.max(0, total - Math.max(0, nowMs() - (st.turnAt || nowMs())));
+}
+function bjRevealStyle(st){ var w = bjRevealWait(st); return w > 0 ? ' style="animation:rlReveal .5s ease '+Math.round(w)+'ms both;"' : ''; }
 var BJ_TAGS = { bj: ['Blackjack !', 'a'], bust: ['Dépassé', 'f'], stand: ['Reste', ''], play: ['', ''], bet: ['', ''], out: ['Plus de jetons', 'f'] };
 function bjHandHtml(cards, hideSecond, key, seatNo, nSeats, width){ // key : endroit de la table ; seatNo / nSeats : ordre de distribution (une carte à chacun, puis la 2e)
   var h = cards.map(function(c, i){
@@ -241,7 +249,7 @@ function renderBjSeat(g, st, id){ // un « poste » de la table : les cartes, le
   }).join('') : '<div class="bj-nohand"></div>')+'</div>';
   h += '<div class="bj-circle">'+(st.bets[id] > 0 ? '<span class="bj-chip v'+rlChipClass(hids.reduce(function(sum, hid){ return sum + st.bets[hid]; }, 0))+'">'+hids.reduce(function(sum, hid){ return sum + st.bets[hid]; }, 0)+'</span>' : '');
   var o = st.result && st.result.outcomes[id];
-  if(o && o.res !== 'out') h += '<div class="pk-won'+(o.delta < 0 ? ' neg' : '')+'">'+(o.delta > 0 ? '+' : '')+o.delta+'</div>';
+  if(o && o.res !== 'out') h += '<div class="pk-won'+(o.delta < 0 ? ' neg' : '')+'"'+(bjRevealWait(st) > 0 ? ' style="animation-delay:'+Math.round(bjRevealWait(st))+'ms; animation-fill-mode:both;"' : '')+'>'+(o.delta > 0 ? '+' : '')+o.delta+'</div>';
   h += '</div>';
   h += '<div class="bj-plate"><div class="avatar" style="background:'+safeColor(p.color)+'; color:'+inkOn(safeColor(p.color))+';">'+(p.isBot?'🤖':esc(initials(p.name)))+'</div>'
     + '<div class="pk-seat-txt"><div class="pk-name">'+esc(p.name)+(id===myId?' (toi)':'')+'</div><div class="pk-stack">'+pokerChips(st.stacks[id])+'</div></div></div>';
@@ -255,7 +263,7 @@ function bjResultHtml(g, st){
   }
   var left = Math.max(0, BJ_BREAK_MS - (nowMs() - (bjSeen.key === g.code+'|'+st.n ? bjSeen.at : nowMs())));
   var over = bjGameOver(st);
-  return '<div class="pk-result"><div>'+(st.result.dealerBust ? 'Le croupier dépasse (' + st.dealerTotal + ').' : (st.result.dealerBj ? 'Blackjack du croupier.' : 'Le croupier reste à '+st.dealerTotal+'.'))+'</div>'
+  return '<div class="pk-result"'+bjRevealStyle(st)+'><div>'+(st.result.dealerBust ? 'Le croupier dépasse (' + st.dealerTotal + ').' : (st.result.dealerBj ? 'Blackjack du croupier.' : 'Le croupier reste à '+st.dealerTotal+'.'))+'</div>'
     + (line ? '<div><strong>'+line+'</strong></div>' : '')
     + (over ? '' : '<div class="muted" style="margin-top:6px;">Manche suivante dans <span id="bj-next">'+Math.ceil(left / 1000)+'</span> s</div>')+'</div>';
 }
@@ -292,11 +300,11 @@ function renderBlackjack(g){
   var st = g.bj;
   if(!st) return '<div class="center-wrap"><span class="muted">Distribution…</span></div>';
   var h = '<div class="pk-head"><div><div class="eyebrow">'+miniCount('Manche', st)+'</div><div class="display" style="font-size:22px;">'+({ bet: 'Place ta mise', insurance: 'Assurance ?', play: 'On joue', done: 'Résultat' }[st.phase] || '')+'</div></div>'
-    + '<div class="pk-blinds muted">Mise de '+BJ_MIN_BET+' à '+BJ_MAX_BET+'</div></div>';
+    + miniHeadRight(st, 'Mises '+BJ_MIN_BET+' – '+BJ_MAX_BET);
   h += miniFinishHtml(g, 'cette manche') + croupierFor(g) + '<div class="bj-felt"><div class="bj-shoe" aria-hidden="true"></div><div class="bj-dealer"><div class="eyebrow" style="color:#F3E2A8;">Croupier</div>';
   if(st.dealer.length){
     var dv = bjValue(st.dealer);
-    h += bjHandHtml(st.dealer, st.dealerHole, g.code+'|'+st.n+'|dealer', st.seats.length, st.seats.length)+'<div class="bj-total">'+(st.dealerHole ? bjValue([st.dealer[0]]).total : (dv.bust ? dv.total+' · dépasse' : dv.total))+'</div>';
+    h += bjHandHtml(st.dealer, st.dealerHole, g.code+'|'+st.n+'|dealer', st.seats.length, st.seats.length)+'<div class="bj-total"'+(st.dealerHole ? '' : bjRevealStyle(st))+'>'+(st.dealerHole ? bjValue([st.dealer[0]]).total : (dv.bust ? dv.total+' · dépasse' : dv.total))+'</div>';
   } else h += '<div class="muted" style="margin:10px 0;">Les cartes arrivent après les mises.</div>';
   h += '</div><svg class="bj-arc" viewBox="0 0 320 120" aria-hidden="true">'
     + '<text x="160" y="28" fill="#F25565" font-size="27" font-weight="900" letter-spacing="1" text-anchor="middle" font-family="Bricolage Grotesque,Arial,sans-serif">BLACKJACK</text>'
@@ -328,7 +336,7 @@ function renderBjRules(){
     + '<p>Si tu dépasses 21, tu perds. Ensuite le croupier tire jusqu\'à 17 (et reste sur tous les 17). Tu gagnes ta mise si tu bats le croupier ; égalité : on te rend ta mise.</p>'
     + '<p>Un <strong>blackjack</strong> (as + une carte de valeur 10 dès le départ) est payé 3 contre 2. Un 21 après une séparation n\'est pas un blackjack.</p>'
     + '<p><strong>Assurance</strong> : quand le croupier montre un as, tu peux t\'assurer pour la moitié de ta mise. Si le croupier a un blackjack, l\'assurance paie 2 contre 1 ; sinon, tu la perds et la manche continue.</p>'
-    + '<p class="muted">Jetons fictifs : aucun argent, aucune valeur.</p></div></div>';
+    + '<p class="muted">Tous les jetons sont faux : on ne joue jamais avec de l\'argent.</p></div></div>';
 }
 function bjHelpLines(g){
   var st = g.bj;

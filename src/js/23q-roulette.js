@@ -221,7 +221,7 @@ function renderRoulette(g){
   var st = g.rl;
   if(!st) return '<div class="center-wrap"><span class="muted">Mise en place de la table…</span></div>';
   var h = '<div class="pk-head"><div><div class="eyebrow">'+miniCount('Tour', st)+'</div><div class="display" style="font-size:22px;">'+({ bet: 'Faites vos jeux', done: 'Rien ne va plus' }[st.phase] || '')+'</div></div>'
-    + '<div class="pk-blinds muted">Mise minimum '+RL_MIN_BET+'</div></div>';
+    + miniHeadRight(st, 'Mise min. '+RL_MIN_BET);
   h += miniFinishHtml(g, 'ce tour') + croupierFor(g) + '<div class="pk-table rl-table">'+rlWheelHtml(st)+'<div class="pk-seats">'+st.seats.map(function(id){ return renderRlSeat(g, st, id); }).join('')+'</div>';
   var past = st.result ? st.history.slice(0, -1) : st.history; // le dernier numéro reste secret tant que la bille tourne
   if(past.length) h += '<div class="rl-history"><span class="muted">Derniers numéros</span> '+past.slice().reverse().map(rlDot).join('')+'</div>';
@@ -247,7 +247,7 @@ function renderRlRules(){
     + '<p>La roulette a <strong>37 cases</strong> : de 1 à 36 (18 rouges, 18 noires) et le <strong>zéro</strong> (vert). À chaque tour, tu poses des jetons sur la table, puis le croupier tire un numéro.</p>'
     + '<p><strong>Ce que tu peux miser</strong> : un numéro seul (gagne <strong>35 contre 1</strong>) ; <strong>Rouge / Noir</strong>, <strong>Pair / Impair</strong>, <strong>1-18 / 19-36</strong> (gagne <strong>1 contre 1</strong>) ; une <strong>douzaine</strong> (1 à 12, 13 à 24, 25 à 36) ou une <strong>colonne</strong> (gagne <strong>2 contre 1</strong>).</p>'
     + '<p>Le <strong>zéro</strong> fait perdre toutes les mises, sauf celle posée sur le 0. Tu peux poser plusieurs mises dans le même tour, ou passer ton tour.</p>'
-    + '<p class="muted">Jetons fictifs : aucun argent, aucune valeur.</p></div></div>';
+    + '<p class="muted">Tous les jetons sont faux : on ne joue jamais avec de l\'argent.</p></div></div>';
 }
 function rlHelpLines(g){
   var st = g.rl;
