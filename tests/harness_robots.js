@@ -89,7 +89,7 @@
       try{
         currentProfile = { key: 'essai_jetons', pseudo: 'Essai' }; socialOn = function(){ return true; }; loadLeague = async function(){}; myOnlineWins = function(){ return winsNow; };
         try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
-        walletMeta = { rescueDay: '', winsPaid: null };
+        walletMeta = { rescueDay: '', winsPaid: null, gift: '' };
         await walletSave(1000);
         var b0 = await myCasinoBank();
         ok('victoires Rikiki : la 1re fois, pas de jetons pour les victoires passées', b0 === 1000, String(b0));
@@ -98,7 +98,20 @@
         ok('victoires Rikiki : 2 nouvelles victoires = +' + (2 * CASINO_WIN_BONUS) + ' jetons', b1 === 1000 + 2 * CASINO_WIN_BONUS, String(b1));
         var b2 = await myCasinoBank();
         ok('victoires Rikiki : payées une seule fois', b2 === b1, String(b2));
-      } finally { currentProfile = o.cp; socialOn = o.so; loadLeague = o.ll; myOnlineWins = o.mw; walletMeta = { rescueDay: '', winsPaid: null }; }
+        // cadeau du jour : une seule fois, seulement pour ceux qui ont fini une partie de ligue en ligne pendant la fenêtre
+        var oldGift = CASINO_GIFT, oldMy = myMember, oldMembers = league.members, oldGames = league.games;
+        try{
+          CASINO_GIFT = { id: 'essai', amount: 250, from: nowMs() - 3600000, to: nowMs() + 3600000, until: nowMs() + 86400000 };
+          league.members = [{ id: 'mZ', name: 'Essai' }, { id: 'mY', name: 'Autre' }];
+          myMember = function(){ return league.members[0]; };
+          league.games = [{ id: 'o_G_1', at: nowMs(), mode: 'online', players: [{ memberId: 'mY' }] }];
+          walletMeta = { rescueDay: '', winsPaid: 4, gift: '' }; await walletSave(2000);
+          ok('cadeau du jour : rien si je n\'ai pas joué', (await myCasinoBank()) === 2000);
+          league.games = [{ id: 'o_G_1', at: nowMs(), mode: 'online', players: [{ memberId: 'mZ', score: 37 }, { memberId: 'mY', score: 12 }] }];
+          ok('cadeau du jour : +250 et mes points de la partie (37) si j\'ai fini une partie de ligue en ligne', (await myCasinoBank()) === 2287);
+          ok('cadeau du jour : une seule fois', (await myCasinoBank()) === 2287);
+        } finally { CASINO_GIFT = oldGift; myMember = oldMy; league.members = oldMembers; league.games = oldGames; }
+      } finally { currentProfile = o.cp; socialOn = o.so; loadLeague = o.ll; myOnlineWins = o.mw; walletMeta = { rescueDay: '', winsPaid: null, gift: '' }; }
       try{ localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
       await walletSave(31337);
       var resetTo = await walletReset();
@@ -420,6 +433,7 @@
       league.games = [mkc(1,1,2), mkc(2,1,2), mkc(3,1,2)]; // Ana gagne 3 parties de suite : classée dès la 3e, donc 1re jusqu'à la fin du mois
       var dd = leagueTopDays(lkey, 'mA'), totalDays = (mb[1]-mb[0])/DAYMS;
       ok('jetons de départ : jours en 1re place = de la 3e partie à la fin du mois', Math.abs(dd.first - (totalDays-3)) < 0.01 && Math.abs(dd.top3 - dd.first) < 0.01 && Math.abs(dd.top10 - dd.first) < 0.01, JSON.stringify(dd));
+      CASINO_GIFT = Object.assign({}, CASINO_GIFT, { until: 0 }); // le cadeau du jour ne doit pas fausser ces mesures
       try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
       var bankMe = await myCasinoBank(), rowMe = computeLeague(lkey, 'online').ranked.filter(function(r){ return r.id==='mA'; })[0];
       ok('jetons de départ : base = Elo du mois dernier (aucun bonus tant qu\'aucune partie ce mois-ci)', bankMe === Math.round(rowMe.elo) && casinoBonusFromDays(dd) > 0, bankMe+' / elo '+rowMe.elo);
