@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.13.1 — 1er novembre 2026
+
+Nouveau bouton « Remettre mes jetons au départ » dans ⚙️ Paramètres, réservé à l'organisateur (le casino repart avec tes jetons de départ : ligue ou 750). Aucun changement de règles Firebase.
+
 ## 1.13.0 — 1er novembre 2026 (RÈGLES FIREBASE CHANGÉES : publier les règles AVANT le code)
 
 **Jetons sauvegardés** : ce que tu gagnes ou perds au casino est enregistré à la fin de chaque main / manche / tour et tu repars avec au prochain lancement (avec un profil : nœud `wallets/{profil}`, sur tous les appareils ; sans profil : `rikiki_wallet` sur l'appareil). Les points de ligue ne servent plus que pour la toute première fois, ou après une faillite (moins de 100 jetons : la maison prête de quoi rejouer). **Rejoindre une table en cours de partie** (poker, blackjack, roulette) tant qu'elle n'est pas complète (5 au blackjack, 8 ailleurs) : le nouvel arrivant dépose une demande (`lateJoin/{code}__{compte}`), l'organisateur l'ajoute, et il s'assoit à la main / manche / tour suivant avec son solde ; les amis voient un bouton « Rejoindre » même quand leur ami est déjà en partie de casino. **Robots du poker** : ils calculent maintenant leurs chances de gagner par tirages au sort (`pkEquity`), tiennent compte du nombre d'adversaires, de la taille des mises et de leur tapis, relancent pour la valeur, bluffent parfois et se couchent face à une grosse mise (avant : une simple règle sur la catégorie de la main). Nouvelles règles Firebase : `wallets` (écrit et lu seulement par le propriétaire du profil) et `lateJoin` (chacun n'écrit que sa propre demande, seul l'organisateur de la table les lit).

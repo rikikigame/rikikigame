@@ -1694,7 +1694,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.13.0';
+var APP_VERSION = '1.13.1';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -7473,6 +7473,7 @@ function renderPrefsModal(){
       + '<span class="pref-txt"><b>'+r.title+'</b><small>'+r.hint+'</small></span>'
       + '<span class="pref-sw'+(on ? ' on' : '')+'" aria-hidden="true"></span></button>';
   });
+  if(isAdmin()) html += '<button class="pref-row" data-action="wallet-reset"><span class="pref-ico">🎟️</span><span class="pref-txt"><b>Remettre mes jetons au départ</b><small>Au casino, tu repars avec tes jetons de départ (ta ligue, ou 750).</small></span></button>';
   html += '<button class="pref-row" data-action="bug-open"><span class="pref-ico">🐞</span><span class="pref-txt"><b>Signaler un bug</b><small>Un souci, une idée ? Dis-le en une phrase.</small></span></button>';
   var diag = window.__RIKIKI_APP ? '<p class="pref-note">Appli iPhone · session audio : '+(navigator.audioSession ? navigator.audioSession.type : 'absente')+' · lecteur muet : '+unmuteState+'</p>' : '';
   return html + '<p class="pref-note">Réglages gardés sur cet appareil.</p>'+diag+(LEGAL_READY ? '<p class="pref-note pref-legal">'+legalLinksHtml()+'</p>' : '')+'</div></div>';
@@ -11996,15 +11997,21 @@ function walletTick(g){
   if(key === walletSaved) return;
   walletSaved = key; walletSave(st.stacks[myId]);
 }
-async function myCasinoBank(){
-  var w = await walletRead();
-  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
+// jetons de départ d'après la ligue : l'Elo du mois dernier (750 si on débute) + le petit bonus du mois en cours
+async function casinoLeagueBank(){
   try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons de départ)', e); }
   var me = myMember(); if(!me) return CASINO_BASE_NEW;
   var prev = prevMonthKey(), row = computeLeague(prev, 'online').ranked.filter(function(r){ return r.id === me.id; })[0];
-  var base = row ? row.elo : CASINO_BASE_NEW; // première fois ou faillite : l'Elo du mois dernier, sinon 750
-  return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id)); // + le bonus du mois en cours
+  var base = row ? row.elo : CASINO_BASE_NEW;
+  return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id));
 }
+async function myCasinoBank(){
+  var w = await walletRead();
+  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
+  return casinoLeagueBank(); // toute première fois, ou faillite : la maison prête de quoi rejouer
+}
+// bouton « Remettre mes jetons au départ » (⚙️ Paramètres)
+async function walletReset(){ var b = await casinoLeagueBank(); await walletSave(b); return b; }
 
 // chaque joueur annonce ses jetons de départ une seule fois par salon (le champ players[id].bank est écrit par lui-même)
 var miniBankSent = '';
@@ -12179,6 +12186,7 @@ document.addEventListener('click', function(e){
   else if(action==='sfx-toggle'){ toggleSfx(); }
   else if(action==='music-toggle'){ toggleMusic(); }
   else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
+  else if(action==='wallet-reset'){ if(!confirmT('Remettre tes jetons du casino au départ ? Ton solde actuel sera remplacé.')) return; walletReset().then(function(b){ showToast('Jetons remis au départ : '+b+' 🎟️'); }).catch(function(e){ console.error(e); showToast('Impossible pour le moment, réessaie.'); }); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
   else if(action==='leave'){
     // v77 : double validation avant de quitter une partie en cours (surtout en ligue) ; on peut la reprendre depuis l'accueil pendant 6 h
