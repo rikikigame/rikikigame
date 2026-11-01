@@ -1694,7 +1694,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.14.0';
+var APP_VERSION = '1.14.1';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -11986,10 +11986,9 @@ function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CA
 // la TOUTE première fois. Après une faillite (moins de CASINO_BANK_MIN jetons) : petite aide de CASINO_RESCUE une fois par jour, puis CASINO_BANK_MIN.
 function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
 // petites notes rangées avec le solde (dans __json, sans changer les règles) : jour de la dernière aide de faillite, victoires de ligue déjà payées
-var walletMeta = { rescueDay: '', winsPaid: null };
+var walletMeta = { rescueDay: '', winsPaid: null, gift: '' };
 function walletMetaFrom(d){
-  var m = { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null };
-  return m;
+  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
 }
 async function walletRead(){
   var ref = walletRef(), remote = null, local = null, meta = null;
@@ -12004,7 +12003,7 @@ async function walletSave(chips){
   if(!isFinite(chips)) return;
   try{ localStorage.setItem('rikiki_wallet', String(chips)); localStorage.setItem('rikiki_wallet_meta', JSON.stringify(walletMeta)); }catch(e){}
   var ref = walletRef();
-  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
 }
 var walletSaved = '';
 // à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
@@ -12031,17 +12030,35 @@ function myOnlineWins(){
   var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
   return x ? x.wins : 0;
 }
-// jetons gagnés au Rikiki depuis la dernière fois ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
+// cadeau ponctuel : tous ceux qui ont fini une partie de ligue en ligne pendant la fenêtre `from`..`to` reçoivent `amount` jetons + leurs points de ces parties, à réclamer avant `until`
+var CASINO_GIFT = { id: 'rikiki-2026-11-01', amount: 250, from: new Date(2026, 10, 1).getTime(), to: new Date(2026, 10, 2).getTime(), until: new Date(2026, 10, 9).getTime() };
+// mes parties de ligue en ligne finies entre a et b : { played: nombre, points: somme de mes points }
+function myGamesBetween(a, b){
+  var out = { played: 0, points: 0 }, m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
+  if(!m) return out;
+  (league.games || []).forEach(function(g){
+    if(g.mode !== 'online' || !(g.at >= a && g.at < b)) return;
+    var me = (g.players || []).filter(function(p){ return p.memberId === m.id; })[0];
+    if(me){ out.played++; out.points += Math.max(0, Math.round(Number(me.score) || 0)); }
+  });
+  return out;
+}
+// jetons gagnés au Rikiki depuis la dernière fois (+ le cadeau ponctuel) ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
 async function walletWinBonus(){
   if(!currentProfile || !socialOn()) return 0;
   try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return 0; }
+  var total = 0;
+  if(walletMeta.gift !== CASINO_GIFT.id && nowMs() < CASINO_GIFT.until){
+    var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
+    if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }
+  }
   var wins = myOnlineWins();
-  if(wins === null) return 0;
-  if(walletMeta.winsPaid === null){ walletMeta = { rescueDay: walletMeta.rescueDay, winsPaid: wins }; return 0; }
-  if(wins <= walletMeta.winsPaid) return 0;
+  if(wins === null) return total;
+  if(walletMeta.winsPaid === null){ walletMeta = Object.assign({}, walletMeta, { winsPaid: wins }); return total; }
+  if(wins <= walletMeta.winsPaid) return total;
   var n = wins - walletMeta.winsPaid;
-  walletMeta = { rescueDay: walletMeta.rescueDay, winsPaid: wins };
-  return n * CASINO_WIN_BONUS;
+  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins });
+  return total + n * CASINO_WIN_BONUS;
 }
 async function myCasinoBank(){
   var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
@@ -12051,7 +12068,7 @@ async function myCasinoBank(){
   if(w === null){ var first = await casinoLeagueBank(); await walletSave(first); return first; } // toute première fois : départ d'après la ligue
   // faillite : une petite aide par jour, ensuite juste de quoi s'asseoir (le Rikiki est ce qui fait gagner des jetons)
   var today = dayKeyNow(), help = CASINO_BANK_MIN;
-  if(walletMeta.rescueDay !== today){ help = CASINO_RESCUE; walletMeta = { rescueDay: today, winsPaid: walletMeta.winsPaid }; }
+  if(walletMeta.rescueDay !== today){ help = CASINO_RESCUE; walletMeta = Object.assign({}, walletMeta, { rescueDay: today }); }
   await walletSave(help);
   return help;
 }
