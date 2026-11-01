@@ -52,7 +52,7 @@ function renderCasinoLobby(g){
   if(isHost && n < maxPlayersOf(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
   if(!rl) html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // la roulette n'utilise pas de cartes : pas de choix de paquet dans son salon
-  var START = 'Tu démarres avec tes points de ligue du mois dernier (750 si tu débutes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
+  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; sous 100, la maison te prête de quoi rejouer) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
   html += '<div class="card-panel" style="margin-bottom:12px;"><div class="row between"><h2 style="font-size:20px;">Partie</h2></div>';
   html += '<div class="muted" style="font-size:13.5px; line-height:1.6;">'+(rl
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT
@@ -111,7 +111,7 @@ async function pokerWrite(g, st, extra){
 function pokerRestartHand(g){
   var st0 = g.poker, seats = st0.seats, i = seats.indexOf(st0.dealer);
   var prev = seats[(i - 1 + seats.length) % seats.length];
-  var st = pkStartHand(seats, st0.startStacks, st0.n, st0.total, prev);
+  var ro = miniRoster(g, st0, st0.startStacks), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
   if(st) pokerBeginHand(g, st);
 }
 async function pokerFinish(g, st0){
@@ -122,7 +122,7 @@ async function pokerFinish(g, st0){
 function pokerNextHand(g){
   var st0 = g.poker;
   if(g.finishAfter){ pokerFinish(g, st0); return; }
-  var st = pkStartHand(st0.seats, st0.stacks, st0.n + 1, st0.total, st0.dealer);
+  var ro = miniRoster(g, st0, st0.stacks), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
   if(st) pokerBeginHand(g, st);
 }
 async function pokerApply(g, id, act){

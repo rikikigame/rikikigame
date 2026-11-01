@@ -253,41 +253,59 @@ function pkRanking(st){
 }
 
 /* ---------- robots ---------- */
-function pkPreflopStrength(hole){
-  var a = RANK_VALUE[hole[0].rank], b = RANK_VALUE[hole[1].rank];
-  var hi = Math.max(a, b), lo = Math.min(a, b), suited = hole[0].suit === hole[1].suit;
-  var s = (hi + lo * 0.5) / 21;
-  if(a === b) s = 0.5 + hi / 28;
-  if(suited) s += 0.04;
-  if(hi - lo === 1) s += 0.03;
-  return Math.min(0.98, s);
-}
-function pkPostflopStrength(hole, board){
-  var sc = pkBest(hole.concat(board));
-  var cat = sc[0], base = [0.18, 0.5, 0.72, 0.8, 0.88, 0.92, 0.97, 0.99, 1][cat];
-  if(cat === 1){ // paire : meilleure si elle utilise une carte de la main
-    var pv = sc[1], mine = hole.some(function(c){ return RANK_VALUE[c.rank] === pv; });
-    base = mine ? (pv >= 11 ? 0.58 : 0.5) : 0.3;
+// Chances de gagner (une égalité compte pour une demi-victoire) contre nOpp mains au hasard, par tirages au sort (Monte-Carlo).
+function pkEquity(hole, board, nOpp, sims, rng){
+  var used = {}, deck = [], need = 5 - board.length, wins = 0, i, j, k, o, t;
+  hole.concat(board).forEach(function(c){ used[c.rank + c.suit] = 1; });
+  buildDeck().forEach(function(c){ if(!used[c.rank + c.suit]) deck.push(c); });
+  var m = need + 2 * nOpp;
+  for(i = 0; i < sims; i++){
+    for(j = 0; j < m; j++){ k = j + Math.floor(rng() * (deck.length - j)); t = deck[j]; deck[j] = deck[k]; deck[k] = t; }
+    var full = board.concat(deck.slice(0, need)), mine = pkBest(hole.concat(full)), best = true, ties = 0;
+    for(o = 0; o < nOpp; o++){
+      var c = pkCompare(mine, pkBest([deck[need + 2 * o], deck[need + 2 * o + 1]].concat(full)));
+      if(c < 0){ best = false; break; }
+      if(c === 0) ties++;
+    }
+    if(best) wins += 1 / (ties + 1);
   }
-  return base;
+  return wins / sims;
 }
-// rend { type, to } ; rng() entre 0 et 1
-function pkBotDecide(st, id, hole, rng){
-  var o = pkOptions(st, id);
-  var s = st.board.length ? pkPostflopStrength(hole, st.board) : pkPreflopStrength(hole);
-  s += (rng() - 0.5) * 0.18;
-  var potOdds = o.toCall / Math.max(1, o.pot + o.toCall);
-  var size = function(frac){ return Math.max(o.minTo, Math.min(o.maxTo, st.current + Math.round(o.pot * frac / st.bb) * st.bb)); };
-  if(o.canCheck){
-    if(o.canRaise && s > 0.66 && rng() < 0.65) return { type: 'raise', to: size(0.4 + rng() * 0.4) };
-    if(o.canRaise && s < 0.35 && rng() < 0.06) return { type: 'raise', to: size(0.5) };
+// Il faut une main plus forte pour miser quand il reste plus d'adversaires (indexé par le nombre d'adversaires)
+var PK_BOT_STRONG = [0, 0.64, 0.50, 0.42, 0.37, 0.33, 0.30, 0.28];
+// rend { type, to } ; rng() entre 0 et 1 ; sims = nombre de tirages (moins de tirages = plus rapide, un peu moins précis)
+function pkBotDecide(st, id, hole, rng, sims){
+  var o = pkOptions(st, id), bb = st.bb, stack = st.stacks[id], pot = o.pot, street = st.board.length;
+  var nOpp = Math.max(1, st.order.filter(function(p){ return p !== id && !st.folded[p]; }).length);
+  var eq = pkEquity(hole, st.board, nOpp, sims || 90, rng);
+  var strong = PK_BOT_STRONG[Math.min(nOpp, 7)], facing = o.toCall > 0;
+  var raiseTo = function(frac){ return Math.max(o.minTo, Math.min(o.maxTo, st.current + Math.round(pot * frac / bb) * bb)); };
+  var shove = o.maxTo <= 12 * bb + st.bets[id]; // moins de 12 grosses blindes derrière : tapis ou rien
+  // une mise adverse annonce une main plus forte qu'une main au hasard (surtout si elle est grosse et tardive)
+  var betFrac = facing ? o.toCall / Math.max(1, pot - o.toCall) : 0;
+  var disc = facing ? Math.min(0.2, 0.06 + 0.12 * Math.min(1, betFrac)) * (street ? 1 : 0.6) : 0;
+  var adj = eq - disc + (rng() - 0.5) * 0.05;
+  if(!facing){ // personne n'a misé : on peut checker
+    if(o.canRaise){
+      if(shove && eq > strong + 0.05) return { type: 'allin' };
+      if(eq > strong + 0.14 && (!street || rng() < 0.6)) return { type: 'raise', to: street ? raiseTo(0.55 + rng() * 0.35) : Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+      if(eq > strong && rng() < 0.7) return { type: 'raise', to: street ? raiseTo(0.4 + rng() * 0.3) : Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+      if(street >= 3 && nOpp <= 2 && eq > 0.2 && eq < strong - 0.1 && rng() < 0.12) return { type: 'raise', to: raiseTo(0.6) }; // bluff : on mise quand tout le monde a checké
+    }
     return { type: 'check' };
   }
-  if(o.canRaise && s > 0.82 && rng() < 0.6) return { type: s > 0.95 && rng() < 0.4 ? 'allin' : 'raise', to: size(0.6 + rng() * 0.6) };
-  if(s > potOdds + 0.12 || (o.toCall <= st.bb && s > 0.3)) return { type: 'call' };
-  if(rng() < 0.04) return { type: 'call' };
+  var unraised = !street && st.current <= bb; // avant le flop, personne n'a relancé : on ouvre
+  var commit = o.toCall / Math.max(1, stack); // part de mon tapis que ce coup me coûte
+  if(shove && adj > potOdds(o) + 0.04 && eq > strong - 0.03) return { type: 'allin' };
+  if(o.canRaise && unraised && eq > strong + 0.03 && rng() < 0.85) return { type: 'raise', to: Math.max(o.minTo, Math.min(o.maxTo, st.current + 2 * bb)) };
+  if(o.canRaise && eq > strong + 0.16 && adj > potOdds(o) + 0.12 && rng() < 0.6) return { type: eq > 0.9 && rng() < 0.4 ? 'allin' : 'raise', to: raiseTo(0.7 + rng() * 0.5) };
+  if(commit > 0.5 && adj < 0.55) return { type: 'fold' }; // je ne mets pas la moitié de mon tapis avec une main moyenne
+  if(adj > potOdds(o) + 0.03) return { type: 'call' };
+  if(o.toCall <= bb && eq > 0.28) return { type: 'call' }; // petit prix : on regarde
+  if(rng() < 0.03) return { type: 'call' };
   return { type: 'fold' };
 }
+function potOdds(o){ return o.toCall / Math.max(1, o.pot + o.toCall); }
 // tapis de 52 cartes : 2 cartes par joueur en jeu + 5 cartes communes
 function pkDeal(order, seed){
   var deck = shuffle(buildDeck(), mulberry32(seed)), holes = {}, i;

@@ -209,14 +209,14 @@ var social = { friends:{}, presence:{}, reqs:{}, invites:{}, unsubs:[], started:
 var ONLINE_MS = 90000, INVITE_MS = 15*60000;
 function socialOn(){ return !!currentProfile && !(authOn() && authAnon()); }
 function presenceStatus(){
-  if(screen==='game' && gameDoc){ return { code: gameDoc.code, status: gameDoc.status==='lobby' ? 'lobby' : 'playing' }; }
+  if(screen==='game' && gameDoc){ return { code: gameDoc.code, status: gameDoc.status==='lobby' ? 'lobby' : 'playing', kind: gameDoc.kind || '', full: !!(gameDoc.players && Object.keys(gameDoc.players).length >= maxPlayersOf(gameDoc)) }; }
   if(screen==='sheet') return { code:null, status:'cards' };
   return { code:null, status:'idle' };
 }
 async function presenceBeat(){
   if(!socialOn()) return;
   var st = presenceStatus();
-  try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status })); }catch(e){ console.warn('présence', e); }
+  try{ await claudeDb.doc('presence/'+myId).set(withOwner({ name: myProfile.name || currentProfile.pseudo, at: nowMs(), code: st.code, status: st.status, kind: st.kind || '', full: !!st.full })); }catch(e){ console.warn('présence', e); }
 }
 var presenceTimer = null, lastPresenceKey = null;
 function presenceTick(){
@@ -254,7 +254,7 @@ function friendStatusText(fid){
   var p = social.presence[fid];
   if(!p || nowMs() - p.at >= ONLINE_MS) return 'hors ligne';
   if(p.status==='lobby') return 'dans un salon ('+esc(p.code)+')';
-  if(p.status==='playing') return 'en partie';
+  if(p.status==='playing') return /^(poker|blackjack|roulette)$/.test(p.kind||'') ? ({ poker:'au poker', blackjack:'au blackjack', roulette:'à la roulette' }[p.kind] + (p.full ? ' (table complète)' : '')) : 'en partie';
   if(p.status==='cards') return 'joue aux vraies cartes';
   return 'en ligne';
 }
@@ -373,7 +373,7 @@ function renderFriendsPanel(){
     ids.forEach(function(fid){
       var on = friendOnline(fid), pr = social.presence[fid];
       html += '<div class="row between friend-row"><span><span class="dot '+(on?'on':'')+'"></span> '+esc(social.friends[fid].name)+crownMark(null, social.friends[fid].name)+' <span class="muted" style="font-size:12px;">· '+friendStatusText(fid)+'</span></span>'
-        + (on && pr && pr.status==='lobby' && pr.code ? '<button class="btn small" data-action="friend-join" data-code="'+esc(pr.code)+'">Rejoindre</button>' : '<button class="btn ghost small" data-action="friend-remove" data-id="'+esc(fid)+'" title="Retirer">✕</button>')
+        + (on && pr && pr.code && !pr.full && (pr.status==='lobby' || (pr.status==='playing' && /^(poker|blackjack|roulette)$/.test(pr.kind||''))) ? '<button class="btn small" data-action="friend-join" data-code="'+esc(pr.code)+'">Rejoindre</button>' : '<button class="btn ghost small" data-action="friend-remove" data-id="'+esc(fid)+'" title="Retirer">✕</button>')
         + '</div>';
     });
     html += '<div class="row" style="gap:6px; margin-top:10px;"><input type="text" id="friendPseudo" maxlength="24" placeholder="Pseudo de ton ami (tape 2 lettres)" list="friend-suggest" autocomplete="off" style="flex:1; min-width:0;">'+friendSuggestHtml()+'<button class="btn secondary small" data-action="friend-add">Ajouter</button></div>';
