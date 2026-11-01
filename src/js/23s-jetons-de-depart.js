@@ -7,6 +7,9 @@
    il entre dans le salon ; l'organisateur le lit au lancement (bornes 100 à 5000 ; 750 pour les robots et les valeurs absentes). */
 var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, CASINO_BONUS_MAX = 150; // plafond : le solde sauvegardé peut grandir (voir le portefeuille ci-dessous)
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
+// 1.14.0 : le casino est un bonus, c'est le Rikiki qui fait gagner des jetons. Faillite = petite aide (une fois par jour), puis juste de quoi s'asseoir ;
+// chaque victoire en ligue (partie en ligne) ajoute CASINO_WIN_BONUS jetons à l'entrée à la table suivante.
+var CASINO_RESCUE = 250, CASINO_WIN_BONUS = 500;
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
 function monthBounds(key){ var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) - 1; return [new Date(y, m, 1).getTime(), new Date(y, m + 1, 1).getTime()]; }
@@ -34,20 +37,28 @@ function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CA
 
 // 1.13.0 : PORTEFEUILLE. Les jetons gagnés ou perdus sont sauvegardés : avec un profil dans `wallets/{profil}` (suit le joueur sur tous ses appareils ;
 // règle Firebase « wallets »), toujours aussi sur l'appareil (`rikiki_wallet`, seule sauvegarde sans profil). Les points de ligue ne servent plus que pour
-// la TOUTE première fois ou après une faillite (moins de CASINO_BANK_MIN jetons : la maison prête de quoi rejouer).
+// la TOUTE première fois. Après une faillite (moins de CASINO_BANK_MIN jetons) : petite aide de CASINO_RESCUE une fois par jour, puis CASINO_BANK_MIN.
 function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
+// petites notes rangées avec le solde (dans __json, sans changer les règles) : jour de la dernière aide de faillite, victoires de ligue déjà payées
+var walletMeta = { rescueDay: '', winsPaid: null };
+function walletMetaFrom(d){
+  var m = { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null };
+  return m;
+}
 async function walletRead(){
-  var ref = walletRef(), remote = null, local = null;
-  if(ref){ try{ var s = await ref.get(); if(s.exists){ var d = s.data(); if(d && typeof d.chips === 'number' && isFinite(d.chips)) remote = d.chips; } }catch(e){ console.warn('portefeuille', e); } }
+  var ref = walletRef(), remote = null, local = null, meta = null;
+  if(ref){ try{ var s = await ref.get(); if(s.exists){ var d = s.data(); if(d && typeof d.chips === 'number' && isFinite(d.chips)){ remote = d.chips; meta = walletMetaFrom(d); } } }catch(e){ console.warn('portefeuille', e); } }
   try{ var raw = localStorage.getItem('rikiki_wallet'); if(raw !== null && isFinite(Number(raw))) local = Number(raw); }catch(e){}
+  if(!meta){ try{ meta = walletMetaFrom(JSON.parse(localStorage.getItem('rikiki_wallet_meta') || '{}')); }catch(e){ meta = walletMetaFrom(null); } }
+  walletMeta = meta;
   return remote !== null ? remote : local;
 }
 async function walletSave(chips){
   chips = Math.max(0, Math.min(CASINO_BANK_MAX, Math.round(Number(chips))));
   if(!isFinite(chips)) return;
-  try{ localStorage.setItem('rikiki_wallet', String(chips)); }catch(e){}
+  try{ localStorage.setItem('rikiki_wallet', String(chips)); localStorage.setItem('rikiki_wallet_meta', JSON.stringify(walletMeta)); }catch(e){}
   var ref = walletRef();
-  if(ref){ try{ var doc = { chips: chips, at: nowMs(), __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
 }
 var walletSaved = '';
 // à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
@@ -66,10 +77,37 @@ async function casinoLeagueBank(){
   var base = row ? row.elo : CASINO_BASE_NEW;
   return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id));
 }
+function dayKeyNow(){ var d = new Date(nowMs()); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+// victoires de ligue EN LIGNE (confirmées) de mon profil
+function myOnlineWins(){
+  var m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
+  if(!m) return null;
+  var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
+  return x ? x.wins : 0;
+}
+// jetons gagnés au Rikiki depuis la dernière fois ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
+async function walletWinBonus(){
+  if(!currentProfile || !socialOn()) return 0;
+  try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return 0; }
+  var wins = myOnlineWins();
+  if(wins === null) return 0;
+  if(walletMeta.winsPaid === null){ walletMeta = { rescueDay: walletMeta.rescueDay, winsPaid: wins }; return 0; }
+  if(wins <= walletMeta.winsPaid) return 0;
+  var n = wins - walletMeta.winsPaid;
+  walletMeta = { rescueDay: walletMeta.rescueDay, winsPaid: wins };
+  return n * CASINO_WIN_BONUS;
+}
 async function myCasinoBank(){
-  var w = await walletRead();
+  var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
+  if(bonus > 0){ w = (w === null ? 0 : w) + bonus; await walletSave(w); }
+  else if(w !== null && JSON.stringify(walletMeta) !== before) await walletSave(w); // premier repère des victoires déjà comptées
   if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
-  return casinoLeagueBank(); // toute première fois, ou faillite : la maison prête de quoi rejouer
+  if(w === null){ var first = await casinoLeagueBank(); await walletSave(first); return first; } // toute première fois : départ d'après la ligue
+  // faillite : une petite aide par jour, ensuite juste de quoi s'asseoir (le Rikiki est ce qui fait gagner des jetons)
+  var today = dayKeyNow(), help = CASINO_BANK_MIN;
+  if(walletMeta.rescueDay !== today){ help = CASINO_RESCUE; walletMeta = { rescueDay: today, winsPaid: walletMeta.winsPaid }; }
+  await walletSave(help);
+  return help;
 }
 // bouton « Remettre mes jetons au départ » (⚙️ Paramètres)
 async function walletReset(){ var b = await casinoLeagueBank(); await walletSave(b); return b; }

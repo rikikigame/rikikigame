@@ -71,7 +71,7 @@
       ok('règle ligue (4 joueurs humains minimum) : refusée comme prévu', !!minH, 'aucun refus alors qu\'un seul humain joue');
       // v60 : protections contre l'injection de code
       ok('esc() échappe les guillemets', esc('"><img src=x onerror=1>\'').indexOf('"')===-1 && esc('a\'b').indexOf("'")===-1, esc('"\''));
-      try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
+      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
       var firstBank = await myCasinoBank();
       ok('portefeuille : la toute première fois, on part avec les jetons de départ (ligue ou 750)', firstBank >= CASINO_BANK_MIN && firstBank <= 5000, String(firstBank));
       await walletSave(1234);
@@ -79,7 +79,27 @@
       await walletSave(98765);
       ok('portefeuille : un gros solde n\'est pas coupé à 5000', (await myCasinoBank()) === 98765);
       await walletSave(40);
-      ok('portefeuille : sous 100 jetons, la maison prête de quoi rejouer (retour au départ)', (await myCasinoBank()) === firstBank, String(await myCasinoBank()));
+      var rescue1 = await myCasinoBank();
+      ok('portefeuille : faillite = petite aide de ' + CASINO_RESCUE + ' jetons (et pas le départ de la ligue)', rescue1 === CASINO_RESCUE, String(rescue1));
+      await walletSave(40);
+      var rescue2 = await myCasinoBank();
+      ok('portefeuille : 2e faillite le même jour = juste de quoi s\'asseoir (' + CASINO_BANK_MIN + ')', rescue2 === CASINO_BANK_MIN, String(rescue2));
+      // victoires de ligue en ligne : première fois = repère sans rattrapage, puis 500 jetons par victoire
+      var o = { cp: currentProfile, so: socialOn, ll: loadLeague, mw: myOnlineWins }, winsNow = 2;
+      try{
+        currentProfile = { key: 'essai_jetons', pseudo: 'Essai' }; socialOn = function(){ return true; }; loadLeague = async function(){}; myOnlineWins = function(){ return winsNow; };
+        try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
+        walletMeta = { rescueDay: '', winsPaid: null };
+        await walletSave(1000);
+        var b0 = await myCasinoBank();
+        ok('victoires Rikiki : la 1re fois, pas de jetons pour les victoires passées', b0 === 1000, String(b0));
+        winsNow = 4;
+        var b1 = await myCasinoBank();
+        ok('victoires Rikiki : 2 nouvelles victoires = +' + (2 * CASINO_WIN_BONUS) + ' jetons', b1 === 1000 + 2 * CASINO_WIN_BONUS, String(b1));
+        var b2 = await myCasinoBank();
+        ok('victoires Rikiki : payées une seule fois', b2 === b1, String(b2));
+      } finally { currentProfile = o.cp; socialOn = o.so; loadLeague = o.ll; myOnlineWins = o.mw; walletMeta = { rescueDay: '', winsPaid: null }; }
+      try{ localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
       await walletSave(31337);
       var resetTo = await walletReset();
       ok('portefeuille : « Remettre mes jetons au départ » redonne le départ (ligue ou 750)', resetTo === firstBank && (await myCasinoBank()) === firstBank, resetTo + ' / ' + firstBank);
@@ -400,14 +420,17 @@
       league.games = [mkc(1,1,2), mkc(2,1,2), mkc(3,1,2)]; // Ana gagne 3 parties de suite : classée dès la 3e, donc 1re jusqu'à la fin du mois
       var dd = leagueTopDays(lkey, 'mA'), totalDays = (mb[1]-mb[0])/DAYMS;
       ok('jetons de départ : jours en 1re place = de la 3e partie à la fin du mois', Math.abs(dd.first - (totalDays-3)) < 0.01 && Math.abs(dd.top3 - dd.first) < 0.01 && Math.abs(dd.top10 - dd.first) < 0.01, JSON.stringify(dd));
+      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
       var bankMe = await myCasinoBank(), rowMe = computeLeague(lkey, 'online').ranked.filter(function(r){ return r.id==='mA'; })[0];
       ok('jetons de départ : base = Elo du mois dernier (aucun bonus tant qu\'aucune partie ce mois-ci)', bankMe === Math.round(rowMe.elo) && casinoBonusFromDays(dd) > 0, bankMe+' / elo '+rowMe.elo);
       ok('jetons de départ : le bonus est plafonné', casinoBonusFromDays({ first:999, top3:999, top10:999 }) === CASINO_BONUS_MAX && casinoBonusFromDays({ first:0, top3:0, top10:0 }) === 0);
       var ckey = seasonOf(nowMs()), cm = monthBounds(ckey)[0]; league.games = [0, 1, 2].map(function(i){ return { id:'o_C_'+i, at: cm + 1 + i, season:ckey, mode:'online', rounds:5, players:[{ memberId:'mA', name:'Ana', rank:1, score:1 }, { memberId:'mB', name:'Bob', rank:2, score:0 }] }; }); // 3 victoires de suite au tout début du mois en cours
       var dCur = leagueTopDays(ckey, 'mA'), spent = (nowMs() - (cm + 3)) / DAYMS;
       ok('jetons de départ : le bonus compte le temps passé en haut du mois EN COURS, jusqu\'à maintenant', Math.abs(dCur.first - spent) < 0.05 && dCur.first > 0, JSON.stringify(dCur)+' / '+spent);
+      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
       ok('jetons de départ : sans classement du mois dernier, la base est 750 + le bonus du mois en cours', await myCasinoBank() === casinoBankFrom(CASINO_BASE_NEW, dCur), String(await myCasinoBank()));
       league.members = [{ id:'mX', name:'Zed', userId:'autre' }];
+      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
       ok('jetons de départ : sans fiche de ligue (invité, nouveau) = 750', await myCasinoBank() === CASINO_BASE_NEW);
       ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:999999999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:999999999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
       league.games = lgG; league.members = lgM; league.loaded = lgL;
