@@ -58,15 +58,21 @@ function walletTick(g){
   if(key === walletSaved) return;
   walletSaved = key; walletSave(st.stacks[myId]);
 }
-async function myCasinoBank(){
-  var w = await walletRead();
-  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
+// jetons de départ d'après la ligue : l'Elo du mois dernier (750 si on débute) + le petit bonus du mois en cours
+async function casinoLeagueBank(){
   try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons de départ)', e); }
   var me = myMember(); if(!me) return CASINO_BASE_NEW;
   var prev = prevMonthKey(), row = computeLeague(prev, 'online').ranked.filter(function(r){ return r.id === me.id; })[0];
-  var base = row ? row.elo : CASINO_BASE_NEW; // première fois ou faillite : l'Elo du mois dernier, sinon 750
-  return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id)); // + le bonus du mois en cours
+  var base = row ? row.elo : CASINO_BASE_NEW;
+  return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id));
 }
+async function myCasinoBank(){
+  var w = await walletRead();
+  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
+  return casinoLeagueBank(); // toute première fois, ou faillite : la maison prête de quoi rejouer
+}
+// bouton « Remettre mes jetons au départ » (⚙️ Paramètres)
+async function walletReset(){ var b = await casinoLeagueBank(); await walletSave(b); return b; }
 
 // chaque joueur annonce ses jetons de départ une seule fois par salon (le champ players[id].bank est écrit par lui-même)
 var miniBankSent = '';

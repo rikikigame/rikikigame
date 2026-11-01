@@ -91,6 +91,7 @@ document.addEventListener('click', function(e){
   else if(action==='sfx-toggle'){ toggleSfx(); }
   else if(action==='music-toggle'){ toggleMusic(); }
   else if(action==='prefs-toggle'){ showPrefs = !showPrefs; render(); }
+  else if(action==='wallet-reset'){ if(!confirmT('Remettre tes jetons du casino au départ ? Ton solde actuel sera remplacé.')) return; walletReset().then(function(b){ showToast('Jetons remis au départ : '+b+' 🎟️'); }).catch(function(e){ console.error(e); showToast('Impossible pour le moment, réessaie.'); }); }
   else if(action==='toggle-settings'){ showSettings = !showSettings; render(); }
   else if(action==='leave'){
     // v77 : double validation avant de quitter une partie en cours (surtout en ligue) ; on peut la reprendre depuis l'accueil pendant 6 h

@@ -80,6 +80,9 @@
       ok('portefeuille : un gros solde n\'est pas coupé à 5000', (await myCasinoBank()) === 98765);
       await walletSave(40);
       ok('portefeuille : sous 100 jetons, la maison prête de quoi rejouer (retour au départ)', (await myCasinoBank()) === firstBank, String(await myCasinoBank()));
+      await walletSave(31337);
+      var resetTo = await walletReset();
+      ok('portefeuille : « Remettre mes jetons au départ » redonne le départ (ligue ou 750)', resetTo === firstBank && (await myCasinoBank()) === firstBank, resetTo + ' / ' + firstBank);
       try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
       var merged = mockDeepMerge({ bj: { n: 1, ins: { a: 5 }, hands: { a: [1], 'a#2': [2] } }, status: 'x' }, { bj: replaceWhole({ n: 2, ins: {}, hands: { a: [] } }) });
       ok('une nouvelle manche REMPLACE l\'état du casino (plus d\'assurance ni de main séparée de la manche d\'avant)', merged.bj.n === 2 && Object.keys(merged.bj.ins).length === 0 && !('a#2' in merged.bj.hands) && !('__replace' in merged.bj) && merged.status === 'x', JSON.stringify(merged));
