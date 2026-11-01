@@ -7,12 +7,14 @@ var LEAGUE_MIN_GAMES = 3, ELO_START = 1000, ELO_K = 32, LEAGUE_MIN_HUMANS = 4; /
 var league = { loaded:false, loading:false, members:[], games:[], error:'' };
 var leagueView = { season:null, open:null, mode:'online' };
 
-function seasonOf(ts){ var d = new Date(ts); return d.getFullYear()+'-T'+(Math.floor(d.getMonth()/3)+1); }
+// 1.11.0 : la ligue repart de zéro CHAQUE MOIS (avant : chaque trimestre) ; la saison d'une partie se déduit de sa date, donc l'historique se range aussi par mois
+function seasonOf(ts){ var d = new Date(ts), m = d.getMonth() + 1; return d.getFullYear()+'-'+(m < 10 ? '0' : '')+m; }
+function gameSeason(g){ return (g.season && /^\d{4}-\d{2}$/.test(String(g.season))) ? g.season : seasonOf(g.at || 0); }
 function seasonLabel(key){
   if(key==='all') return 'Général (depuis le début)';
-  var parts = key.split('-T'), t = parseInt(parts[1],10);
-  var months = ['janv. – mars','avr. – juin','juil. – sept.','oct. – déc.'];
-  return 'Saison T'+t+' '+parts[0]+' · '+months[t-1];
+  var parts = key.split('-'), mi = parseInt(parts[1],10) - 1;
+  var months = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  return (months[mi] || key)+' '+parts[0];
 }
 function memberById(id){ return league.members.filter(function(m){ return m.id===id; })[0] || null; }
 // membre principal d'un membre éventuellement fusionné (on suit la chaîne « fusionné dans »)
@@ -206,7 +208,7 @@ function historicCuts(gameId, memberId){
   return v ? { cuts:v[0], cutWins:v[1] } : null;
 }
 function computeLeague(seasonKey, mode){
-  var games = league.games.filter(function(g){ return (seasonKey==='all' || g.season===seasonKey) && (!mode || g.mode===mode); });
+  var games = league.games.filter(function(g){ return (seasonKey==='all' || gameSeason(g)===seasonKey) && (!mode || g.mode===mode); });
   var S = {};
   function st(id, name){
     if(!S[id]) S[id] = { id:id, name:name, elo:ELO_START, games:0, wins:0, contracts:0, rounds:0, absDiff:0, history:[], eloHistory:[ELO_START], streak:0, bestStreak:0, cuts:0, cutWins:0, cutGames:0 };
@@ -262,7 +264,7 @@ function sparkline(values){
 }
 function seasonsList(){
   var set = {}; set[seasonOf(nowMs())] = true;
-  league.games.forEach(function(g){ if(g.season && /^\d{4}-T[1-4]$/.test(String(g.season))) set[g.season]=true; }); // v60 : saison au format strict
+  league.games.forEach(function(g){ if(g.at) set[gameSeason(g)]=true; }); // un mois par partie, déduit de sa date
   return Object.keys(set).sort().reverse();
 }
 function renderLeagueRow(s, i, ranked){
@@ -341,7 +343,7 @@ function renderLeague(){
     }
   }
   // v43 : parties en ligne pas encore confirmées par la majorité des joueurs
-  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return (leagueView.season==='all' || g.season===leagueView.season) && nowMs() - (g.at||0) < PENDING_MAX_AGE_MS; }) : [];
+  var pend = leagueView.mode==='online' ? (league.pending||[]).filter(function(g){ return (leagueView.season==='all' || gameSeason(g)===leagueView.season) && nowMs() - (g.at||0) < PENDING_MAX_AGE_MS; }) : [];
   if(pend.length){
     html += '<div class="card-panel" style="margin-top:14px;"><div class="eyebrow" style="margin-bottom:6px;">⏳ En attente de confirmation</div>'
       + '<p class="muted" style="font-size:12.5px; margin:0 0 8px;">Une partie compte dès que la majorité des joueurs l\'a confirmée. C\'est automatique : à la fin de la partie, ou la prochaine fois que le joueur ouvre le jeu.</p>';
@@ -360,7 +362,7 @@ function renderLeague(){
       + '<p>Chaque joueur commence à '+ELO_START+'. Une partie compte comme des duels entre tous les joueurs selon le classement final : finir devant quelqu\'un, c\'est gagner le duel.</p>'
       + '<p>Battre un joueur mieux coté rapporte plus que battre un joueur moins bien coté ; perdre contre un joueur moins bien coté coûte plus. Le gain est divisé par le nombre d\'adversaires, donc une partie à 6 ne compte pas plus qu\'une partie à 3.</p>'
       + '<p>Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.</p>'
-      + '<p>Chaque saison (un trimestre) repart de '+ELO_START+'. Le classement « Général » cumule toutes les parties.</p>'
+      + '<p>Chaque mois repart de '+ELO_START+'. Le classement « Général » cumule toutes les parties.</p>'
       + '<p>Seules les parties cochées « Partie de ligue », avec au moins '+LEAGUE_MIN_HUMANS+' joueurs humains, sans bot et jouées jusqu\'au bout, comptent. Il faut '+LEAGUE_MIN_GAMES+' parties pour apparaître dans le classement.</p>'
       + '<p>Anti-triche (en ligne) : à la fin d\'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l\'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.</p>'
       + '<p>Contrats réussis = manches où l\'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).</p>'

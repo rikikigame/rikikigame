@@ -42,12 +42,17 @@ function mockNotify(path){
   var data = mockGetRaw(path);
   (mockListeners[path]||[]).slice().forEach(function(cb){ try{ cb(mockSnap(path,data)); }catch(e){ console.error(e); } });
 }
+// Les mises à jour FUSIONNENT les objets (une clé absente du nouveau contenu reste). Pour REMPLACER un objet entier (ex. l'état d'une manche de casino,
+// dont les clés comme « assurance » ou « main séparée » ne doivent pas survivre à la manche suivante), on le marque avec replaceWhole().
+function replaceWhole(o){ return Object.assign({ __replace: true }, o); }
 function mockDeepMerge(target, patch){
   var result = Object.assign({}, target||{});
   Object.keys(patch).forEach(function(k){
     var pv = patch[k];
     var tv = target ? target[k] : undefined;
-    if(pv && typeof pv==='object' && !Array.isArray(pv) && tv && typeof tv==='object' && !Array.isArray(tv)){
+    if(pv && typeof pv==='object' && !Array.isArray(pv) && pv.__replace){
+      var whole = Object.assign({}, pv); delete whole.__replace; result[k] = whole;
+    } else if(pv && typeof pv==='object' && !Array.isArray(pv) && tv && typeof tv==='object' && !Array.isArray(tv)){
       result[k] = mockDeepMerge(tv, pv);
     } else {
       result[k] = pv;

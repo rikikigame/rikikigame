@@ -56,7 +56,9 @@ function i18nStart(){
   });
   i18nObserver.observe(document.body, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['placeholder','title','aria-label'] });
 }
-function confirmT(msg){ return window.confirm(T(msg)); }
+// 1.11.0 : certains navigateurs intégrés (appli de bureau, vue web) ne montrent pas les fenêtres de confirmation et répondent « non » aussitôt, ce qui empêchait par exemple de quitter une partie.
+// Un humain ne peut pas répondre en moins de 150 ms : une réponse « non » instantanée veut dire que la fenêtre n'a pas pu s'afficher, on la compte comme « oui ».
+function confirmT(msg){ var t0 = Date.now(), ok = window.confirm(T(msg)); return ok || (Date.now() - t0 < 150); }
 function setLang(l){ try{ localStorage.setItem('rikiki_lang', l); }catch(e){} location.reload(); }
 document.addEventListener('click', function(e){
   var el = e.target.closest ? e.target.closest('[data-action="set-lang"]') : null; if(!el) return;
@@ -256,7 +258,7 @@ var I18N_EN = { exact: {
   "Chaque joueur commence à 1000. Une partie compte comme des duels entre tous les joueurs selon le classement final : finir devant quelqu'un, c'est gagner le duel.":"Everyone starts at 1000. A game counts as duels between all players based on the final standings: finishing ahead of someone means winning that duel.",
   "Battre un joueur mieux coté rapporte plus que battre un joueur moins bien coté ; perdre contre un joueur moins bien coté coûte plus. Le gain est divisé par le nombre d'adversaires, donc une partie à 6 ne compte pas plus qu'une partie à 3.":"Beating a higher-rated player earns more than beating a lower-rated one; losing to a lower-rated player costs more. The gain is divided by the number of opponents, so a 6-player game doesn't count more than a 3-player one.",
   "Il y a deux classements séparés : les parties en ligne et les parties avec de vraies cartes (IRL). Chacun a sa propre cote.":"There are two separate rankings: online games and real-card (IRL) games. Each has its own rating.",
-  "Chaque saison (un trimestre) repart de 1000. Le classement « Général » cumule toutes les parties.":"Each season (a quarter) restarts from 1000. The “All-time” ranking adds up every game.",
+  "Chaque mois repart de 1000. Le classement « Général » cumule toutes les parties.":"Each month restarts from 1000. The “All-time” ranking adds up every game.",
   "Seules les parties cochées « Partie de ligue », avec au moins 4 joueurs humains, sans bot et jouées jusqu'au bout, comptent. Il faut 3 parties pour apparaître dans le classement.":"Only games ticked “League game”, with at least 4 human players, no bots and played to the end, count. You need 3 games to appear in the ranking.",
   "Contrats réussis = manches où l'annonce était exacte. Écart moyen = différence moyenne entre annonce et plis faits (0 = parfait).":"Bids made = rounds where the bid was exact. Average gap = average difference between bid and tricks won (0 = perfect).",
   "Anti-triche (en ligne) : à la fin d'une partie, chaque téléphone revérifie toutes les cartes et les points, puis confirme le résultat tout seul. La partie compte quand la majorité des joueurs l'a confirmée ; un joueur qui a quitté trop tôt confirme à sa prochaine ouverture du jeu.":"Anti-cheat (online): at the end of a game, every phone re-checks all the cards and points, then confirms the result on its own. The game counts once most players have confirmed it; a player who left early confirms the next time they open the game.",

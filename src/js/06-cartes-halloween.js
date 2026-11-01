@@ -11,7 +11,7 @@ var HALLO_PAL = {
 var halloPal = 'citrouille';
 var HALLO_DECK_NAME = 'Le Cimetière|d\'Albert'; // nom du paquet (dos des cartes + néon des Rois et Valets), choisi par sondage le 13/10/2026 : 5 votes sur 7 (« | » = retour à la ligne sur le dos)
 try{ document.documentElement.style.setProperty('--hallo-back-name', HALLO_DECK_NAME ? '"'+HALLO_DECK_NAME.replace('|','\\A ')+'"' : 'none'); }catch(e){} // nom au dos (posé ici : applyDeckTheme peut s'exécuter avant que ce fichier soit chargé)
-var HALLO_NEON = { K:HALLO_DECK_NAME.replace('|',' '), J:HALLO_DECK_NAME.replace('|',' '), Q:'Chez Monique' }; // texte néon des figures
+var HALLO_NEON = { K:HALLO_DECK_NAME.replace('|',' '), J:HALLO_DECK_NAME.replace('|',' '), Q:'Chez Colette' }; // texte néon des figures
 // image d'une carte pour le thème Halloween (Roi, Dame, Valet, As de pique) ; null = carte classique
 function halloArt(card){
   return card.rank==='K' ? cafeUri(halloKing(card.suit)) : card.rank==='J' ? cafeUri(halloJack(card.suit)) : card.rank==='Q' ? cafeUri(halloQueen(card.suit))

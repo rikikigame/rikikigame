@@ -101,6 +101,7 @@ async function performBotAction(botId){
 async function startGame(){
   var g = gameDoc;
   if(!g || g.hostId !== myId) return;
+  if(miniOn(g)){ return miniStart(g); } // 1.11.0 : poker / blackjack
   var ids = Object.keys(g.players).sort(function(a,b){ return g.players[a].joinedAt - g.players[b].joinedAt; });
   if(ids.length < MIN_PLAYERS) return;
   var allReady = ids.every(function(id){ return g.players[id].ready; });
