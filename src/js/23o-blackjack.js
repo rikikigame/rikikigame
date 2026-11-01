@@ -296,7 +296,14 @@ function bjActionsHtml(g, st){
   return '<div class="pk-actions"><div class="pk-timer">À toi ! <span id="bj-timer" class="turn-timer"></span></div><div class="pk-btns">'
     + '<button class="btn secondary" data-action="bj-stand">Rester</button><button class="btn" data-action="bj-hit">Tirer</button>'
     + (bjCanDouble(st, myId) ? '<button class="btn secondary" data-action="bj-double">Doubler</button>' : '')
-    + (bjCanSplit(st, myId) ? '<button class="btn secondary" data-action="bj-split">Séparer</button>' : '')+'</div></div>';
+    + (bjCanSplit(st, myId) ? '<button class="btn secondary" data-action="bj-split">Séparer</button>' : '')+'</div>'
+    + bjNoChipsHint(st)+'</div>';
+}
+// paire (ou 2 cartes) mais plus assez de jetons pour la 2e mise : on explique pourquoi « Séparer » / « Doubler » n'apparaissent pas
+function bjNoChipsHint(st){
+  var hid = st.turnHand || myId, hand = st.hands[hid];
+  if(!hand || hand.length !== 2 || st.split[myId] || st.stacks[myId] >= st.bets[hid]) return '';
+  return '<div class="muted" style="font-size:12px; text-align:center; margin-top:6px;">Pour doubler'+(hand[0].rank === hand[1].rank ? ' ou séparer' : '')+', il faut avoir autant de jetons de côté que ta mise ('+st.bets[hid]+').</div>';
 }
 function renderBlackjack(g){
   var st = g.bj;

@@ -8,6 +8,14 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.14.0 — 1er novembre 2026
+
+Le casino reste un bonus : c'est le Rikiki qui fait gagner des jetons. Règles Firebase inchangées.
+
+- Faillite (moins de 100 jetons) : plus de retour au montant de la ligue. Une petite aide de 250 jetons, une fois par jour ; si on retombe à zéro le même jour, 100 jetons (de quoi s'asseoir). Le départ de la ligue ne sert plus que la toute première fois (et pour le bouton de l'organisateur).
+- Chaque victoire en ligue (partie en ligne) donne 500 jetons, ajoutés à l'entrée à la table suivante. Les victoires passées ne sont pas rattrapées.
+- Blackjack : quand « Doubler » ou « Séparer » manque faute de jetons, une phrase explique qu'il faut autant de jetons de côté que la mise.
+
 ## 1.13.1 — 1er novembre 2026
 
 Nouveau bouton « Remettre mes jetons au départ » dans ⚙️ Paramètres, réservé à l'organisateur (le casino repart avec tes jetons de départ : ligue ou 750). Aucun changement de règles Firebase.
