@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.12.0 — 1er novembre 2026
+
+Le **Mini casino est ouvert à tout le monde** (poker, blackjack, roulette, paquet Casino de Fredo comme paquet par défaut). Plus besoin du lien secret `#casino` ; l'interrupteur est `CASINO_PUBLIC` dans `01-constantes.js`. Aucun changement de règles Firebase.
+
 ## 1.11.2 — 1er novembre 2026
 
 Table de blackjack redessinée : jusqu'à 4 joueurs sur une rangée en arc de cercle (celui du milieu plus bas), même décor que la table du poker (vert sombre, bord doré, inscriptions vertes). Le blackjack est limité à 5 joueurs par table (le salon affiche « n / 5 »). Les As du paquet Casino ont le jeton de leur couleur au milieu. Le casino reste caché ; aucun changement de règles Firebase.
