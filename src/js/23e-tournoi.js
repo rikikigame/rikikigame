@@ -59,11 +59,11 @@ function tournamentHtml(){
   var past = ts.filter(function(t){ return t.key!==today.key && t.champion; });
   var html = '<section class="card-panel tourney" aria-labelledby="tourney-t"><h3 id="tourney-t">🏆 Tournoi du dimanche</h3>';
   if(today.weekday===0){
-    html += '<p class="muted tourney-sub">C\'est aujourd\'hui ! Toutes les parties de ligue en ligne de ce dimanche comptent. Il faut '+TOURNEY_MIN_GAMES+' parties pour être classé.</p>';
+    html += '<p class="muted tourney-sub">C\'est aujourd\'hui ! Toutes les parties de ligue en ligne de ce dimanche comptent. Il faut '+TOURNEY_MIN_GAMES+' parties pour être classé. Résultat annoncé vers '+TOURNEY_ANNOUNCE_HOUR+' h.</p>';
     html += live && live.ranked.length ? tourneyRowsHtml(live, 5) : '<p class="muted">Personne n\'est encore classé : jouez une partie de ligue pour ouvrir le tournoi.</p>';
   } else {
     var d = daysUntilSunday(now);
-    html += '<p class="muted tourney-sub">Prochain tournoi : dimanche'+(d===1 ? ' (demain)' : ' (dans '+d+' jours)')+'. Toutes les parties de ligue en ligne ce jour-là comptent.</p>';
+    html += '<p class="muted tourney-sub">Prochain tournoi : dimanche'+(d===1 ? ' (demain)' : ' (dans '+d+' jours)')+'. Toutes les parties de ligue en ligne ce jour-là comptent. Résultat annoncé vers '+TOURNEY_ANNOUNCE_HOUR+' h.</p>';
     if(past[0]) html += '<div class="eyebrow" style="margin:10px 0 4px;">Dimanche '+esc(tourneyDateLabel(past[0].key))+'</div>' + tourneyRowsHtml(past[0], 3);
   }
   var wins = {}; past.forEach(function(t){ wins[t.champion] = (wins[t.champion]||0)+1; });
@@ -94,7 +94,7 @@ function tourneyHomeBannerHtml(){
   if(seen === ph.key+'|'+ph.phase) return '';
   var t = computeTournaments(league.games || []).filter(function(k){ return k.key===ph.key; })[0], body;
   if(ph.phase==='invite'){
-    body = '<strong>Tournoi du dimanche : c\'est aujourd\'hui !</strong><small>Joue au moins '+TOURNEY_MIN_GAMES+' parties de ligue en ligne. Résultat annoncé ce soir à '+TOURNEY_ANNOUNCE_HOUR+' h.</small>';
+    body = '<strong>Tournoi du dimanche : c\'est aujourd\'hui !</strong><small>Joue au moins '+TOURNEY_MIN_GAMES+' parties de ligue en ligne. Résultat annoncé ce soir vers '+TOURNEY_ANNOUNCE_HOUR+' h.</small>';
   } else if(t && t.ranked.length){
     var medals = ['🥇','🥈','🥉'], nm = function(id){ var m = memberById(id); return m ? m.name : '?'; };
     body = '<strong>Résultat du tournoi de ce soir</strong><small>'+t.ranked.slice(0,3).map(function(r, i){ return medals[i]+' '+esc(nm(r.id))+' ('+r.pts+' pts)'; }).join(' · ')+' · provisoire jusqu\'à minuit</small>';

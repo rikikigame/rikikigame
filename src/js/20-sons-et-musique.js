@@ -222,7 +222,7 @@ function sfxOnGame(g){
   var t = audioCtx.currentTime + 0.03;
   ev.forEach(function(e){
     if(e.type==='deal'){ sfxDeal(t, e.n); }
-    else if(e.type==='ruff'){ sfxKatana(t); if(deckTheme==='hallo'){ if(!sfxSample('witch', t+0.3, 0.95)) sfxBell(t+0.35); t += 1.7; } else t += 0.45; }
+    else if(e.type==='ruff'){ if(deckTheme==='casino'){ sfxJackpot(t); t += 1.6; } else { sfxKatana(t); } if(deckTheme==='hallo'){ if(!sfxSample('witch', t+0.3, 0.95)) sfxBell(t+0.35); t += 1.7; } else t += 0.45; }
     else if(e.type==='impact'){ sfxImpact(t); if(deckTheme==='hallo'){ sfxRoar(t+0.05); t += 1.3; } else t += 0.3; }
   });
 }
@@ -244,10 +244,10 @@ function musicEP(t, m, vol, dur){ // piano électrique (type Rhodes) : sinus + �
   o.connect(g); o2.connect(g2); g.connect(musicBus); g2.connect(musicBus);
   o.start(t); o2.start(t); o.stop(t+dur+0.05); o2.stop(t+0.4);
 }
-function musicBass(t, m, dur){
+function musicBass(t, m, dur, vol){
   var c = audioCtx, o = c.createOscillator(), lp = sndFilter('lowpass', 500, 0.7), g = c.createGain();
   o.type = 'triangle'; o.frequency.value = midiHz(m);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.3, t+0.02); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.3, t+0.02); g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
   sndChain([o, lp, g, musicBus]); o.start(t); o.stop(t+dur+0.05);
 }
 function musicBrush(t, vol, dur){
@@ -304,7 +304,7 @@ function horrorWind(t, dur, vol){ // souffle de vent qui monte et retombe
 var pianoMotif = null, pianoNextAmb = 0;
 var PIANO_BASS = [33, 33, 29, 28, 33, 31, 28, 33];
 var PIANO_MOTIFS = [[81, 80, 76, 72], [76, 75, 72, 71, 69], [88, 87, 84, 83], [69, 72, 71, 68], [84, 81, 80, 76, 75]];
-function musicBpm(){ return deckTheme==='hallo' ? ((screen==='game' && gameDoc) ? 54 : 46) : MUSIC_BPM; }
+function musicBpm(){ return deckTheme==='hallo' ? ((screen==='game' && gameDoc) ? 54 : 46) : ((deckTheme==='casino' && casinoMusicIsGame() && CASINO_GAME_MUSIC === 'parrain') ? PARRAIN_BPM : CLUB_BPM); }
 function musicBeatPiano(t){
   var beat = 60/54, b = musicStep % 4, bar = Math.floor(musicStep/4);
   if(b===0){
@@ -338,6 +338,7 @@ function musicBeatHorror(t){
   musicStep++;
 }
 function musicBeat(t){
+  return musicBeatCasino(t); // 1.11.0 : jazz de club à la trompette pour tous les paquets sauf Halloween (la musique douce du café ne plaisait pas) ; voir 20a-sons-casino.js
   if(deckTheme==='hallo') return (screen==='game' && gameDoc) ? musicBeatPiano(t) : musicBeatHorror(t); // piano creepy en partie, orgue à l'accueil
   var beat = 60/MUSIC_BPM, b = musicStep % 4, bar = Math.floor(musicStep/4) % 4;
   if(b===0 && bar===0 && musicStep>0 && Math.random()<0.5) musicProg = Math.floor(Math.random()*MUSIC_PROGS.length);
@@ -356,7 +357,7 @@ function musicTick(){
   while(musicNext < audioCtx.currentTime + 0.5){ musicBeat(musicNext); musicNext += 60/musicBpm(); }
 }
 function musicSync(){ // la musique tourne seulement pendant une partie en ligne, si elle est activée
-  var want = musicOn && audioReady() && ((screen==='game' && !!gameDoc) || (deckTheme==='hallo' && screen==='entry')); // thème Halloween : aussi à l'accueil
+  var want = musicOn && audioReady() && ((screen==='game' && !!gameDoc) || ((deckTheme==='hallo' || deckTheme==='casino') && screen==='entry')); // thèmes Halloween et Casino noir : aussi à l'accueil
   if(want && !musicTimer){
     musicNext = audioCtx.currentTime + 0.1; musicStep = 0; musicProg = Math.floor(Math.random()*MUSIC_PROGS.length); pianoNextAmb = audioCtx.currentTime + 12;
     musicBus.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -397,7 +398,7 @@ var PREF_ROWS = [
 function renderPrefsModal(){
   var html = '<div class="modal-backdrop" data-action="prefs-toggle"><div class="card-panel modal prefs-modal">'
     + '<button class="btn ghost close-x" data-action="prefs-toggle">Fermer</button><h3>⚙️ Paramètres</h3>'
-    + '<div style="margin:0 0 10px; padding-right:70px;">'+renderDeckChoice()+'</div>'; // 1.8.0 : changer de paquet, même en pleine partie
+    + '<div style="margin:0 0 12px;">'+renderDeckChoice()+'</div>'; // 1.8.0 (1.11.0 : plus de marge à droite, le bloc est centré) : changer de paquet, même en pleine partie
   PREF_ROWS.forEach(function(r){
     if(r.action==='sec-consent-toggle' && !LEGAL_READY) return; // reCAPTCHA n'est pas chargé tant que la partie légale est en veille
     if(r.show && !r.show()) return; // 1.8.0 : ligne affichée seulement dans certains écrans (ex. la visite, sur l'accueil)
@@ -418,7 +419,7 @@ function renderTopbar(g){
     + '<span class="code-pill" title="Code de la partie : tes amis l\'entrent dans « Rejoindre »"><small>CODE</small>'+esc(g.code)+'</span></div>'
     + '<div class="actions">'
     + '<button class="btn ghost" data-chat="open" aria-label="Chat">💬<span class="chat-lbl"> Chat</span><span class="top-badge" id="chat-badge-top">'+(chatUnread() ? (chatUnread()>9?'9+':chatUnread()) : '')+'</span></button>'
-    + (g.status!=='lobby' ? '<button class="btn ghost" data-action="toggle-scores">Scores</button>' : '')
+    + (g.status!=='lobby' && !miniOn(g) ? '<button class="btn ghost" data-action="toggle-scores">Scores</button>' : '')
     + '<button class="btn ghost" data-action="help-now" aria-label="Que faire maintenant ?" title="Que faire maintenant ?">❓</button>'
     + '<button class="btn ghost" data-action="toggle-rules">Règles</button>'
     + renderSoundButtons()
@@ -429,6 +430,7 @@ function renderTopbar(g){
 function renderGame(){
   var g = gameDoc;
   var html = renderTopbar(g);
+  if(miniOn(g)) return html + renderMini(g); // 1.11.0 : poker / blackjack (jetons fictifs)
   if(g.status!=='lobby' && g.round===0 && g.startedAt && (nowMs()-g.startedAt) < 6000){
     maybeStartIntro('g|'+g.code+'|'+g.startedAt, { rounds:g.roundPlan.length, plan:planText(g.roundPlan), names:g.playerOrder.filter(function(id){ return g.players && g.players[id]; }).map(function(id){ return g.players[id].name; }) });
   }
@@ -473,14 +475,14 @@ function renderLobby(g){
       if(isHost) html += '<button class="btn ghost" data-action="remove-bot" data-bot="'+esc(id)+'">Retirer</button>';
       else html += '<span class="badge">Bot</span>';
     } else if(id===myId){
-      html += '<button class="btn small '+(p.ready?'':'secondary')+'" data-action="toggle-ready">'+(p.ready?'Prêt ✓':'Je suis prêt')+'</button>';
+      html += '<button class="btn small '+(p.ready?'':'secondary ready-pulse')+'" data-action="toggle-ready">'+(p.ready?'Prêt ✓':'Je suis prêt')+'</button>';
     } else {
       html += friendAddBtn(p, id)+'<span class="badge '+(p.ready?'good':'bad')+'">'+(p.ready?'Prêt':'Pas prêt')+'</span>';
     }
     html += '</div>';
   });
   html += '</div>';
-  if(isHost && n<MAX_PLAYERS) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
+  if(isHost && n<MAX_PLAYERS && !fraudOn(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
 
   html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // v51 : chacun choisit ses cartes
@@ -488,18 +490,16 @@ function renderLobby(g){
   html += '<div class="card-panel" style="margin-bottom:12px;">';
   html += '<div class="row between"><h3 style="font-size:18px;">Partie</h3>'
     + (isHost ? '<button class="btn ghost" data-action="toggle-settings">'+(showSettings?'Fermer':'Modifier')+'</button>' : '') + '</div>';
-  html += '<div class="settings-summary muted" style="margin-top:6px;">'
-    + (direction==='quick' ? ('⚡ Partie rapide · 5 manches, de 1 à '+startSize+' cartes au hasard<br>')
+  // 1.11.0 : le résumé devient une liste de lignes (plus lisible, une puce dorée par ligne)
+  var summaryRows = ((direction==='quick' ? ('⚡ Partie rapide · 5 manches, de 1 à '+startSize+' cartes au hasard<br>')
        : (esc(DIRECTION_LABEL[direction]||'')+' · '+plan.length+' manche'+(plan.length>1?'s':'')+' ('+esc(planText(plan))+' cartes)<br>'))
-    + ('⏱ Durée estimée : environ '+estimateMinutes(plan, Math.max(n,2))+' min<br>')
-    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · les robots restent honnêtes<br>' : '')
-    + (maxZerosOf(g) ? ('Pas plus de '+maxZerosOf(g)+' zéros d\'affilée<br>') : '')
-    + (blindOne ? 'Manche à 1 carte à l\'aveugle<br>' : '')
+    + (fraudOn(g) ? '<strong style="color:var(--navy);">😈 Mode frauduleux</strong> : triche permise, on peut s\'accuser · hors ligue · sans robot<br>' : '')
     + (direction==='quick' ? '⚡ Partie rapide : hors ligue<br>' : '')
     + ((g.settings && g.settings.league && direction!=='quick') ? ('<strong style="color:var(--navy);">Partie de ligue</strong>'+(onlineLeagueCheck(g) ? ' <span class="pts-neg">· '+esc(onlineLeagueCheck(g).replace('Ne compte pas pour la ligue : ','ne comptera pas : '))+'</span>' : '')+'<br>') : (direction==='quick' ? '' : 'Partie d\'entraînement (hors ligue)<br>'))
     + 'Points : '+esc(scoringSummary(sc))+'<br>'
     + (turnLimitSec(g) ? ('Temps par tour : '+turnLimitSec(g)+' s, puis coup au hasard') : 'Pas de limite de temps par tour')+'<br>'
-    + 'Robots : niveau '+BOT_LEVEL_LABEL[botLevelOf(g)]+'</div>';
+    + 'Robots : niveau '+BOT_LEVEL_LABEL[botLevelOf(g)]).split('<br>').filter(function(r){ return r.trim(); });
+  html += '<div class="settings-summary muted">'+summaryRows.map(function(r){ return '<div class="ss-row">'+r+'</div>'; }).join('')+'</div>';
   if(isHost && showSettings){
     html += '<div class="divider"></div>';
     html += '<div class="settings-grid">';
@@ -513,7 +513,7 @@ function renderLobby(g){
       + '</select></div></div>';
     if(direction==='quick') html += '<p class="muted" style="font-size:13px; margin:0 0 10px;">⚡ Les parties rapides ne comptent pas pour la ligue.</p>';
     else html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="leagueInput" data-action-change="set-league" '+((g.settings && g.settings.league)?'checked':'')+'> Partie de ligue (compte pour le classement)</label>';
-    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue ; les robots ne trichent jamais)</label>';
+    html += '<label style="display:flex; align-items:center; gap:10px; font-size:14px; color:var(--navy); font-weight:700; margin:0 0 10px;"><input type="checkbox" id="fraudInput" data-action-change="set-fraud" '+(fraudOn(g)?'checked':'')+'> 😈 Mode frauduleux : la triche est permise (hors ligue, sans robot)</label>';
     var bl = botLevelOf(g);
     html += '<div style="margin:0 0 10px;"><label for="botLevelSelect">Niveau des robots</label><select id="botLevelSelect" data-action-change="set-botlevel">'
       + ['facile','humain','fort'].map(function(v){ return '<option value="'+v+'"'+(v===bl?' selected':'')+'>'+BOT_LEVEL_LABEL[v]+(v==='humain'?' (calé sur vos parties)':'')+'</option>'; }).join('') + '</select></div>';
@@ -532,9 +532,12 @@ function renderLobby(g){
   }
   html += '</div>';
 
+  var me = g.players[myId];
+  if(me && !me.isBot && !me.ready) html += '<button class="btn secondary ready-pulse" style="width:100%; margin-bottom:10px;" data-action="toggle-ready">Je suis prêt</button>';
   if(isHost){
-    var canStart = n>=MIN_PLAYERS && allReady;
-    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie');
+    var fraudBots = fraudOn(g) && ids.some(function(id){ return g.players[id].isBot; });
+    var canStart = n>=MIN_PLAYERS && allReady && !fraudBots;
+    var label = n<MIN_PLAYERS ? 'Il faut au moins 2 joueurs' : (fraudBots ? 'Retire les robots (mode frauduleux)' : (!allReady ? 'Tout le monde doit être prêt' : 'Lancer la partie'));
     html += '<button class="btn" style="width:100%;" data-action="start-game" '+(canStart?'':'disabled')+'>'+label+'</button>';
   } else {
     html += '<p class="muted" style="font-size:14px; text-align:center;">'+(allReady ? 'L\'hôte va lancer la partie…' : 'Clique sur « Je suis prêt » pour continuer.')+'</p>';

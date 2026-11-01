@@ -49,6 +49,7 @@ function forcedPlayTick(g){
 function turnTick(){
   var g = gameDoc;
   if(screen!=='game' || !g) return;
+  if(miniOn(g)){ miniTimerTick(g); return; } // 1.11.0
   forcedPlayTick(g);
   var ts = turnState(g);
   var el = document.getElementById('turn-timer');

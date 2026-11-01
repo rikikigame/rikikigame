@@ -6,7 +6,23 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.9.1';
+var APP_VERSION = '1.11.0';
+// 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
+// Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
+var CASINO_PUBLIC = false;
+function casinoVisibleWith(hash, stored, isPublic){
+  if(isPublic) return { show: true, store: null };
+  if(/(^|[#&])casino-off($|&)/.test(hash || '')) return { show: false, store: '0' };
+  if(/(^|[#&])casino($|&)/.test(hash || '')) return { show: true, store: '1' };
+  return { show: stored === '1', store: null };
+}
+function casinoVisible(){
+  try{
+    var r = casinoVisibleWith(location.hash, localStorage.getItem('rikiki_casino'), CASINO_PUBLIC);
+    if(r.store !== null) localStorage.setItem('rikiki_casino', r.store);
+    return r.show;
+  }catch(e){ return CASINO_PUBLIC; }
+}
 function parseVersion(s){
   s = String(s==null ? '' : s).trim();
   var m = s.match(/^(\d+)\.(\d+)\.(\d+)/);

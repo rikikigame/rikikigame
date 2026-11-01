@@ -161,15 +161,16 @@ function cafeBack(){
 // Un choix déjà fait sur l'appareil (« hallo », « cafe » ou « classic ») est toujours gardé : Halloween reste disponible dans « Tes cartes ».
 var HALLO_DEFAULT_UNTIL = Date.UTC(2026, 9, 31, 23, 0, 0); // 1er nov. 2026, 00 h 00 à Bruxelles (UTC+1)
 var deckTheme = (Date.now() < HALLO_DEFAULT_UNTIL) ? 'hallo' : 'cafe';
-try{ var storedDeck = localStorage.getItem('rikiki_deck'); if(storedDeck==='classic' || storedDeck==='cafe' || storedDeck==='hallo') deckTheme = storedDeck; }catch(e){}
+try{ var storedDeck = localStorage.getItem('rikiki_deck'); if(storedDeck==='classic' || storedDeck==='cafe' || storedDeck==='hallo' || (storedDeck==='casino' && casinoVisible())) deckTheme = storedDeck; }catch(e){}
 var CAFE_IMG = {};
 // symbole d'une couleur : texte (♠ ♥ ♦ ♣) ou, en thème Halloween, petit dessin (cœur brisé, tombe, fourche, chauve-souris)
-function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : SUIT_SYMBOL[suit]; }
+function suitGlyph(suit){ return deckTheme==='hallo' ? halloSymInline(suit) : (deckTheme==='casino' ? casinoSymInline(suit) : SUIT_SYMBOL[suit]); } // 1.11.0 : jetons de casino
 function cafeUri(svg){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
 function cafeArt(card){
   if(deckTheme === 'classic') return null;
   var k = deckTheme + card.suit + card.rank;
   if(deckTheme === 'hallo'){ if(!(k in CAFE_IMG)) CAFE_IMG[k] = halloArt(card); return CAFE_IMG[k]; }
+  if(deckTheme === 'casino'){ if(!(k in CAFE_IMG)) CAFE_IMG[k] = casinoArt(card); return CAFE_IMG[k]; }
   if(!(k in CAFE_IMG)) CAFE_IMG[k] = card.rank==='K' ? cafeUri(cafeAlbert(card.suit)) : card.rank==='J' ? cafeUri(cafeFredo(card.suit)) : card.rank==='Q' ? cafeUri(cafeDame(card.suit)) : (card.suit+card.rank)==='SA' ? cafeUri(cafeAceSpade()) : null; // v71 : « k » porte le nom du thème (cafeSA) — l'ancien test k==='SA' ne réussissait plus depuis le thème Halloween
   return CAFE_IMG[k];
 }
@@ -177,9 +178,11 @@ function cafeArt(card){
 function neonSpan(t){ var n = String(t||'').length; return '<span'+(n>14 ? ' style="font-size:calc(var(--w) * '+(0.09*14/n).toFixed(4)+')"' : '')+'>'+t+'</span>'; }
 function applyDeckTheme(){
   var r = document.documentElement; r.setAttribute('data-deck', deckTheme);
+  if(typeof ambientFx==='function') ambientFx(deckTheme); // 1.11.0 : symboles / jetons qui flottent (autres paquets que Halloween)
   if(typeof halloFx==='function') halloFx(deckTheme==='hallo'); // v64 : chauves-souris et citrouilles du fond animé
-  var tcm = document.querySelector('meta[name="theme-color"]'); if(tcm) tcm.setAttribute('content', deckTheme==='hallo' ? '#12030A' : '#0E1320'); // couleur de la barre du téléphone
+  var tcm = document.querySelector('meta[name="theme-color"]'); if(tcm) tcm.setAttribute('content', deckTheme==='hallo' ? '#12030A' : (deckTheme==='casino' ? '#06120C' : '#0E1320')); // couleur de la barre du téléphone
   if(deckTheme==='cafe' && !applyDeckTheme.done){ applyDeckTheme.done = true; r.style.setProperty('--cafe-back', 'url("' + cafeUri(cafeBack()) + '")'); }
+  if(deckTheme==='casino' && !applyDeckTheme.doneC && typeof CASINO_GOLD!=='undefined'){ applyDeckTheme.doneC = true; r.style.setProperty('--casino-back', 'url("' + cafeUri(casinoBack()) + '")'); } // 1.11.0
   if(deckTheme==='hallo' && !applyDeckTheme.doneH && typeof halloBack==='function'){ // v64 : dos des cartes + toiles d'araignée du fond de jeu
     applyDeckTheme.doneH = true;
     r.style.setProperty('--hallo-back-name', HALLO_DECK_NAME ? '"'+HALLO_DECK_NAME.replace('|','\\A ')+'"' : 'none'); // nom au dos : rien tant qu'il n'y a pas de nom
@@ -189,12 +192,13 @@ function applyDeckTheme(){
   }
 }
 applyDeckTheme();
-function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo') ? t : 'cafe'; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
+function setDeckTheme(t){ deckTheme = (t==='classic' || t==='hallo' || (t==='casino' && casinoVisible())) ? t : 'cafe'; try{ localStorage.setItem('rikiki_deck', deckTheme); }catch(e){} applyDeckTheme(); render(); }
 function renderDeckChoice(){
   var peek = [{suit:'H',rank:'K'},{suit:'C',rank:'Q'},{suit:'S',rank:'J'},{suit:'S',rank:'A'}].map(function(c){ return cardHtml(Object.assign({ value:RANK_VALUE[c.rank] }, c), { size:'peek' }); }).join('') + '<div class="card back peek"></div>';
   return '<div class="deck-choice"><strong>Tes cartes</strong><span class="seg">'
-    + '<button data-action="deck-set" data-deck="hallo" aria-pressed="'+(deckTheme==='hallo')+'"'+(deckTheme==='hallo'?' class="on"':'')+'>🎃 Halloween</button>'
+    + (casinoVisible() ? '<button data-action="deck-set" data-deck="casino" aria-pressed="'+(deckTheme==='casino')+'"'+(deckTheme==='casino'?' class="on"':'')+'>🎰 Casino de Fredo</button>' : '')
     + '<button data-action="deck-set" data-deck="cafe" aria-pressed="'+(deckTheme==='cafe')+'"'+(deckTheme==='cafe'?' class="on"':'')+'>Café Jacquet</button>'
+    + '<button data-action="deck-set" data-deck="hallo" aria-pressed="'+(deckTheme==='hallo')+'"'+(deckTheme==='hallo'?' class="on"':'')+'>🎃 Halloween</button>'
     + '<button data-action="deck-set" data-deck="classic" aria-pressed="'+(deckTheme==='classic')+'"'+(deckTheme==='classic'?' class="on"':'')+'>Classique</button></span>'
     + '<span class="deck-peek" aria-hidden="true">'+peek+'</span></div>';
 }
@@ -208,11 +212,12 @@ function cardHtml(card, opts){
   var sym = suitGlyph(card.suit), r = esc(rankLabel(card.rank)), face = {J:1,Q:1,K:1}[card.rank];
   var corner = '<span>'+r+'</span><span class="s">'+sym+'</span>';
   var small = !!opts.mini, cafe = !small && cafeArt(card), art = cafe || (face && !small && FACE_IMG[card.suit+card.rank]);
+  if(deckTheme==='casino' && !art){ sym = SUIT_SYMBOL[card.suit]; corner = '<span>'+r+'</span><span class="s">'+sym+'</span>'; } // 1.11.0 : cartes numérotées = signes classiques, jetons seulement sur les figures et l'as
   var middle;
   if(cafe && face){
-    var hl = deckTheme==='hallo';
-    CAFE_IMG[hl?'hwall':'wall'] = CAFE_IMG[hl?'hwall':'wall'] || cafeUri(hl ? halloWall() : cafeWall());
-    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[hl?'hwall':'wall']+'\')"></div><div class="cafe-neon" data-noi18n>'+neonSpan((hl ? HALLO_NEON : CAFE_NEON)[card.rank])+'</div>'
+    var hl = deckTheme==='hallo', cs = deckTheme==='casino', wk = hl ? 'hwall' : (cs ? 'cwall' : 'wall');
+    CAFE_IMG[wk] = CAFE_IMG[wk] || cafeUri(hl ? halloWall() : (cs ? casinoWall() : cafeWall()));
+    middle = '<div class="art" style="background-image:url(\''+CAFE_IMG[wk]+'\')"></div><div class="cafe-neon" data-noi18n>'+neonSpan((hl ? HALLO_NEON : (cs ? CASINO_NEON : CAFE_NEON))[card.rank])+'</div>'
       + '<div class="art" style="background-image:url(\''+art+'\')"></div>';
   }
   else if(art) middle = '<div class="art" style="background-image:url(\''+art+'\')"></div>';

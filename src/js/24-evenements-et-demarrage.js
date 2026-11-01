@@ -20,6 +20,55 @@ document.addEventListener('click', function(e){
     if(!nv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance la partie rapide.'; entryMode='create'; render(); var f = document.getElementById('nameInput'); if(f){ f.focus(); f.scrollIntoView({ block:'center' }); } return; }
     createGame(nv || myProfile.name, 'quick');
   }
+  else if(action==='fraud-create'){
+    showMiniMenu = false;
+    var nf = document.getElementById('nameInput'), nfv = nf ? nf.value.trim() : '';
+    if(!nfv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance le mode frauduleux.'; entryMode='create'; render(); var ff = document.getElementById('nameInput'); if(ff){ ff.focus(); ff.scrollIntoView({ block:'center' }); } return; }
+    createGame(nfv || myProfile.name, 'fraud');
+  }
+  else if(action==='minigames-open' || action==='minigames-close'){ // le prénom déjà tapé doit survivre à l'affichage du menu
+    var nm = document.getElementById('nameInput'), kept = nm ? nm.value : '';
+    showMiniMenu = action==='minigames-open'; render();
+    var nm2 = document.getElementById('nameInput'); if(nm2 && kept) nm2.value = kept;
+  }
+  else if(action==='blackjack-create'){
+    showMiniMenu = false;
+    var nb = document.getElementById('nameInput'), nbv = nb ? nb.value.trim() : '';
+    if(!nbv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance le blackjack.'; entryMode='create'; render(); var fb = document.getElementById('nameInput'); if(fb){ fb.focus(); } return; }
+    createGame(nbv || myProfile.name, 'blackjack');
+  }
+  else if(action==='roulette-create'){
+    showMiniMenu = false;
+    var nr = document.getElementById('nameInput'), nrv = nr ? nr.value.trim() : '';
+    if(!nrv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance la roulette.'; entryMode='create'; render(); var fr = document.getElementById('nameInput'); if(fr){ fr.focus(); } return; }
+    createGame(nrv || myProfile.name, 'roulette');
+  }
+  else if(action==='rl-cell'){ if(gameDoc && gameDoc.rl) rlCellPlay(gameDoc.rl, el.getAttribute('data-t'), Number(el.getAttribute('data-v')) || 0); }
+  else if(action==='rl-chip'){ if(gameDoc && gameDoc.rl) rlChipSet(el.getAttribute('data-v')); }
+  else if(action==='rl-clear'){ if(gameDoc && gameDoc.rl) rlDraftClear(); }
+  else if(action==='rl-send'){ if(gameDoc && gameDoc.rl) rlDraftSend(false); }
+  else if(action==='rl-pass'){ if(gameDoc && gameDoc.rl) rlDraftSend(true); }
+  else if(action==='bj-bet-adj'){ if(gameDoc && gameDoc.bj) bjBetAdjust(gameDoc, el.getAttribute('data-how')); }
+  else if(action==='bj-bet'){ if(gameDoc && gameDoc.bj) bjSend('bet', bjBetAmount(gameDoc.bj)); }
+  else if(action==='bj-hit'){ bjSend('hit'); }
+  else if(action==='bj-stand'){ bjSend('stand'); }
+  else if(action==='bj-double'){ bjSend('double'); }
+  else if(action==='bj-split'){ bjSend('split'); }
+  else if(action==='bj-insure'){ bjSend('insure'); }
+  else if(action==='bj-decline'){ bjSend('decline'); }
+  else if(action==='poker-create'){
+    showMiniMenu = false;
+    var np = document.getElementById('nameInput'), npv = np ? np.value.trim() : '';
+    if(!npv && !myProfile.name){ errorMsg = 'Entre ton prénom ci-dessus, puis relance le poker.'; entryMode='create'; render(); var fp = document.getElementById('nameInput'); if(fp){ fp.focus(); } return; }
+    createGame(npv || myProfile.name, 'poker');
+  }
+  else if(action==='mini-finish'){ if(gameDoc && gameDoc.hostId===myId && miniOn(gameDoc)) claudeDb.doc('games/'+gameDoc.code).update({ finishAfter: !gameDoc.finishAfter }).catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }
+  else if(action==='poker-fold'){ pokerSend('fold'); }
+  else if(action==='poker-check'){ pokerSend('check'); }
+  else if(action==='poker-call'){ pokerSend('call'); }
+  else if(action==='poker-allin'){ pokerSend('allin'); }
+  else if(action==='poker-raise'){ if(gameDoc && gameDoc.poker){ var po = pkOptions(gameDoc.poker, myId); pokerSend('raise', pokerRaiseTarget(gameDoc.poker, po)); } }
+  else if(action==='poker-raise-set'){ if(gameDoc && gameDoc.poker) pokerRaiseSet(gameDoc, el.getAttribute('data-how')); }
   else if(action==='do-join'){
     var nameEl2 = document.getElementById('nameInput');
     var codeEl = document.getElementById('joinCodeInput');

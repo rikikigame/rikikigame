@@ -61,6 +61,7 @@ document.addEventListener('click', function(e){
 
 // --- 3. bouton « ? » : l'aide du moment ---
 function helpLines(g){
+  if(miniOn(g)) return miniHelpLines(g); // 1.11.0
   var mine = g.turnPlayerId === myId;
   if(g.status === 'lobby') return ['Touche « Je suis prêt » quand tu veux.', 'Quand tout le monde est prêt, l\'organisateur lance la partie.', 'Pour inviter quelqu\'un : « Inviter un nouveau joueur ».'];
   if(g.status === 'dealing') return ['Les cartes sont distribuées : un instant.'];

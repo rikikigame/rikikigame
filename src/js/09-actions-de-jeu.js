@@ -20,7 +20,12 @@ async function createGameInner(name, mode){
   var players = {}; players[myId] = { name:name, color:myProfile.color, joinedAt:now, ready:false };
   await ref.set({
     code: code, createdAt: now, hostId: myId, status:'lobby',
-    settings: { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
+    kind: mode==='poker' || mode==='blackjack' || mode==='roulette' ? mode : undefined, // 1.11.0 : mini-jeux de casino, jetons fictifs
+    settings: mode==='poker' ? { poker:true, turnTimer:POKER_TURN_SEC, league:false }
+      : mode==='blackjack' ? { blackjack:true, league:false }
+      : mode==='roulette' ? { roulette:true, league:false }
+      : mode==='fraud' ? Object.assign({}, FRAUD_SETTINGS) // 1.10.0 : mode frauduleux, partie rapide de 5 manches, 10 s par tour, hors ligue
+      : { direction: mode==='quick' ? 'quick' : 'up', startSize: null, blindOne: true, league: true }, // v58 : ligue cochée d'office
     players: players
   });
   gameCode = code;
@@ -61,7 +66,7 @@ function leaveToEntry(){
   unsubscribeChat();
   if(gameUnsub){ gameUnsub(); gameUnsub=null; }
   if(handUnsub){ handUnsub(); handUnsub=null; }
-  gameDoc=null; myHand=null; myHandRaw=null; gameCode=null; processedDealRound=-1;
+  gameDoc=null; myHand=null; myHandRaw=null; gameCode=null; processedDealRound=-1; miniClearSecrets();
   clearLocal();
   screen='entry';
   render();
@@ -149,6 +154,7 @@ function syncHand(){
 }
 function onGameUpdate(){
   if(!gameDoc) return;
+  if(miniOn(gameDoc)){ primeUidTrust(gameDoc); try{ sfxOnMini(gameDoc); }catch(e){ console.warn('bruitages casino', e); } try{ miniSendBank(gameDoc); }catch(e){ console.warn('jetons de départ', e); } return; } // 1.12.0 : le poker n'a ni ligue, ni donne secrète, ni analyse (voir 23m-poker.js)
   primeUidTrust(gameDoc); // v60 : retient le compte de chaque joueur avant toute distribution
   try{ sfxOnGame(gameDoc); }catch(e){ console.warn('bruitages', e); } // v50
   witnessGame(gameDoc);
@@ -206,7 +212,7 @@ async function toggleReady(){
 
 async function addBot(){
   var g = gameDoc;
-  if(!g || g.hostId !== myId || g.status!=='lobby') return;
+  if(!g || g.hostId !== myId || g.status!=='lobby' || fraudOn(g)) return; // 1.10.0 : aucun robot en mode frauduleux
   var ids = Object.keys(g.players);
   if(ids.length >= MAX_PLAYERS) return;
   var usedNames = ids.map(function(id){ return g.players[id].name; });
@@ -249,6 +255,7 @@ async function writeHandCards(actorId, round, cards, seed){
 function botDriverTick(){
   var g = gameDoc;
   hostWatchTick(); // v41 : si l'hôte est parti, un autre joueur reprend la main
+  if(miniOn(g)){ miniHostTick(g); return; } // 1.12.0 : le croupier du poker (robots, minuteur, mains suivantes)
   if(!g || g.hostId !== myId){ lastBotTurnKey=null; return; }
   afkResolveTick(g); // v64 : vote « remplacer / retirer un joueur absent »
   if(g.status==='dealing'){

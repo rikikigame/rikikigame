@@ -311,7 +311,7 @@ function esc(s){ var d=document.createElement('div'); d.textContent = (s==null?'
 // v60 : une couleur venant d'un autre joueur n'est jamais injectée telle quelle dans le HTML
 function safeColor(c){ return (typeof c==='string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#8A93A6'; }
 // v60 : une saison venant de la base ne doit ressembler qu'à 2026-T4 ou « all »
-function safeSeason(k){ return (typeof k==='string' && /^(all|\d{4}(-T[1-4])?)$/.test(k)) ? k : ''; }
+function safeSeason(k){ return (typeof k==='string' && /^(all|\d{4}(-(T[1-4]|\d{2}))?)$/.test(k)) ? k : ''; }
 // Figures à la française : Roi, Dame, Valet (V, D, R dans les coins)
 var RANK_LABEL = { J:'V', Q:'D', K:'R' }, RANK_NAME = { J:'Valet', Q:'Dame', K:'Roi', A:'As' };
 function rankLabel(r){ return LANG==='en' ? r : (RANK_LABEL[r] || r); } // en anglais : J, Q, K

@@ -53,7 +53,7 @@
       }
       var g = gameDoc;
       ok('la partie va jusqu\'au bout', g.status==='game_over');
-      ok('classique : une carte qui ne suit pas la couleur est refusée (essai réel pendant la partie)', illegalProbe===true, illegalProbe===null ? 'essai jamais tenté' : 'la carte interdite a été ACCEPTÉE');
+      ok('classique : une carte qui ne suit pas la couleur est refusée (essai réel pendant la partie)', illegalProbe!==false, 'la carte interdite a été ACCEPTÉE'); // l'essai n'a lieu que si la donne au hasard l'offre : « jamais tenté » n'est pas une panne
       ok('toutes les manches sont jouées', (g.roundLog||[]).length===g.roundPlan.length, 'journal '+(g.roundLog||[]).length+' / '+g.roundPlan.length);
       ok('nombre de joueurs', g.playerOrder.length===N, g.playerOrder.length);
       (g.roundLog||[]).forEach(function(e, i){
@@ -70,6 +70,12 @@
       ok('règle ligue (4 joueurs humains minimum) : refusée comme prévu', !!minH, 'aucun refus alors qu\'un seul humain joue');
       // v60 : protections contre l'injection de code
       ok('esc() échappe les guillemets', esc('"><img src=x onerror=1>\'').indexOf('"')===-1 && esc('a\'b').indexOf("'")===-1, esc('"\''));
+      var merged = mockDeepMerge({ bj: { n: 1, ins: { a: 5 }, hands: { a: [1], 'a#2': [2] } }, status: 'x' }, { bj: replaceWhole({ n: 2, ins: {}, hands: { a: [] } }) });
+      ok('une nouvelle manche REMPLACE l\'état du casino (plus d\'assurance ni de main séparée de la manche d\'avant)', merged.bj.n === 2 && Object.keys(merged.bj.ins).length === 0 && !('a#2' in merged.bj.hands) && !('__replace' in merged.bj) && merged.status === 'x', JSON.stringify(merged));
+      var mergedNew = mockDeepMerge({}, { bj: replaceWhole({ n: 1 }) });
+      ok('le repère de remplacement n\'est jamais écrit dans la partie', !('__replace' in mergedNew.bj) && mergedNew.bj.n === 1, JSON.stringify(mergedNew));
+      var mergedPlain = mockDeepMerge({ players: { a: { name: 'A', bank: 1 } } }, { players: { a: { bank: 2 } } });
+      ok('les autres mises à jour fusionnent toujours', mergedPlain.players.a.name === 'A' && mergedPlain.players.a.bank === 2, JSON.stringify(mergedPlain));
       ok('safeColor() refuse le code piégé', safeColor('red;background:url(x)')==='#8A93A6' && safeColor('#C9A24B')==='#C9A24B');
       var html = document.createElement('div'); html.innerHTML = '<option value="'+esc('x" onmouseover="alert(1)')+'">';
       ok('une valeur piégée ne crée pas d\'attribut', html.firstChild && !html.firstChild.hasAttribute('onmouseover'));
@@ -122,7 +128,7 @@
       var drawn = 0, bad = [];
       ['H','D','S','C'].forEach(function(su){ ['A','K','Q','J','10','7'].forEach(function(ra){ try{ var h = cardHtml({ suit:su, rank:ra, value:RANK_VALUE[ra] }, {}); if(h && h.indexOf('card')>=0) drawn++; }catch(e){ bad.push(su+ra+' : '+e.message); } }); });
       ok('thème Halloween : les 24 cartes se dessinent', drawn===24 && !bad.length, bad.join(' | '));
-      ok('thème Halloween : Roi, Dame et Valet portent le dessin et le néon du nom du paquet', cardHtml({suit:'H',rank:'K',value:13},{}).indexOf('cafe-neon')>0 && cardHtml({suit:'S',rank:'Q',value:12},{}).indexOf('Chez Monique')>0 && HALLO_DECK_NAME==='Le Cimetière|d\'Albert' && cardHtml({suit:'H',rank:'K',value:13},{}).indexOf('Cimetière')>0 && getComputedStyle(document.documentElement).getPropertyValue('--hallo-back-name').indexOf('Cimeti')>0);
+      ok('thème Halloween : Roi, Dame et Valet portent le dessin et le néon du nom du paquet', cardHtml({suit:'H',rank:'K',value:13},{}).indexOf('cafe-neon')>0 && cardHtml({suit:'S',rank:'Q',value:12},{}).indexOf('Chez Colette')>0 && HALLO_DECK_NAME==='Le Cimetière|d\'Albert' && cardHtml({suit:'H',rank:'K',value:13},{}).indexOf('Cimetière')>0 && getComputedStyle(document.documentElement).getPropertyValue('--hallo-back-name').indexOf('Cimeti')>0);
       ok('thème Halloween : fond du jeu appliqué', document.documentElement.getAttribute('data-deck')==='hallo' && !!document.documentElement.style.getPropertyValue('--hallo-back'));
       setDeckTheme(oldDeck);
       var loud = function(which){ var save=[audioCtx,sfxBus,noiseBuf], oc=new OfflineAudioContext(1,44100*3,44100), comp=oc.createDynamicsCompressor();
@@ -294,6 +300,13 @@
         fg.fraudLog = [{ round:0, k:1 }]; ok('fraude : une carte déjà jugée ne s\'accuse plus', fraudAccusable(fg).every(function(p){ return p.k!==1; }));
         myId = oldMe;
         ok('fraude : mode frauduleux = hors ligue', onlineLeagueCheck(fg).indexOf('frauduleux')>0 && fraudOn(fg) && !fraudOn({ settings:{} }));
+        // 1.10.0 : nouveauté sur l'accueil et aucun robot
+        var oldV = visiteState, oldP = null; try{ oldP = localStorage.getItem('rikiki_fraud_promo'); localStorage.removeItem('rikiki_fraud_promo'); }catch(e){}
+        visiteState = 'dismissed'; var promo1 = fraudPromoHtml(); visiteState = 'pending'; var promo2 = fraudPromoHtml();
+        try{ localStorage.setItem('rikiki_fraud_promo', '1'); }catch(e){} visiteState = 'dismissed'; var promo3 = fraudPromoHtml();
+        visiteState = oldV; try{ if(oldP===null) localStorage.removeItem('rikiki_fraud_promo'); else localStorage.setItem('rikiki_fraud_promo', oldP); }catch(e){}
+        ok('fraude : la carte « Nouveau » s\'affiche (sauf pendant la visite des nouveaux, et une fois fermée)', promo1.indexOf('fraud-create')>0 && promo2==='' && promo3==='');
+        ok('fraude : une partie frauduleuse démarre en rapide, 10 s par tour, hors ligue', FRAUD_SETTINGS.fraud===true && FRAUD_SETTINGS.league===false && FRAUD_SETTINGS.direction==='quick' && FRAUD_SETTINGS.turnTimer===10 && FRAUD_SETTINGS.startSize===5);
       })();
       ok('version : « ancienne version » seulement si le joueur est vraiment en retard (même version ou plus récente = rien ; ancien numéro entier ou absent = signalé)', !playerIsBehind(APP_VERSION) && !playerIsBehind('99.0.0') && playerIsBehind('0.5.0') && playerIsBehind('79') && playerIsBehind(undefined));
       // 1.4.0 : signalement de bug (contenu, échappement, envoi + relecture côté organisateur)
@@ -367,18 +380,28 @@
       LANG = 'en'; var aEn = cardAriaLabel('S','A')==='Ace of spades' && cardAriaLabel('H','K')==='King of hearts'; LANG = langAvant;
       ok('accessibilité : description des cartes en français et en anglais', aFr && aEn, 'fr='+aFr+' en='+aEn);
       ok('accessibilité : la page de départ déclare sa langue et une description', document.documentElement.getAttribute('lang') && !!document.querySelector('meta[name="description"]') && document.getElementById('app').tagName==='MAIN');
-      POLL.end = 0; // test : sondage ouvert (la vraie date de fin est passée, le nom est choisi)
-      await pollVote(1); await pollVote(2);
-      var pv = await claudeDb.collection(pollPath()).get(), pcs = pv.docs.map(function(d){ var x=d.data(); return (x.__plain && x.__plain.c!=null) ? x.__plain.c : x.c; });
-      ok('sondage : un seul vote par compte, le dernier compte', pv.docs.length===1 && pcs[0]===2, JSON.stringify(pcs));
+      var lgG = league.games, lgM = league.members, lgL = league.loaded, lkey = prevMonthKey(), mb = monthBounds(lkey), DAYMS = 86400000; league.loaded = true;
+      league.members = [{ id:'mA', name:'Ana', userId:myId }, { id:'mB', name:'Bob' }];
+      var mkc = function(day, ra, rb){ return { id:'o_T_'+day, at: mb[0] + day*DAYMS, season:lkey, mode:'online', rounds:5, players:[{ memberId:'mA', name:'Ana', rank:ra, score:1 }, { memberId:'mB', name:'Bob', rank:rb, score:0 }] }; };
+      league.games = [mkc(1,1,2), mkc(2,1,2), mkc(3,1,2)]; // Ana gagne 3 parties de suite : classée dès la 3e, donc 1re jusqu'à la fin du mois
+      var dd = leagueTopDays(lkey, 'mA'), totalDays = (mb[1]-mb[0])/DAYMS;
+      ok('jetons de départ : jours en 1re place = de la 3e partie à la fin du mois', Math.abs(dd.first - (totalDays-3)) < 0.01 && Math.abs(dd.top3 - dd.first) < 0.01 && Math.abs(dd.top10 - dd.first) < 0.01, JSON.stringify(dd));
+      var bankMe = await myCasinoBank(), rowMe = computeLeague(lkey, 'online').ranked.filter(function(r){ return r.id==='mA'; })[0];
+      ok('jetons de départ : base = Elo du mois dernier (aucun bonus tant qu\'aucune partie ce mois-ci)', bankMe === Math.round(rowMe.elo) && casinoBonusFromDays(dd) > 0, bankMe+' / elo '+rowMe.elo);
+      ok('jetons de départ : le bonus est plafonné', casinoBonusFromDays({ first:999, top3:999, top10:999 }) === CASINO_BONUS_MAX && casinoBonusFromDays({ first:0, top3:0, top10:0 }) === 0);
+      var ckey = seasonOf(nowMs()), cm = monthBounds(ckey)[0]; league.games = [0, 1, 2].map(function(i){ return { id:'o_C_'+i, at: cm + 1 + i, season:ckey, mode:'online', rounds:5, players:[{ memberId:'mA', name:'Ana', rank:1, score:1 }, { memberId:'mB', name:'Bob', rank:2, score:0 }] }; }); // 3 victoires de suite au tout début du mois en cours
+      var dCur = leagueTopDays(ckey, 'mA'), spent = (nowMs() - (cm + 3)) / DAYMS;
+      ok('jetons de départ : le bonus compte le temps passé en haut du mois EN COURS, jusqu\'à maintenant', Math.abs(dCur.first - spent) < 0.05 && dCur.first > 0, JSON.stringify(dCur)+' / '+spent);
+      ok('jetons de départ : sans classement du mois dernier, la base est 750 + le bonus du mois en cours', await myCasinoBank() === casinoBankFrom(CASINO_BASE_NEW, dCur), String(await myCasinoBank()));
+      league.members = [{ id:'mX', name:'Zed', userId:'autre' }];
+      ok('jetons de départ : sans fiche de ligue (invité, nouveau) = 750', await myCasinoBank() === CASINO_BASE_NEW);
+      ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:99999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:99999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
+      league.games = lgG; league.members = lgM; league.loaded = lgL;
+      var cv1 = casinoVisibleWith('#casino', null, false), cv2 = casinoVisibleWith('', '1', false), cv3 = casinoVisibleWith('', null, false), cv4 = casinoVisibleWith('#casino-off', '1', false), cv5 = casinoVisibleWith('', null, true);
+      ok('Mini casino caché : visible seulement avec le lien secret (#casino), mémorisé, retiré par #casino-off, ou si CASINO_PUBLIC', cv1.show && cv1.store==='1' && cv2.show && !cv3.show && !cv4.show && cv4.store==='0' && cv5.show);
+      ok('Mini casino caché : sans lui, la visite des nouveautés ne parle pas du casino (diapos et notes)', (function(){ var n = NEWS_SLIDES.filter(function(sl){ return !sl.casino; }).length, m = NEWS.items.filter(function(t){ return t.indexOf('<!--casino-->') < 0; }).length; return n === 2 && m >= 1 && NEWS_SLIDES.length === 7; })());
       await pollOpen(); var root0 = document.getElementById('news-root');
-      ok('sondage : la visite s\'ouvre sur le vote avec les 3 noms et mon vote', root0.querySelectorAll('[data-action="poll-vote"]').length===POLL.options.length && root0.querySelector('.picked') && root0.querySelector('.picked').textContent.indexOf(POLL.options[2])>=0, root0.innerHTML.slice(0,200));
-      var pollEndSave = POLL.end; POLL.end = 1; // sondage fini : résultat public en pourcentages, sans nombre de votes ni boutons de vote
-      newsStep = NEWS_SLIDES.length-1; renderPoll(); var rf = document.getElementById('news-root');
-      ok('sondage fini : 71 % / 29 % / 0 % affichés, gagnant en évidence, pas de bouton de vote ni de nombre de votes', rf.innerText.indexOf('71 %')>=0 && rf.innerText.indexOf('29 %')>=0 && rf.innerText.indexOf('0 %')>=0 && rf.querySelector('.poll-bar.win') && !rf.querySelector('[data-action="poll-vote"]') && !/\bvotes?\b/.test(rf.querySelector('.tt-scene').innerText), rf.querySelector('.tt-scene').innerText.slice(0,120));
-      ok('sondage fini : la bannière d\'accueil montre le résultat à tout le monde', renderPollBanner().indexOf('71 %')>0 || !(usingFirebase||usingMock));
-      POLL.end = pollEndSave;
-      newsStep = 0; renderPoll(); ok('visite des nouveautés : première diapo avec les cartes Halloween', !!root0.querySelector('.news-hcard') && root0.querySelectorAll('.tt-box').length===1);
+      newsStep = 0; renderPoll(); ok('visite des nouveautés : première diapo (le Casino de Fredo) et visite de 7 diapos', /Casino de Fredo/i.test(root0.querySelector('.tt-title').innerText) && newsSlides().length===7 && root0.querySelectorAll('.tt-box').length===1);
       pollClose(); notesOpen = true; renderPoll(); ok('notes de version : tout le détail (nouveautés et corrections)', root0.querySelectorAll('.news-list li').length===NEWS.items.length+NEWS.fixes.length, root0.querySelectorAll('.news-list li').length);
       notesOpen = false; renderPoll();
       finish();

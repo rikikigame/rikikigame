@@ -86,8 +86,9 @@ function renderEntry(){
   else if(isAdmin() && authOn() && profileClaimsList.length) // v42 : l'organisateur voit les demandes dès l'accueil
     html += '<div class="home-panel"><div class="card-panel" style="margin-bottom:12px; padding:12px 16px;">'+renderClaimsList()+'</div></div>';
   // --- titre ---
-  html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>')+'</div>'
+  html += '<div class="hc-brand"><div class="hc-suits" aria-hidden="true">'+(deckTheme==='hallo' ? '<span>'+halloSymInline('S')+'</span><span class="r">'+halloSymInline('H')+'</span><span>'+halloSymInline('C')+'</span><span class="r">'+halloSymInline('D')+'</span>' : (deckTheme==='casino' ? '<span>'+casinoSymInline('S')+'</span><span>'+casinoSymInline('H')+'</span><span>'+casinoSymInline('C')+'</span><span>'+casinoSymInline('D')+'</span>' : '<span>♠︎</span><span class="r">♥︎</span><span>♣︎</span><span class="r">♦︎</span>'))+'</div>'
     + '<h1 class="hc-title">Rikiki</h1><div class="hc-tag" lang="en">Who dares bids. Who cuts wins.</div></div>';
+  // 1.11.0 : une seule bannière « nouveautés » (renderPollBanner) ; la carte du mode frauduleux (fraudPromoHtml) n'est plus affichée à l'accueil
   html += renderPollBanner(); // v64 : sondage du nom du paquet
   html += tourneyHomeBannerHtml(); // 1.5.0 : tournoi du dimanche (invitation, puis résultat à 21 h)
   var promo = visitePromoHtml(); html += promo; // 1.8.0 : carte « Première fois ? » (visite de l'appli + règles) pour les nouveaux appareils
@@ -113,7 +114,8 @@ function renderEntry(){
     + tile('sheet-open', 'sheet', 'Vraies cartes', 'Le téléphone compte')
     + tile('league-openscreen', 'trophy', 'Ligue', 'Classement de la saison')
     + tile('tuto-open', 'book', 'Règles', 'Tuto animé · 1 min')
-    + '</div>';
+    + '</div>'
+    + (casinoVisible() ? '<button class="hc-tile" data-action="minigames-open" style="width:100%; margin-top:10px;"><span style="font-size:22px;">🎰</span><span class="hc-tile-txt"><span class="hc-tile-title">Mini casino <span class="quick-chip">Nouveau</span></span><span class="hc-tile-sub">Poker · Blackjack · Roulette</span></span></button>' : '');
   // --- amis ---
   html += renderHomeFriends();
   // --- pied de page ---

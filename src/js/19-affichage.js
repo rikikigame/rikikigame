@@ -50,6 +50,30 @@ function cardAriaLabel(suit, rank){
   var l = (typeof LANG!=='undefined' && LANG==='en') ? 'en' : 'fr', r = (CARD_RANK_NAME[l][rank] || rank), s = CARD_SUIT_NAME[l][suit] || '';
   return l==='en' ? (r+' of '+s) : (r+' de '+s);
 }
+// 1.11.0 : champs de nombre avec de vrais boutons − et + (le champ garde sa saisie ; le changement part comme avant par l'événement « change »)
+function enhanceNumberInputs(){
+  var app = document.getElementById('app'); if(!app) return;
+  var fr = !(typeof LANG!=='undefined' && LANG==='en');
+  app.querySelectorAll('input[type="number"]').forEach(function(inp){
+    if(!inp.parentNode || inp.parentNode.classList.contains('numfld')) return;
+    var w = document.createElement('span'); w.className = 'numfld';
+    inp.parentNode.insertBefore(w, inp);
+    var minus = document.createElement('button'); minus.type = 'button'; minus.className = 'numstep'; minus.setAttribute('data-step', '-1'); minus.setAttribute('aria-label', fr ? 'Moins' : 'Less'); minus.textContent = '−';
+    var plus = document.createElement('button'); plus.type = 'button'; plus.className = 'numstep'; plus.setAttribute('data-step', '1'); plus.setAttribute('aria-label', fr ? 'Plus' : 'More'); plus.textContent = '+';
+    w.appendChild(minus); w.appendChild(inp); w.appendChild(plus);
+  });
+}
+document.addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('.numstep') : null; if(!b) return;
+  var inp = b.parentNode.querySelector('input[type="number"]'); if(!inp) return;
+  var step = Number(inp.step) || 1, cur = parseFloat(inp.value); if(isNaN(cur)) cur = 0;
+  var next = cur + step * Number(b.getAttribute('data-step'));
+  if(inp.min !== '') next = Math.max(Number(inp.min), next);
+  if(inp.max !== '') next = Math.min(Number(inp.max), next);
+  if(next === cur) return;
+  inp.value = String(next);
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+});
 function a11yPass(){
   var app = document.getElementById('app'); if(!app) return;
   var l = (typeof LANG!=='undefined' && LANG==='en') ? 'en' : 'fr';
@@ -78,7 +102,7 @@ function render(){
   var before = flipCapture();
   var sk = screenKey(), changed = sk !== lastScreenKey; lastScreenKey = sk;
   renderInner();
-  try{ renderConsent(); a11yPass(); }catch(e){ console.error(e); }
+  try{ renderConsent(); a11yPass(); enhanceNumberInputs(); }catch(e){ console.error(e); }
   flipPlay(before, changed);
   try{ renderChat(); }catch(e){ console.error(e); }
   try{ var ir = document.getElementById('invite-root'); if(ir) ir.innerHTML = renderInviteBanner(); presenceTick(); }catch(e){ console.error(e); }
@@ -104,7 +128,7 @@ function renderInner(){
   if(fatalError){ app.innerHTML = renderFatalError(); return; }
   if(screen==='no-identity'){ app.innerHTML = renderNoIdentity(); return; }
   if(screen==='loading'){ app.innerHTML = renderLoading(); return; }
-  if(screen==='entry'){ app.innerHTML = renderEntry(); return; }
+  if(screen==='entry'){ app.innerHTML = renderEntry() + (showMiniMenu ? renderMiniMenu() : ''); return; }
   if(screen==='sheet-setup' && sheetDraft){ app.innerHTML = renderSheetSetup() + (toastMsg ? '<div class="toast">'+esc(toastMsg)+'</div>' : ''); return; }
   if(screen==='analysis'){ app.innerHTML = renderAnalysis(); return; }
   if(screen==='league'){ app.innerHTML = renderLeague() + (toastMsg ? '<div class="toast">'+esc(toastMsg)+'</div>' : ''); return; }
