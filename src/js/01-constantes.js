@@ -6,7 +6,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.11.1';
+var APP_VERSION = '1.11.2';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = false;
@@ -81,7 +81,8 @@ function handSuitOrder(cards){
 }
 var RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 var RANK_VALUE = {}; RANKS.forEach(function(r,i){ RANK_VALUE[r]=i+2; });
-var MAX_PLAYERS = 8, MIN_PLAYERS = 2;
+var MAX_PLAYERS = 8, MIN_PLAYERS = 2, BJ_MAX_PLAYERS = 5; // 1.11.2 : le blackjack est limité à 5 joueurs (la table en arc de cercle n'en contient pas plus)
+function maxPlayersOf(g){ return (g && g.kind === 'blackjack') ? BJ_MAX_PLAYERS : MAX_PLAYERS; }
 function seatAngles(n){
   var arr=[]; var step=360/n;
   for(var i=0;i<n;i++){ arr.push(90 - i*step); }

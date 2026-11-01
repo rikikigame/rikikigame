@@ -50,7 +50,7 @@ async function joinGameInner(codeRaw, name){
   var data = snap.data();
   if(data.players && data.players[myId]){ gameCode=code; persistLocal(); subscribeGame(code); return; }
   if(data.status !== 'lobby'){ errorMsg='Cette partie a déjà commencé.'; render(); return; }
-  if(Object.keys(data.players||{}).length >= MAX_PLAYERS){ errorMsg='Cette partie est complète.'; render(); return; }
+  if(Object.keys(data.players||{}).length >= maxPlayersOf(data)){ errorMsg='Cette partie est complète.'; render(); return; }
   name = (name||'').trim().slice(0,24) || 'Joueur';
   if(usingFirebase){ try{ localStorage.setItem('rikiki_fb_name', name); }catch(e){} }
   var patch = { players:{} };
@@ -214,7 +214,7 @@ async function addBot(){
   var g = gameDoc;
   if(!g || g.hostId !== myId || g.status!=='lobby' || fraudOn(g)) return; // 1.10.0 : aucun robot en mode frauduleux
   var ids = Object.keys(g.players);
-  if(ids.length >= MAX_PLAYERS) return;
+  if(ids.length >= maxPlayersOf(g)) return;
   var usedNames = ids.map(function(id){ return g.players[id].name; });
   var name = BOT_NAMES.filter(function(n){ return usedNames.indexOf(n)===-1; })[0] || ('Robot '+Math.random().toString(36).slice(2,5));
   var color = BOT_COLORS[ids.length % BOT_COLORS.length];
