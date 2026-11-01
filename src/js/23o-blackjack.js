@@ -311,7 +311,7 @@ function renderBlackjack(g){
     + '<text x="160" y="50" fill="#F25565" font-size="14" font-weight="800" text-anchor="middle" font-family="Bricolage Grotesque,Arial,sans-serif">PAYS 3 TO 2</text>'
     + '<path id="bjArcP" d="M24 114Q160 66 296 114" fill="none" stroke="#F4F1E4" stroke-width="1.6" opacity="0.9"/>'
     + '<path id="bjArcT" d="M40 104Q160 58 280 104" fill="none"/><text fill="#F4F1E4" font-size="7.6" letter-spacing="1" text-anchor="middle" opacity="0.85" font-family="Bricolage Grotesque,Arial,sans-serif"><textPath href="#bjArcT" startOffset="50%">DEALER DRAWS TO 16, STANDS ON 17</textPath></text></svg>'
-    + '<div class="bj-seats">'+st.seats.map(function(id){ return renderBjSeat(g, st, id); }).join('')+'</div></div>';
+    + '<div class="bj-seats'+(st.seats.length <= 4 ? ' arc n'+st.seats.length : '')+'">'+st.seats.map(function(id){ return renderBjSeat(g, st, id); }).join('')+'</div></div>';
   if(st.result) h += bjResultHtml(g, st);
   if(g.status === 'blackjack_end') h += pokerRanking(g, st);
   else if(!st.result) h += bjActionsHtml(g, st);
