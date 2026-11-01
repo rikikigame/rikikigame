@@ -7,7 +7,7 @@ var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
   version: APP_VERSION, tour: '1.11', title: '🎰 Du nouveau sur Rikiki !',
   items: [
-    '<!--casino--><strong>🎰 Le Casino de Fredo</strong> : Fredo a toujours aimé les jeux d\'argent. Un soir, il s\'est dit qu\'un casino au café, ce serait quand même sympa. Il a ouvert une table, puis deux, puis trois. Tout se joue avec des jetons pour de faux, jamais avec de l\'argent. Tu le trouves sur l\'accueil, dans « Mini casino ».',
+    '<!--casino--><strong>🎰 Le Casino de Fredo</strong> : Fredo a toujours aimé les jeux d\'argent. Un soir, il s\'est dit qu\'un casino au café, ce serait quand même sympa. Il a ouvert une table, puis deux, puis trois. Tous les jetons sont faux : on ne joue jamais avec de l\'argent. Tu le trouves sur l\'accueil, dans « Mini casino ».',
     '<!--casino--><strong>🎟️ Tes jetons de départ</strong> : au casino, tu démarres avec tes points de ligue du mois dernier (750 si tu débutes). Et chaque jour passé en haut du classement du mois en cours te rapporte un petit bonus pour tes prochaines parties : 3 jetons en 1re place, 2 dans les 3 premiers, 1 dans les 10 premiers. On joue ensuite tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
     '<!--casino--><strong>🃏 Poker</strong> : Texas Hold\'em de 2 à 8 joueurs, avec des blindes qui montent au fil des mains, le tapis et les pots annexes. Tes cartes restent secrètes, et celui qui a le plus de jetons à la fin gagne.',
     '<!--casino--><strong>🂡 Blackjack</strong> : seul contre le croupier ou à plusieurs. Mise de 10 à 500, blackjack payé 3 pour 2, et tu peux doubler. De 5 à 20 manches.',
@@ -55,7 +55,7 @@ function newsCards(){ // trois cartes du nouveau jeu (Roi, Dame, Valet), sans pr
 }
 function newsChips(){ return '<div class="news-chips tt-a" aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; }
 var NEWS_SLIDES = [
-  { casino:true, t:'Le Casino de Fredo 🎰', d:'Fredo a toujours adoré les jeux d\'argent. Un soir, au café, il s\'est dit : « Et si j\'ouvrais un casino ? » Eh bien voilà, c\'est fait ! Tout se joue avec des jetons pour de faux, jamais avec de l\'argent.',
+  { casino:true, t:'Le Casino de Fredo 🎰', d:'Fredo a toujours adoré les jeux d\'argent. Un soir, au café, il s\'est dit : « Et si j\'ouvrais un casino ? » Eh bien voilà, c\'est fait ! Tous les jetons sont faux : on ne joue jamais avec de l\'argent.',
     s:function(){ return '<div class="news-sign tt-a" data-noi18n>Casino de Fredo</div><div class="news-chips tt-a"'+ttD(500)+' aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; } },
   { casino:true, t:'Trois jeux à la table', d:'Seul, entre amis ou avec des robots. On joue tant qu\'il reste des jetons. Tu choisis ton jeu dans « Mini casino », sur l\'accueil.',
     s:function(){ return '<div class="tt-results">'+[['♠ Poker', 'Texas Hold\'em'], ['🃏 Blackjack', 'contre le croupier'], ['🎡 Roulette', 'rouge, noir, numéros…']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="muted">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },

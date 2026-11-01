@@ -602,7 +602,7 @@ function renderTable(g){
   var ts = turnState(g);
   var html = '<div class="play-head"><div><div class="eyebrow">'+((g.settings && g.settings.direction==='quick') ? '⚡ ' : '')+'Manche '+(g.round+1)+' / '+g.roundPlan.length+' · '+handSize+' carte'+(handSize>1?'s':'')+(bidding ? '' : ' · <strong>'+tricksLeft+' pli'+(tricksLeft>1?'s':'')+' restant'+(tricksLeft>1?'s':'')+'</strong>')+' · paquet : '+deckLeft(g.playerOrder.length, handSize)+' carte'+(deckLeft(g.playerOrder.length, handSize)>1?'s':'')+'</div>'
     + '<div class="status'+(isMe?' me':'')+'">'+status+'<span id="turn-timer" class="'+ts.cls+'">'+ts.text+'</span></div></div>';
-  html += '<div class="trump">'+(g.trumpCard ? cardHtml(g.trumpCard, {size:'trump-size'}) : '<div class="none">Sans<br>atout</div>')+'<div class="eyebrow">Atout</div></div></div>';
+  html += '<div class="trump">'+(g.trumpCard ? cardHtml(g.trumpCard, {size:'trump-size'}) : '<div class="none">Sans<br>atout</div>')+'<div class="eyebrow trump-tag">Atout'+(g.trumpCard ? ' <span class="tt-suit s-'+g.trumpCard.suit+'">'+suitGlyph(g.trumpCard.suit)+'</span>' : '')+'</div>'+(g.trumpCard ? '<div class="trump-name">'+SUIT_NAME[g.trumpCard.suit]+'</div>' : '')+'</div></div>';
   html += renderAfkBanner(g); // v64 : joueur absent (vote)
 
   if(tableViewOn){ html += tableViewHtml(g, ending, bidding, isMe, blind, blindHands, handSize); } else {

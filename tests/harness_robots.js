@@ -53,6 +53,7 @@
       }
       var g = gameDoc;
       ok('la partie va jusqu\'au bout', g.status==='game_over');
+      for(var pw=0; pw<60 && !/Précision : \d+ %/.test(document.body.innerText); pw++) await sleep(200); ok('fin de partie : la précision (en %) s\'affiche à côté des points', /Précision : \d+ %/.test(document.body.innerText), document.body.innerText.slice(0,300));
       ok('classique : une carte qui ne suit pas la couleur est refusée (essai réel pendant la partie)', illegalProbe!==false, 'la carte interdite a été ACCEPTÉE'); // l'essai n'a lieu que si la donne au hasard l'offre : « jamais tenté » n'est pas une panne
       ok('toutes les manches sont jouées', (g.roundLog||[]).length===g.roundPlan.length, 'journal '+(g.roundLog||[]).length+' / '+g.roundPlan.length);
       ok('nombre de joueurs', g.playerOrder.length===N, g.playerOrder.length);

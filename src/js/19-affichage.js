@@ -123,7 +123,10 @@ function renderInner(){
   try{
     document.documentElement.setAttribute('data-look', 'dark'); // v39 : le même style « Nuit » sur tout le site
     document.documentElement.classList.toggle('is-home', screen==='entry'); // v38 : accueil « Nuit »
+    document.documentElement.classList.toggle('in-casino', !!(gameDoc && typeof miniOn === 'function' && miniOn(gameDoc))); // 1.11.1 : la pastille de chat se range au-dessus des boutons
   }catch(e){}
+  var showDeck = (screen==='entry' && casinoVisible()) ? 'casino' : chosenDeck; // 1.11.1 : l'accueil reste Casino ; le paquet choisi s'applique en partie
+  if(showDeck !== deckTheme){ deckTheme = showDeck; applyDeckTheme(); }
   renderIntroLayer();
   if(fatalError){ app.innerHTML = renderFatalError(); return; }
   if(screen==='no-identity'){ app.innerHTML = renderNoIdentity(); return; }

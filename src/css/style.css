@@ -1555,3 +1555,62 @@ h2, h3{ letter-spacing:-0.01em; }
 .bj-hand-one.live .bj-hand-name{ opacity:1; color:#FFD76A; }
 .bj-hand-one.live .bj-cards{ outline:2px solid #FFD76A; outline-offset:4px; border-radius:8px; box-shadow:0 0 14px rgba(255,215,106,.45); }
 .bj-hand-one.wait{ opacity:.65; }
+
+
+/* ===================== 1.11.1 : casino sur téléphone : tout tient dans l'écran (jetons restants en haut, boutons visibles, table plus courte) ===================== */
+.pk-headr{ display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+.pk-mychips{ display:inline-flex; align-items:center; gap:2px; padding:3px 11px 3px 8px; border-radius:999px; background:rgba(8,26,18,0.85); border:1.5px solid #E3C158; color:#FFF3C9; font-weight:900; font-size:17px; box-shadow:0 0 0 2px rgba(227,193,88,0.18); }
+.pk-mychips .chip-ico{ width:20px; height:20px; margin-right:4px; }
+.pk-btns .btn{ min-width:0; white-space:nowrap; }
+@media (max-width:480px){
+  .pk-btns{ gap:6px; } .pk-btns .btn{ padding-left:4px; padding-right:4px; font-size:15px; min-height:46px; }
+  .croupier{ margin:0 2px 6px; gap:8px; }
+  .cr-pic{ width:44px; height:76px; border-radius:22px 22px 8px 8px; }
+  .cr-bubble{ font-size:13px; padding:6px 10px; }
+  .croupier.cr-albert{ margin-bottom:22px; }
+  .mini-finish{ margin:-4px 0 2px; }
+  .pk-head{ margin:2px 2px 6px; }
+  .bj-felt{ padding:8px 6px 12px; }
+  .bj-felt .bj-dealer .eyebrow{ display:none; }
+  .bj-cards{ --cw:52px !important; } .bj-hand.split .bj-cards{ --cw:40px !important; }
+  .bj-hand{ min-height:76px; } .bj-nohand{ width:52px; height:74px; }
+  .bj-spot .pk-cards .card + .card{ margin-left:-26px; }
+  .bj-arc{ width:min(230px, 70%); margin:0 auto -4px; }
+  .bj-circle{ width:50px; height:50px; }
+  .bj-seats{ gap:8px 6px; }
+  .bj-shoe{ width:26px; height:38px; top:8px; right:10px; }
+  .pk-headr{ flex-direction:row; align-items:center; gap:8px; }
+  .pk-headr .pk-blinds{ font-size:12.5px; white-space:nowrap; }
+  .in-casino #chat-root{ bottom:calc(66px + env(safe-area-inset-bottom,0px)); right:10px; }
+  .in-casino .chat-fab{ width:42px; height:42px; font-size:18px; }
+  .pk-actions{ margin-top:4px; } .pk-timer{ margin-bottom:4px; }
+  .pk-actions .pk-raise-row{ margin-top:4px; margin-bottom:0; gap:6px; } .pk-actions .pk-raise-row .btn.small{ padding-top:7px; padding-bottom:7px; }
+  .pk-actions .pk-btns[style]{ margin-top:6px !important; }
+  .pk-tv.short{ aspect-ratio:1/0.86; margin-top:2px; }
+  .pk-mine{ margin:4px 0 2px; } .pk-mine .eyebrow{ font-size:10.5px; } .pk-mine .pk-cards{ --cw:58px !important; margin-top:3px; }
+  .rl-wheel{ width:min(190px, 50vw); margin:2px auto 6px; }
+  .bj-dealer > .muted{ margin:0 !important; } .bj-nohand{ height:60px; } .bj-hand:has(.bj-nohand){ min-height:64px; }
+}
+
+
+/* ===================== 1.11.1 : figures Casino sur fond BLANC (le noir + or ressemblait à l'atout) : coins dans la couleur du signe ===================== */
+:root[data-deck="casino"] .card.has-art:not(.cafe-ace) .corner, :root[data-deck="casino"] .card.cafe-art:not(.cafe-ace) .corner{ color:#15151A !important; text-shadow:none; }
+:root[data-deck="casino"] .card.has-art[data-suit="H"]:not(.cafe-ace) .corner, :root[data-deck="casino"] .card.has-art[data-suit="D"]:not(.cafe-ace) .corner,
+:root[data-deck="casino"] .card.cafe-art[data-suit="H"]:not(.cafe-ace) .corner, :root[data-deck="casino"] .card.cafe-art[data-suit="D"]:not(.cafe-ace) .corner{ color:#B81F32 !important; }
+:root[data-deck="casino"] .card.has-art:not(.cafe-ace) .corner .s, :root[data-deck="casino"] .card.cafe-art:not(.cafe-ace) .corner .s{ filter:none; }
+
+/* ===================== 1.11.1 : l'atout bien visible (cadre doré vif + halo + étiquette), y compris sur le tapis vert ===================== */
+.play-head .trump .card, .trump .card.trump-size{ --w:70px; box-shadow:0 0 0 3px #FFD76A, 0 0 0 5px rgba(8,26,18,0.55), 0 0 18px 5px rgba(255,215,106,0.65), 0 6px 14px rgba(0,0,0,0.35); }
+.trump .trump-tag{ display:inline-flex; align-items:center; gap:4px; background:#FFD76A; color:#1B1405 !important; padding:2px 9px; border-radius:999px; font-weight:900; font-size:11px; letter-spacing:.1em; text-transform:uppercase; box-shadow:0 2px 6px rgba(0,0,0,0.35); }
+.trump-tag .tt-suit{ display:inline-flex; font-size:14px; line-height:1; }
+.trump-tag .tt-suit.s-H, .trump-tag .tt-suit.s-D{ color:#B81F32; } .trump-tag .tt-suit.s-C, .trump-tag .tt-suit.s-S{ color:#15151A; }
+.trump-tag .csym, .trump-tag .hsym{ width:1.1em; height:1.1em; }
+.trump .trump-name{ font-weight:900; font-size:14px; letter-spacing:.04em; color:#FFD76A; text-shadow:0 1px 3px rgba(0,0,0,0.6); margin-top:1px; }
+
+/* 1.11.1 : jetons des figures Casino plus gros (cœur / carreau et trèfle / pique étaient difficiles à distinguer) */
+:root[data-deck="casino"] .card.has-art:not(.mini) .corner .s, :root[data-deck="casino"] .card.cafe-art:not(.mini) .corner .s{ font-size:1.95em; left:calc(var(--w) * 0.5); filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55)); }
+:root[data-deck="casino"] .card.has-art.mini .corner .s, :root[data-deck="casino"] .card.cafe-art.mini .corner .s{ font-size:1.6em; }
+
+/* 1.11.1 : as du Casino = le jeton de sa couleur au milieu de la carte */
+:root[data-deck="casino"] .card .pip.ace-chip{ font-size:calc(var(--w) * 0.62); line-height:1; display:flex; align-items:center; justify-content:center; }
+:root[data-deck="casino"] .card .pip.ace-chip .csym{ width:1em; height:1em; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.35)); }

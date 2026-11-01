@@ -191,6 +191,12 @@ function auditHtml(g){
   return '';
 }
 
+// précision d'un joueur : manches où son annonce était exacte, en nombre et en pourcentage (affiché à côté des points)
+function precisionOf(g, id){
+  var log = g.roundLog || [], ok = 0;
+  log.forEach(function(r){ if(r.bids && r.bids[id] === r.tricksWon[id]) ok++; });
+  return { ok: ok, n: log.length, pct: log.length ? Math.round(100 * ok / log.length) : 0 };
+}
 function renderGameOver(g){
   var order = rankingIds(g); // v64 : les joueurs remplacés finissent derniers, les retirés disparaissent
   var html = '<div style="text-align:center; margin:6px 0 16px;"><div class="eyebrow">'+g.roundPlan.length+' manches jouées</div>';
@@ -199,7 +205,7 @@ function renderGameOver(g){
     var p = g.players[id];
     html += '<div class="ranking-row'+(i===0?' first':'')+'"><div class="rank-num">'+(i+1)+'</div>'
       + '<span class="dot" style="background:'+safeColor(p.color)+';"></span>'
-      + '<div style="flex:1; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+afkTag(p)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+'</div>'
+      + '<div style="flex:1; font-weight:700;">'+esc(p.name)+crownMark(id, p.name, p.uid)+afkTag(p)+(id===myId?' <span class="muted" style="font-weight:400;">(toi)</span>':'')+(function(){ var pr = precisionOf(g, id); return pr.n ? '<div class="muted" style="font-weight:400; font-size:12.5px;">Précision : '+pr.pct+' % ('+pr.ok+' manche'+(pr.ok>1?'s':'')+' exacte'+(pr.ok>1?'s':'')+' sur '+pr.n+')</div>' : ''; })()+'</div>'
       + friendAddBtn(p, id)+'<div class="display num" style="font-size:22px;">'+(g.scores[id]||0)+'</div></div>';
   });
   html += auditHtml(g);
@@ -238,7 +244,7 @@ function renderGameRecap(g){
       if(best===null || r.points[id]>best) best=r.points[id];
     });
     html += '<tr><td>'+esc(p.name)+(id===myId?' <span class="muted">(toi)</span>':'')+'</td>'
-      + '<td>'+ok+' / '+log.length+'</td><td>'+plis+'</td>'
+      + '<td>'+ok+' / '+log.length+' <span class="muted">('+(log.length ? Math.round(100*ok/log.length) : 0)+' %)</span></td><td>'+plis+'</td>'
       + '<td class="display num" style="font-size:16px;">'+(g.scores[id]||0)+'</td></tr>';
   });
   html += '</tbody></table></div>';
@@ -278,6 +284,7 @@ function renderRulesModal(){
   html += '<p>On doit fournir la couleur demandée si possible ; sinon on peut couper ou défausser librement.</p>';
   var scR = getScoring(gameDoc);
   html += '<p>Points (réglables par l\'hôte dans le salon) — contrat réalisé exactement : '+scR.bonus+' points + '+scR.perTrick+' par pli remporté. Contrat manqué : '+(scR.missFixed?('−'+scR.missFixed+' points, plus '):'')+'−'+scR.missPerTrick+' par pli d\'écart entre l\'annonce et le résultat.</p>';
+  html += '<p>Après la dernière manche, celui qui a le plus de points gagne la partie. À côté des points, la précision indique le pourcentage de manches où l\'annonce était exacte.</p>';
   html += '<p>Dans le salon, chaque joueur doit se déclarer prêt avant que l\'hôte puisse lancer la partie.</p>';
   html += '</div></div>';
   return html;

@@ -5,16 +5,23 @@
    Chargé après 06-cartes-cafe.js (il réutilise cafeSym, cafeFaceFrame, cafeUri, cafeAceSpade, CAFE_SUIT_PATH, neonSpan).
    Aucun nom ni logo protégé (pas de « 007 », pas de « Casino Royale »). */
 var CASINO_CHIP = { H:'#C8283A', D:'#C8283A', C:'#18181C', S:'#18181C' }; // couleur du jeton : rouge (cœur, carreau) ou noir (trèfle, pique)
-var CASINO_NEON = { K:'Casino de Fredo', J:'Casino de Fredo', Q:'Chez Colette' };
+var CASINO_NEON = { K:'Casino de Fredo', J:'Casino de Fredo', Q:'Casino de Fredo' };
 var CASINO_GOLD = '#D9B25A';
 
 // jeton de casino : rouge → jeton blanc, encoches et signe rouges ; noir → jeton noir, encoches et signe blancs (viewBox 100 × 100)
+// 1.11.1 : cœur = signe rouge sur jeton blanc, carreau = signe blanc sur jeton rouge, pique = signe noir sur jeton blanc, trèfle = signe blanc sur jeton noir
+var CASINO_CHIP_LOOK = {
+  H: { base:'#FFFFFF', ink:'#C8283A', mid:'#FFFFFF', edge:'#D8D8D4' },
+  D: { base:'#C8283A', ink:'#FFFFFF', mid:'#D63448', edge:'#7E1220' },
+  S: { base:'#FFFFFF', ink:'#18181C', mid:'#FFFFFF', edge:'#D8D8D4' },
+  C: { base:'#18181C', ink:'#FFFFFF', mid:'#2A2A30', edge:'#000000' }
+};
 function casinoChipInner(suit){
-  var c = CASINO_CHIP[suit], red = (suit==='H' || suit==='D'), base = red ? '#FFFFFF' : c, ink = red ? c : '#FFFFFF', mid = red ? '#FFFFFF' : '#2A2A30';
-  return '<circle cx="50" cy="50" r="47" fill="'+base+'" stroke="'+(red ? '#D8D8D4' : '#000000')+'" stroke-width="1.5"/>'
-    + '<circle cx="50" cy="50" r="41" fill="none" stroke="'+ink+'" stroke-width="7" stroke-dasharray="10.73 10.73"/>'
-    + '<circle cx="50" cy="50" r="31" fill="'+mid+'" stroke="'+ink+'" stroke-width="2.2"/>'
-    + cafeSym(suit, 50, 50, 36, ink);
+  var l = CASINO_CHIP_LOOK[suit];
+  return '<circle cx="50" cy="50" r="47" fill="'+l.base+'" stroke="'+l.edge+'" stroke-width="1.5"/>'
+    + '<circle cx="50" cy="50" r="41" fill="none" stroke="'+l.ink+'" stroke-width="7" stroke-dasharray="10.73 10.73"/>'
+    + '<circle cx="50" cy="50" r="31" fill="'+l.mid+'" stroke="'+l.ink+'" stroke-width="2.2"/>'
+    + cafeSym(suit, 50, 50, 50, l.ink);
 }
 function casinoSymInline(suit){ // coins des cartes, pastilles : 1em × 1em
   return '<svg class="csym cs-'+suit+'" viewBox="0 0 100 100" aria-hidden="true">'+casinoChipInner(suit)+'</svg>';
@@ -22,14 +29,14 @@ function casinoSymInline(suit){ // coins des cartes, pastilles : 1em × 1em
 function casinoChipAt(suit, x, y, r){ // petit jeton posé dans un dessin (épingle de revers, carte dans la manche…)
   return '<g transform="translate('+(x-r)+' '+(y-r)+') scale('+(2*r/100)+')">'+casinoChipInner(suit)+'</g>';
 }
-// fond de la figure : carte noire, filet d'or, niche en tapis de feutre vert (mêmes proportions que cafeWall : x 30–110, y 22–174)
+// fond de la figure : carte blanche (sans contour doré : il ressemblait à l'atout), niche en tapis de feutre vert (mêmes proportions que cafeWall : x 30–110, y 22–174)
 function casinoWall(){
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 196"><defs>'
     + '<radialGradient id="ccFelt" cx="50%" cy="38%" r="78%"><stop offset="0" stop-color="#24895A"/><stop offset="1" stop-color="#093620"/></radialGradient>'
     + '<pattern id="ccDia" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0H12M0 0V12" stroke="#06261A" stroke-width="0.7" opacity="0.65"/></pattern></defs>'
-    + '<rect width="140" height="196" fill="#0F0F13"/><rect x="5" y="5" width="130" height="186" rx="9" fill="none" stroke="'+CASINO_GOLD+'" stroke-width="1.2"/>'
+    + '<rect width="140" height="196" fill="#FBFBF8"/>'
     + '<rect x="30" y="22" width="80" height="152" rx="16" fill="url(#ccFelt)"/><rect x="30" y="22" width="80" height="152" rx="16" fill="url(#ccDia)"/>'
-    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="none" stroke="'+CASINO_GOLD+'" stroke-width="1.7"/></svg>';
+    + '<rect x="30" y="22" width="80" height="152" rx="16" fill="none" stroke="#0B3A25" stroke-width="1.4"/></svg>';
 }
 // ALBERT (Rois) : cigare, smoking noir, chemise blanche, nœud papillon, pochette de la couleur du jeton, épingle de revers
 function casinoAlbert(suit){

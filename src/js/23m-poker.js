@@ -32,7 +32,7 @@ function renderCasinoLobby(g){
   var allReady = n > 0 && ids.every(function(id){ return g.players[id].ready; });
   var html = '<div class="card-panel" style="margin-bottom:12px;">';
   html += '<div class="row between"><h2 style="font-size:24px;">'+(bj ? 'Salon blackjack <span class="quick-chip">♥ Blackjack</span>' : rl ? 'Salon roulette <span class="quick-chip">🎡 Roulette</span>' : 'Salon poker <span class="quick-chip">♠ Texas Hold\'em</span>')+'</h2><span class="badge">'+n+' / '+MAX_PLAYERS+'</span></div>';
-  html += '<p class="muted" style="font-size:13.5px; margin:4px 0 8px;">Donne le code <strong style="color:var(--navy); letter-spacing:0.1em;">'+esc(g.code)+'</strong> à tes amis. <strong>Jetons fictifs</strong> : aucun argent en jeu.</p>';
+  html += '<p class="muted" style="font-size:13.5px; margin:4px 0 8px;">Donne le code <strong style="color:var(--navy); letter-spacing:0.1em;">'+esc(g.code)+'</strong> à tes amis. <strong>Tous les jetons sont faux</strong> : on ne joue jamais avec de l\'argent.</p>';
   html += '<div class="player-list">';
   ids.forEach(function(id){
     var p = g.players[id];
@@ -219,6 +219,8 @@ function pokerRaiseSet(g, how){
 /* ---------- écran ---------- */
 // 1.11.0 : couleur du jeton selon la somme, comme dans un vrai casino (blanc 1 · rouge 5 · bleu 10 · vert 25 · noir 100 · violet 500 · or 1000)
 function chipTier(a){ a = Number(a) || 0; return a >= 1000 ? 1000 : (a >= 500 ? 500 : (a >= 100 ? 100 : (a >= 25 ? 25 : (a >= 10 ? 10 : (a >= 5 ? 5 : 1))))); }
+// en haut de l'écran : les jetons qu'il me reste (visibles sans descendre jusqu'à ma plaque)
+function miniHeadRight(st, label){ var v = st.stacks && st.stacks[myId]; return '<div class="pk-headr">'+(v == null ? '' : '<div class="pk-mychips" title="Tes jetons">'+pokerChips(v)+'</div>')+'<div class="pk-blinds muted">'+label+'</div></div></div>'; }
 function pokerChips(n){ return '<span class="chip-ico v'+chipTier(n)+'" aria-hidden="true"></span> '+Number(n).toLocaleString('fr-FR'); }
 function pokerCardsHtml(cards, w, key, kind){
   return '<div class="pk-cards" style="--cw:'+w+'px;">'+cards.map(function(c, i){
@@ -262,7 +264,7 @@ function pokerSeatOrder(st){
 // au-delà on les répartit sur l'ovale, sans descendre plus bas que PK_TOP_MAX_Y pour les places du haut
 var PK_TOP_MAX_Y = 24, PK_ROW_Y = 20, PK_COMPACT_FROM = 7;
 function pokerSeatPos(i, n){
-  if(i === 0) return { x: 50, y: 92 };
+  if(i === 0) return { x: 50, y: n <= 4 ? 87 : 92 };
   if(n <= 4){
     var k = n - 1, xs = k === 1 ? [50] : (k === 2 ? [22, 78] : [17, 50, 83]);
     return { x: xs[i - 1], y: k === 1 ? 12 : PK_ROW_Y };
@@ -278,12 +280,12 @@ function pokerSeatPos(i, n){
 }
 function pokerTableHtml(g, st){
   var seats = pokerSeatOrder(st), n = seats.length;
-  var h = '<div class="pk-tv'+(n >= PK_COMPACT_FROM ? ' compact' : '')+'" role="group" aria-label="Table de poker"><div class="pk-tv-oval" aria-hidden="true"></div>';
+  var h = '<div class="pk-tv'+(n >= PK_COMPACT_FROM ? ' compact' : (n <= 4 ? ' short' : ''))+'" role="group" aria-label="Table de poker"><div class="pk-tv-oval" aria-hidden="true"></div>';
   seats.forEach(function(id, i){
     var pos = pokerSeatPos(i, n);
     h += renderPokerSeat(g, st, id, pos.x, pos.y);
     var pull = (i > 0 && n <= 4) ? 0.42 : 0.55; // la mise se pose entre le joueur et le tapis (à 2-4 joueurs, sous ses cartes)
-    if(st.bets[id] > 0) h += '<div class="pk-tv-bet" style="left:'+(50 + (pos.x - 50) * pull).toFixed(1)+'%; top:'+(50 + (pos.y - 50) * pull).toFixed(1)+'%;">'+pokerChips(st.bets[id])+'</div>';
+    if(st.bets[id] > 0) h += '<div class="pk-tv-bet" style="left:'+(50 + (pos.x - 50) * pull).toFixed(1)+'%; top:'+((i === 0 && n <= 4) ? '71.5' : (50 + (pos.y - 50) * pull).toFixed(1))+'%;">'+pokerChips(st.bets[id])+'</div>';
   });
   var slots = ''; for(var k = 0; k < 5; k++) slots += st.board[k] ? miniAnim(cardHtml(st.board[k]), g.code+'|'+st.n+'|board|'+k+st.board[k].rank+st.board[k].suit, k < 3 ? k : 0, 'flip') : '<div class="card pk-empty"></div>';
   h += '<div class="pk-tv-mid"><div class="pk-board" style="--cw:'+(n >= PK_COMPACT_FROM ? 34 : (n >= 6 ? 36 : (n >= 4 ? 38 : 46)))+'px;">'+slots+'</div><div class="pk-pot">Pot : '+pokerChips(pkPot(st))+'</div></div>';
@@ -344,7 +346,7 @@ function renderPoker(g){
   var st = g.poker;
   if(!st) return '<div class="center-wrap"><span class="muted">Distribution…</span></div>';
   var h = '<div class="pk-head"><div><div class="eyebrow">'+miniCount('Main', st)+'</div><div class="display" style="font-size:22px;">'+({ preflop:'Avant le flop', flop:'Flop', turn:'Turn', river:'River', done:'Abattage' }[st.street] || '')+'</div></div>'
-    + '<div class="pk-blinds muted">Blindes '+st.sb+' / '+st.bb+'</div></div>';
+    + miniHeadRight(st, 'Blindes '+st.sb+' / '+st.bb);
   h += miniFinishHtml(g, 'cette main') + croupierFor(g) + pokerTableHtml(g, st);
   var hole = pokerMyHole(g);
   if(st.result) h += pokerResultHtml(g, st);
@@ -378,7 +380,7 @@ function renderPokerRules(){
     + '<p>À ton tour : <strong>se coucher</strong>, <strong>check</strong> (ne rien payer, si personne n\'a misé), <strong>suivre</strong> (payer la mise) ou <strong>relancer</strong>. <strong>Tapis</strong> : tout miser.</p>'
     + '<p>Les <strong>blindes</strong> (PB = petite, GB = grosse) sont des mises forcées. Le <strong>D</strong> marque le donneur. Les blindes montent toutes les '+PK_HANDS_PER_LEVEL+' mains.</p>'
     + '<div class="eyebrow">Du plus fort au plus faible</div><ol style="margin:6px 0 10px 20px; line-height:1.6;">'+rows.map(function(r){ return '<li><strong>'+r[0]+'</strong> : '+r[1]+'</li>'; }).join('')+'</ol>'
-    + '<p class="muted">Jetons fictifs : aucun argent, aucune valeur. On joue tant qu\'il reste des jetons : le gagnant est celui qui a le plus de jetons à la fin.</p></div></div>';
+    + '<p class="muted">Tous les jetons sont faux : on ne joue jamais avec de l\'argent. On joue tant qu\'il reste des jetons : le gagnant est celui qui a le plus de jetons à la fin.</p></div></div>';
 }
 function pokerHelpLines(g){
   var st = g.poker;
