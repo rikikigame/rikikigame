@@ -1704,7 +1704,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.15.1';
+var APP_VERSION = '1.15.2';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -4138,6 +4138,30 @@ function leaveToEntry(){
   clearLocal();
   screen='entry';
   render();
+}
+
+// 1.15.2 : quand l'organisateur QUITTE (bouton « Quitter »), il passe la main tout de suite au joueur suivant (le plus ancien humain), sinon plus personne ne peut lancer la partie.
+// Dans le salon, celui qui part est aussi retiré de la liste (un « fantôme » pas prêt bloquait le lancement). En pleine partie de casino (poker, blackjack, roulette), le croupier
+// change aussitôt (au lieu d'attendre ~70 s d'inactivité) ; la main en cours est redistribuée par le nouveau croupier.
+function nextHumanHost(g, exceptId){
+  return Object.keys(g.players || {}).filter(function(id){ return id !== exceptId && !g.players[id].isBot; })
+    .sort(function(a, b){ return (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0); })[0] || null;
+}
+async function handOverHostOnLeave(g){
+  if(!g || !g.code || !g.players || !g.players[myId] || !claudeDb) return;
+  var iAmHost = g.hostId === myId, ref = claudeDb.doc('games/' + g.code);
+  if(g.status === 'lobby'){
+    var data = JSON.parse(JSON.stringify((await ref.get()).data() || null));
+    if(!data || !data.players || !data.players[myId]) return;
+    var next = iAmHost ? nextHumanHost(data, myId) : null;
+    delete data.players[myId];
+    if(iAmHost && next) data.hostId = next;
+    if(Object.keys(data.players).some(function(id){ return !data.players[id].isBot; })) await ref.set(data); // personne d'autre : on laisse la salle telle quelle
+    return;
+  }
+  if(!iAmHost || ['poker', 'blackjack', 'roulette'].indexOf(g.status) < 0) return;
+  var nx = nextHumanHost(g, myId);
+  if(nx) await ref.update({ hostId: nx, hostChange: { from: myId, to: nx, at: nowMs(), redealt: true } });
 }
 
 var versionSent = false;
@@ -12268,6 +12292,7 @@ document.addEventListener('click', function(e){
       var inLeague = !!(gameDoc.settings && gameDoc.settings.league);
       if(!confirmT(inLeague ? 'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.' : 'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.')) return;
     }
+    handOverHostOnLeave(gameDoc).catch(function(e){ console.warn('passage de la main', e); });
     leaveToEntry();
   }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }

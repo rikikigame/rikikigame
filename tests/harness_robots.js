@@ -122,6 +122,21 @@
       var resetTo = await walletReset();
       ok('portefeuille : « Remettre mes jetons au départ » redonne le départ (ligue ou 750)', resetTo === firstBank && (await myCasinoBank()) === firstBank, resetTo + ' / ' + firstBank);
       try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
+      // l'organisateur quitte : la main passe au joueur humain suivant (salon et casino en cours)
+      var hoRef = claudeDb.doc('games/HOQT');
+      await hoRef.set({ code: 'HOQT', hostId: myId, status: 'lobby', players: (function(){ var o = {}; o[myId] = { name: 'Moi', joinedAt: 1 }; o.zz1 = { name: 'Bob', joinedAt: 3 }; o.zz2 = { name: 'Ana', joinedAt: 2 }; o.bot1 = { name: 'Robot', isBot: true, joinedAt: 0 }; return o; })() });
+      await handOverHostOnLeave((await hoRef.get()).data());
+      var hoAfter = (await hoRef.get()).data();
+      ok('organisateur qui quitte le salon : la main passe au plus ancien humain, et il est retiré de la liste', hoAfter.hostId === 'zz2' && !hoAfter.players[myId] && !!hoAfter.players.zz1 && !!hoAfter.players.bot1, JSON.stringify([hoAfter.hostId, Object.keys(hoAfter.players)]));
+      await hoRef.set({ code: 'HOQT', hostId: 'zz2', status: 'lobby', players: (function(){ var o = {}; o[myId] = { name: 'Moi', joinedAt: 1 }; o.zz2 = { name: 'Ana', joinedAt: 2 }; return o; })() });
+      await handOverHostOnLeave((await hoRef.get()).data());
+      var hoGuest = (await hoRef.get()).data();
+      ok('un invité qui quitte le salon est retiré, l\'organisateur ne change pas', hoGuest.hostId === 'zz2' && !hoGuest.players[myId], JSON.stringify([hoGuest.hostId, Object.keys(hoGuest.players)]));
+      await hoRef.set({ code: 'HOQT', hostId: myId, status: 'poker', players: (function(){ var o = {}; o[myId] = { name: 'Moi', joinedAt: 1 }; o.zz1 = { name: 'Bob', joinedAt: 3 }; return o; })() });
+      await handOverHostOnLeave((await hoRef.get()).data());
+      var hoPk = (await hoRef.get()).data();
+      ok('croupier qui quitte une partie de casino : le joueur suivant reprend aussitôt', hoPk.hostId === 'zz1' && !!hoPk.players[myId] && hoPk.hostChange && hoPk.hostChange.to === 'zz1', JSON.stringify([hoPk.hostId, hoPk.hostChange]));
+      try{ await hoRef.delete(); }catch(e){}
       var merged = mockDeepMerge({ bj: { n: 1, ins: { a: 5 }, hands: { a: [1], 'a#2': [2] } }, status: 'x' }, { bj: replaceWhole({ n: 2, ins: {}, hands: { a: [] } }) });
       ok('une nouvelle manche REMPLACE l\'état du casino (plus d\'assurance ni de main séparée de la manche d\'avant)', merged.bj.n === 2 && Object.keys(merged.bj.ins).length === 0 && !('a#2' in merged.bj.hands) && !('__replace' in merged.bj) && merged.status === 'x', JSON.stringify(merged));
       var mergedNew = mockDeepMerge({}, { bj: replaceWhole({ n: 1 }) });

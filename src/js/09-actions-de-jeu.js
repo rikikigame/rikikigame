@@ -80,6 +80,30 @@ function leaveToEntry(){
   render();
 }
 
+// 1.15.2 : quand l'organisateur QUITTE (bouton « Quitter »), il passe la main tout de suite au joueur suivant (le plus ancien humain), sinon plus personne ne peut lancer la partie.
+// Dans le salon, celui qui part est aussi retiré de la liste (un « fantôme » pas prêt bloquait le lancement). En pleine partie de casino (poker, blackjack, roulette), le croupier
+// change aussitôt (au lieu d'attendre ~70 s d'inactivité) ; la main en cours est redistribuée par le nouveau croupier.
+function nextHumanHost(g, exceptId){
+  return Object.keys(g.players || {}).filter(function(id){ return id !== exceptId && !g.players[id].isBot; })
+    .sort(function(a, b){ return (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0); })[0] || null;
+}
+async function handOverHostOnLeave(g){
+  if(!g || !g.code || !g.players || !g.players[myId] || !claudeDb) return;
+  var iAmHost = g.hostId === myId, ref = claudeDb.doc('games/' + g.code);
+  if(g.status === 'lobby'){
+    var data = JSON.parse(JSON.stringify((await ref.get()).data() || null));
+    if(!data || !data.players || !data.players[myId]) return;
+    var next = iAmHost ? nextHumanHost(data, myId) : null;
+    delete data.players[myId];
+    if(iAmHost && next) data.hostId = next;
+    if(Object.keys(data.players).some(function(id){ return !data.players[id].isBot; })) await ref.set(data); // personne d'autre : on laisse la salle telle quelle
+    return;
+  }
+  if(!iAmHost || ['poker', 'blackjack', 'roulette'].indexOf(g.status) < 0) return;
+  var nx = nextHumanHost(g, myId);
+  if(nx) await ref.update({ hostId: nx, hostChange: { from: myId, to: nx, at: nowMs(), redealt: true } });
+}
+
 var versionSent = false;
 var STALE_RESTORE_MS = 6*3600000; // v75 : une partie sans aucune activité depuis 6 h n'est plus rouverte automatiquement au retour sur le site
 function subscribeGame(code, fromRestore){

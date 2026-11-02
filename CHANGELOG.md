@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.15.2 — 2 novembre 2026
+
+- Quand l'organisateur quitte une salle, il passe la main au joueur suivant (le plus ancien) : dans le salon, un autre joueur peut lancer la partie ; au casino, le nouveau croupier reprend tout de suite au lieu d'attendre ~70 secondes. Dans le salon, celui qui part est aussi retiré de la liste (un joueur « pas prêt » qui était parti bloquait le lancement). Règles Firebase inchangées.
+
 ## 1.15.1 — 2 novembre 2026
 
 - L'atout se voit mieux : les cartes d'atout (dans ta main, dans le pli et sur la table, avec la carte d'atout retournée) sont encadrées en jaune brillant, avec un halo qui pulse et un petit éclat qui passe. Coupé si le téléphone demande moins d'animations.
