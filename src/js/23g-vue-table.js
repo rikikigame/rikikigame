@@ -62,7 +62,7 @@ function tableViewHtml(g, ending, bidding, isMe, blind, blindHands, handSize){
     var pl = played[id];
     if(pl){
       var win = showLast && g.lastTrick.winnerId === id;
-      html += '<div class="tv-card'+(win ? ' win' : '')+'" style="left:'+pt.cx+'%; top:'+pt.cy+'%;">'+cardHtml(pl.card, { size: seats.length >= 6 ? 'tv-size-s' : 'tv-size' })+'</div>';
+      html += '<div class="tv-card'+(win ? ' win' : '')+'" style="left:'+pt.cx+'%; top:'+pt.cy+'%;">'+cardHtml(pl.card, { size: seats.length >= 6 ? 'tv-size-s' : 'tv-size', trump: !!(g.trumpCard && pl.card.suit === g.trumpCard.suit) })+'</div>';
     }
   });
   html += '</div><div class="felt tv-felt">';
