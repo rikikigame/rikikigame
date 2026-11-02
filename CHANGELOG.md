@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.14.2 — 2 novembre 2026
+
+- Les textes du casino (salon, nouveautés) disent maintenant : sous 100 jetons, 250 jetons offerts une fois par jour ; chaque victoire de ligue au Rikiki rapporte 500 jetons.
+
 ## 1.14.1 — 1er novembre 2026
 
 - Cadeau : 250 jetons, plus les points de leurs parties, pour tous ceux qui ont fini une partie de ligue en ligne le 1er novembre. À l'entrée à une table de casino (avant le 9 novembre), une seule fois, avec un profil connecté. Règles Firebase inchangées.
