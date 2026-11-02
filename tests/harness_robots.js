@@ -89,7 +89,7 @@
       try{
         currentProfile = { key: 'essai_jetons', pseudo: 'Essai' }; socialOn = function(){ return true; }; loadLeague = async function(){}; myOnlineWins = function(){ return winsNow; };
         try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); }catch(e){}
-        walletMeta = { rescueDay: '', winsPaid: null, gift: '' };
+        walletMeta = { rescueDay: dayKeyNow(), winsPaid: null, gift: '' };
         await walletSave(1000);
         var b0 = await myCasinoBank();
         ok('victoires Rikiki : la 1re fois, pas de jetons pour les victoires passées', b0 === 1000, String(b0));
@@ -98,6 +98,11 @@
         ok('victoires Rikiki : 2 nouvelles victoires = +' + (2 * CASINO_WIN_BONUS) + ' jetons', b1 === 1000 + 2 * CASINO_WIN_BONUS, String(b1));
         var b2 = await myCasinoBank();
         ok('victoires Rikiki : payées une seule fois', b2 === b1, String(b2));
+        // bonus quotidien : +250 à la première entrée du jour pour un joueur connecté, une seule fois
+        walletMeta = { rescueDay: '', winsPaid: 4, gift: 'x' }; await walletSave(3000);
+        var d1 = await myCasinoBank(), d2 = await myCasinoBank();
+        ok('bonus quotidien : +' + CASINO_DAILY + ' à la première connexion du jour', d1 === 3000 + CASINO_DAILY, String(d1));
+        ok('bonus quotidien : une seule fois par jour', d2 === d1, String(d2));
         // cadeau du jour : une seule fois, seulement pour ceux qui ont fini une partie de ligue en ligne pendant la fenêtre
         var oldGift = CASINO_GIFT, oldMy = myMember, oldMembers = league.members, oldGames = league.games;
         try{
@@ -105,7 +110,7 @@
           league.members = [{ id: 'mZ', name: 'Essai' }, { id: 'mY', name: 'Autre' }];
           myMember = function(){ return league.members[0]; };
           league.games = [{ id: 'o_G_1', at: nowMs(), mode: 'online', players: [{ memberId: 'mY' }] }];
-          walletMeta = { rescueDay: '', winsPaid: 4, gift: '' }; await walletSave(2000);
+          walletMeta = { rescueDay: dayKeyNow(), winsPaid: 4, gift: '' }; await walletSave(2000);
           ok('cadeau du jour : rien si je n\'ai pas joué', (await myCasinoBank()) === 2000);
           league.games = [{ id: 'o_G_1', at: nowMs(), mode: 'online', players: [{ memberId: 'mZ', score: 37 }, { memberId: 'mY', score: 12 }] }];
           ok('cadeau du jour : +250 et mes points de la partie (37) si j\'ai fini une partie de ligue en ligne', (await myCasinoBank()) === 2287);
@@ -434,17 +439,17 @@
       var dd = leagueTopDays(lkey, 'mA'), totalDays = (mb[1]-mb[0])/DAYMS;
       ok('jetons de départ : jours en 1re place = de la 3e partie à la fin du mois', Math.abs(dd.first - (totalDays-3)) < 0.01 && Math.abs(dd.top3 - dd.first) < 0.01 && Math.abs(dd.top10 - dd.first) < 0.01, JSON.stringify(dd));
       CASINO_GIFT = Object.assign({}, CASINO_GIFT, { until: 0 }); // le cadeau du jour ne doit pas fausser ces mesures
-      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
+      try{ localStorage.removeItem('rikiki_wallet'); var wr0 = walletRef(); if(wr0) await wr0.delete(); localStorage.setItem('rikiki_wallet_meta', JSON.stringify({ rescueDay: dayKeyNow(), winsPaid: null, gift: '' })); }catch(e){} 
       var bankMe = await myCasinoBank(), rowMe = computeLeague(lkey, 'online').ranked.filter(function(r){ return r.id==='mA'; })[0];
       ok('jetons de départ : base = Elo du mois dernier (aucun bonus tant qu\'aucune partie ce mois-ci)', bankMe === Math.round(rowMe.elo) && casinoBonusFromDays(dd) > 0, bankMe+' / elo '+rowMe.elo);
       ok('jetons de départ : le bonus est plafonné', casinoBonusFromDays({ first:999, top3:999, top10:999 }) === CASINO_BONUS_MAX && casinoBonusFromDays({ first:0, top3:0, top10:0 }) === 0);
       var ckey = seasonOf(nowMs()), cm = monthBounds(ckey)[0]; league.games = [0, 1, 2].map(function(i){ return { id:'o_C_'+i, at: cm + 1 + i, season:ckey, mode:'online', rounds:5, players:[{ memberId:'mA', name:'Ana', rank:1, score:1 }, { memberId:'mB', name:'Bob', rank:2, score:0 }] }; }); // 3 victoires de suite au tout début du mois en cours
       var dCur = leagueTopDays(ckey, 'mA'), spent = (nowMs() - (cm + 3)) / DAYMS;
       ok('jetons de départ : le bonus compte le temps passé en haut du mois EN COURS, jusqu\'à maintenant', Math.abs(dCur.first - spent) < 0.05 && dCur.first > 0, JSON.stringify(dCur)+' / '+spent);
-      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
+      try{ localStorage.removeItem('rikiki_wallet'); var wr0 = walletRef(); if(wr0) await wr0.delete(); localStorage.setItem('rikiki_wallet_meta', JSON.stringify({ rescueDay: dayKeyNow(), winsPaid: null, gift: '' })); }catch(e){} 
       ok('jetons de départ : sans classement du mois dernier, la base est 750 + le bonus du mois en cours', await myCasinoBank() === casinoBankFrom(CASINO_BASE_NEW, dCur), String(await myCasinoBank()));
       league.members = [{ id:'mX', name:'Zed', userId:'autre' }];
-      try{ localStorage.removeItem('rikiki_wallet'); localStorage.removeItem('rikiki_wallet_meta'); var wr0 = walletRef(); if(wr0) await wr0.delete(); }catch(e){} 
+      try{ localStorage.removeItem('rikiki_wallet'); var wr0 = walletRef(); if(wr0) await wr0.delete(); localStorage.setItem('rikiki_wallet_meta', JSON.stringify({ rescueDay: dayKeyNow(), winsPaid: null, gift: '' })); }catch(e){} 
       ok('jetons de départ : sans fiche de ligue (invité, nouveau) = 750', await myCasinoBank() === CASINO_BASE_NEW);
       ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:999999999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:999999999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
       league.games = lgG; league.members = lgM; league.loaded = lgL;

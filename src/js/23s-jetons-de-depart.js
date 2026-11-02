@@ -9,7 +9,7 @@ var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, C
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
 // 1.14.0 : le casino est un bonus, c'est le Rikiki qui fait gagner des jetons. Faillite = petite aide (une fois par jour), puis juste de quoi s'asseoir ;
 // chaque victoire en ligue (partie en ligne) ajoute CASINO_WIN_BONUS jetons à l'entrée à la table suivante.
-var CASINO_RESCUE = 250, CASINO_WIN_BONUS = 500;
+var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
 function monthBounds(key){ var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) - 1; return [new Date(y, m, 1).getTime(), new Date(y, m + 1, 1).getTime()]; }
@@ -97,11 +97,12 @@ function myGamesBetween(a, b){
   });
   return out;
 }
-// jetons gagnés au Rikiki depuis la dernière fois (+ le cadeau ponctuel) ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
+// bonus quotidien + jetons gagnés au Rikiki depuis la dernière fois (+ le cadeau ponctuel) ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
 async function walletWinBonus(){
   if(!currentProfile || !socialOn()) return 0;
-  try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return 0; }
-  var total = 0;
+  var total = 0, today = dayKeyNow();
+  if(walletMeta.rescueDay !== today){ walletMeta = Object.assign({}, walletMeta, { rescueDay: today }); total += CASINO_DAILY; } // bonus quotidien : une fois par jour, à la première entrée à une table (le même repère sert à l'aide de faillite)
+  try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return total; }
   if(walletMeta.gift !== CASINO_GIFT.id && nowMs() < CASINO_GIFT.until){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
     if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }
@@ -116,10 +117,10 @@ async function walletWinBonus(){
 }
 async function myCasinoBank(){
   var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
-  if(bonus > 0){ w = (w === null ? 0 : w) + bonus; await walletSave(w); }
-  else if(w !== null && JSON.stringify(walletMeta) !== before) await walletSave(w); // premier repère des victoires déjà comptées
-  if(w !== null && w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
-  if(w === null){ var first = await casinoLeagueBank(); await walletSave(first); return first; } // toute première fois : départ d'après la ligue
+  if(w === null){ var first = Math.min(CASINO_BANK_MAX, (await casinoLeagueBank()) + bonus); await walletSave(first); return first; } // toute première fois : départ d'après la ligue (+ le bonus du jour)
+  if(bonus > 0){ w += bonus; await walletSave(w); }
+  else if(JSON.stringify(walletMeta) !== before) await walletSave(w); // premier repère des victoires déjà comptées
+  if(w >= CASINO_BANK_MIN) return Math.min(CASINO_BANK_MAX, Math.round(w)); // je repars avec ce que j'avais
   // faillite : une petite aide par jour, ensuite juste de quoi s'asseoir (le Rikiki est ce qui fait gagner des jetons)
   var today = dayKeyNow(), help = CASINO_BANK_MIN;
   if(walletMeta.rescueDay !== today){ help = CASINO_RESCUE; walletMeta = Object.assign({}, walletMeta, { rescueDay: today }); }
