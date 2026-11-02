@@ -100,6 +100,7 @@ document.addEventListener('click', function(e){
       var inLeague = !!(gameDoc.settings && gameDoc.settings.league);
       if(!confirmT(inLeague ? 'Quitter cette partie de ligue ?\n\nLes autres joueurs continuent sans toi et ton résultat risque de ne pas compter. Tu pourras la reprendre depuis l\'accueil pendant 6 heures.' : 'Quitter la partie en cours ?\n\nTu pourras la reprendre depuis l\'accueil pendant 6 heures.')) return;
     }
+    handOverHostOnLeave(gameDoc).catch(function(e){ console.warn('passage de la main', e); });
     leaveToEntry();
   }
   else if(action==='replay'){ replayGame().catch(function(e){ console.error(e); showToast(dbErrorText(e)); }); }
