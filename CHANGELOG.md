@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.15.1 — 2 novembre 2026
+
+- L'atout se voit mieux : les cartes d'atout (dans ta main, dans le pli et sur la table, avec la carte d'atout retournée) sont encadrées en jaune brillant, avec un halo qui pulse et un petit éclat qui passe. Coupé si le téléphone demande moins d'animations.
+
 ## 1.15.0 — 2 novembre 2026
 
 - Bonus quotidien : 250 jetons chaque jour pour tout joueur connecté avec son profil, ajoutés à sa première entrée à une table du jour. Les textes du casino le disent. La faillite garde sa règle (250 une fois par jour sans profil, sinon 100). Règles Firebase inchangées.

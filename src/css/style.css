@@ -1636,3 +1636,13 @@ h2, h3{ letter-spacing:-0.01em; }
 .bj-seats.arc.n5 .bj-plate{ padding:3px 4px; } .bj-seats.arc.n5 .bj-plate .pk-name{ font-size:10px; letter-spacing:-0.01em; text-overflow:clip; } .bj-seats.arc.n5 .bj-plate .pk-stack{ font-size:12px; }
 .bj-seats.arc.n5 .bj-circle{ width:44px; height:44px; }
 @media (max-width:480px){ .bj-seats.arc.n5 .bj-cards{ --cw:40px !important; } .bj-seats.arc.n5 .bj-spot .pk-cards .card + .card{ margin-left:-20px; } .bj-seats.arc.n5 .bj-hand.split .bj-cards{ --cw:30px !important; } }
+
+/* ===================== 1.15.1 : les cartes d'atout sont encadrées en jaune brillant qui scintille (main, pli, carte d'atout retournée) ===================== */
+html .card.trump:not(.back), html .trump .card.trump-size{ box-shadow:0 0 0 3px #FFD76A, 0 0 0 5px rgba(8,26,18,0.5), 0 0 14px 4px rgba(255,215,106,0.7), 0 6px 14px rgba(0,0,0,0.35); animation:atoutGlow 2.2s ease-in-out infinite; }
+html .card.trump:not(.back)::after, html .trump .card.trump-size::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:6;
+  background:radial-gradient(circle at 16% 20%, #fff 0 1.6px, rgba(255,240,170,0.9) 2.2px, transparent 4px), radial-gradient(circle at 84% 80%, #fff 0 1.6px, rgba(255,240,170,0.9) 2.2px, transparent 4px),
+    linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.7) 50%, transparent 62%);
+  background-size:100% 100%, 100% 100%, 260% 100%; background-repeat:no-repeat; background-position:0 0, 0 0, 160% 0; animation:atoutShine 3.4s ease-in-out infinite; }
+@keyframes atoutGlow{ 0%,100%{ box-shadow:0 0 0 3px #FFD76A, 0 0 0 5px rgba(8,26,18,0.5), 0 0 10px 3px rgba(255,215,106,0.55), 0 6px 14px rgba(0,0,0,0.35); } 50%{ box-shadow:0 0 0 3px #FFE98F, 0 0 0 5px rgba(8,26,18,0.5), 0 0 20px 7px rgba(255,225,120,0.9), 0 6px 14px rgba(0,0,0,0.35); } }
+@keyframes atoutShine{ 0%{ background-position:0 0, 0 0, 160% 0; opacity:0.6; } 50%{ opacity:1; } 70%,100%{ background-position:0 0, 0 0, -60% 0; opacity:0.6; } }
+@media (prefers-reduced-motion: reduce){ html .card.trump:not(.back), html .trump .card.trump-size, html .card.trump:not(.back)::after, html .trump .card.trump-size::after{ animation:none; } }
