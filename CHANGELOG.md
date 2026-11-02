@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.15.0 — 2 novembre 2026
+
+- Bonus quotidien : 250 jetons chaque jour pour tout joueur connecté avec son profil, ajoutés à sa première entrée à une table du jour. Les textes du casino le disent. La faillite garde sa règle (250 une fois par jour sans profil, sinon 100). Règles Firebase inchangées.
+
 ## 1.14.2 — 2 novembre 2026
 
 - Les textes du casino (salon, nouveautés) disent maintenant : sous 100 jetons, 250 jetons offerts une fois par jour ; chaque victoire de ligue au Rikiki rapporte 500 jetons.
