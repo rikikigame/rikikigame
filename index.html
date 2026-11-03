@@ -1704,7 +1704,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.15.2';
+var APP_VERSION = '1.16.0';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -10669,7 +10669,7 @@ function renderCasinoLobby(g){
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT
       : bj
       ? START+'mise de '+BJ_MIN_BET+' à '+BJ_MAX_BET+' · blackjack payé 3 contre 2<br>Seul contre le croupier, ou à plusieurs · '+LIMIT
-      : START+'blindes '+pkBlinds(1).sb+'/'+pkBlinds(1).bb+', qui montent toutes les '+PK_HANDS_PER_LEVEL+' mains<br>⏱ '+pokerTurnSec(g)+' s par décision · '+LIMIT)+'</div>';
+      : START+'blindes '+pkBlinds(1).sb+'/'+pkBlinds(1).bb+', qui montent toutes les '+PK_HANDS_PER_LEVEL+' mains<br>Tout le monde s\'assoit avec la même somme : celle du joueur le plus pauvre de la table (maintenant '+pokerBuyIn(g, Object.keys(g.players))+' jetons ; robots compris). Le reste de tes jetons reste de côté.<br>⏱ '+pokerTurnSec(g)+' s par décision · '+LIMIT)+'</div>';
   html += '</div>';
   var ready = (g.players[myId] && g.players[myId].ready);
   if(!ready) html += '<button class="btn secondary ready-pulse" style="width:100%; margin-bottom:10px;" data-action="toggle-ready">Je suis prêt</button>';
@@ -10688,9 +10688,10 @@ async function startPoker(){
   if(!pokerOn(g) || g.hostId !== myId || g.status !== 'lobby') return;
   var ids = Object.keys(g.players).sort(function(a, b){ return g.players[a].joinedAt - g.players[b].joinedAt; });
   if(ids.length < MIN_PLAYERS || !ids.every(function(id){ return g.players[id].ready; })) return;
-  var stacks = {}; ids.forEach(function(id){ stacks[id] = miniStartStack(g, id); }); // jetons de départ : classement du mois dernier (23s)
+  var buyIn = pokerBuyIn(g, ids), stacks = {}; ids.forEach(function(id){ stacks[id] = buyIn; }); // même mise de départ pour tous : celle du joueur le plus pauvre (23s)
   var st = pkStartHand(ids, stacks, 1, pokerHandsTotal(g), ids[Math.floor(Math.random() * ids.length)]); // le donneur est le joueur qui suit un joueur tiré au sort
   if(!st) return;
+  st.buyIn = buyIn;
   await pokerBeginHand(g, st, { startedAt: nowMs() });
 }
 
@@ -10722,8 +10723,8 @@ async function pokerWrite(g, st, extra){
 function pokerRestartHand(g){
   var st0 = g.poker, seats = st0.seats, i = seats.indexOf(st0.dealer);
   var prev = seats[(i - 1 + seats.length) % seats.length];
-  var ro = miniRoster(g, st0, st0.startStacks), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
-  if(st) pokerBeginHand(g, st);
+  var ro = miniRoster(g, st0, st0.startStacks, st0.buyIn), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
+  if(st){ st.buyIn = st0.buyIn; pokerBeginHand(g, st); }
 }
 async function pokerFinish(g, st0){
   pokerBusy = true;
@@ -10733,8 +10734,8 @@ async function pokerFinish(g, st0){
 function pokerNextHand(g){
   var st0 = g.poker;
   if(g.finishAfter){ pokerFinish(g, st0); return; }
-  var ro = miniRoster(g, st0, st0.stacks), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
-  if(st) pokerBeginHand(g, st);
+  var ro = miniRoster(g, st0, st0.stacks, st0.buyIn), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
+  if(st){ st.buyIn = st0.buyIn; pokerBeginHand(g, st); }
 }
 async function pokerApply(g, id, act){
   var st = g.poker, sec = pokerSecret;
@@ -12046,7 +12047,15 @@ function walletTick(g){
   if(!st || !st.result || !st.stacks || !st.seats || st.seats.indexOf(myId) < 0 || typeof st.stacks[myId] !== 'number') return;
   var key = g.code + '|' + st.n + '|' + st.stacks[myId];
   if(key === walletSaved) return;
-  walletSaved = key; walletSave(st.stacks[myId]);
+  walletSaved = key;
+  // poker : seule la mise de départ de la table (st.buyIn) est en jeu, le reste de mes jetons est resté de côté
+  var reserve = (g.poker === st && typeof st.buyIn === 'number') ? Math.max(0, miniStartStack(g, myId) - st.buyIn) : 0;
+  walletSave(reserve + st.stacks[myId]);
+}
+// 1.16.0 : au poker, tout le monde s'assoit avec la même somme = le solde du joueur le plus pauvre de la table (les robots reçoivent la même somme) ; le reste de leurs jetons reste de côté
+function pokerBuyIn(g, ids){
+  var banks = ids.filter(function(id){ return g.players[id] && !g.players[id].isBot; }).map(function(id){ return miniStartStack(g, id); });
+  return banks.length ? Math.min.apply(null, banks) : CASINO_BASE_NEW;
 }
 // jetons de départ d'après la ligue : l'Elo du mois dernier (750 si on débute) + le petit bonus du mois en cours
 async function casinoLeagueBank(){
@@ -12175,11 +12184,11 @@ async function lateHostApply(list){
 }
 
 // les joueurs arrivés en cours de partie s'assoient au début de la main / manche / tour suivant, avec leurs jetons de départ
-function miniRoster(g, st0, stacksOf){
+function miniRoster(g, st0, stacksOf, cap0){ // cap0 : plafond de la mise de départ (poker : la mise de départ de la table)
   var seats = st0.seats.slice(), stacks = Object.assign({}, stacksOf), cap = maxPlayersOf(g);
   Object.keys(g.players || {}).filter(function(id){ return seats.indexOf(id) < 0; })
     .sort(function(a, b){ return (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0); })
-    .forEach(function(id){ if(seats.length < cap){ seats.push(id); stacks[id] = miniStartStack(g, id); } });
+    .forEach(function(id){ if(seats.length < cap){ seats.push(id); stacks[id] = typeof cap0 === 'number' ? Math.min(cap0, miniStartStack(g, id)) : miniStartStack(g, id); } });
   return { seats: seats, stacks: stacks };
 }
 

@@ -58,7 +58,7 @@ function renderCasinoLobby(g){
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT
       : bj
       ? START+'mise de '+BJ_MIN_BET+' à '+BJ_MAX_BET+' · blackjack payé 3 contre 2<br>Seul contre le croupier, ou à plusieurs · '+LIMIT
-      : START+'blindes '+pkBlinds(1).sb+'/'+pkBlinds(1).bb+', qui montent toutes les '+PK_HANDS_PER_LEVEL+' mains<br>⏱ '+pokerTurnSec(g)+' s par décision · '+LIMIT)+'</div>';
+      : START+'blindes '+pkBlinds(1).sb+'/'+pkBlinds(1).bb+', qui montent toutes les '+PK_HANDS_PER_LEVEL+' mains<br>Tout le monde s\'assoit avec la même somme : celle du joueur le plus pauvre de la table (maintenant '+pokerBuyIn(g, Object.keys(g.players))+' jetons ; robots compris). Le reste de tes jetons reste de côté.<br>⏱ '+pokerTurnSec(g)+' s par décision · '+LIMIT)+'</div>';
   html += '</div>';
   var ready = (g.players[myId] && g.players[myId].ready);
   if(!ready) html += '<button class="btn secondary ready-pulse" style="width:100%; margin-bottom:10px;" data-action="toggle-ready">Je suis prêt</button>';
@@ -77,9 +77,10 @@ async function startPoker(){
   if(!pokerOn(g) || g.hostId !== myId || g.status !== 'lobby') return;
   var ids = Object.keys(g.players).sort(function(a, b){ return g.players[a].joinedAt - g.players[b].joinedAt; });
   if(ids.length < MIN_PLAYERS || !ids.every(function(id){ return g.players[id].ready; })) return;
-  var stacks = {}; ids.forEach(function(id){ stacks[id] = miniStartStack(g, id); }); // jetons de départ : classement du mois dernier (23s)
+  var buyIn = pokerBuyIn(g, ids), stacks = {}; ids.forEach(function(id){ stacks[id] = buyIn; }); // même mise de départ pour tous : celle du joueur le plus pauvre (23s)
   var st = pkStartHand(ids, stacks, 1, pokerHandsTotal(g), ids[Math.floor(Math.random() * ids.length)]); // le donneur est le joueur qui suit un joueur tiré au sort
   if(!st) return;
+  st.buyIn = buyIn;
   await pokerBeginHand(g, st, { startedAt: nowMs() });
 }
 
@@ -111,8 +112,8 @@ async function pokerWrite(g, st, extra){
 function pokerRestartHand(g){
   var st0 = g.poker, seats = st0.seats, i = seats.indexOf(st0.dealer);
   var prev = seats[(i - 1 + seats.length) % seats.length];
-  var ro = miniRoster(g, st0, st0.startStacks), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
-  if(st) pokerBeginHand(g, st);
+  var ro = miniRoster(g, st0, st0.startStacks, st0.buyIn), st = pkStartHand(ro.seats, ro.stacks, st0.n, st0.total, prev);
+  if(st){ st.buyIn = st0.buyIn; pokerBeginHand(g, st); }
 }
 async function pokerFinish(g, st0){
   pokerBusy = true;
@@ -122,8 +123,8 @@ async function pokerFinish(g, st0){
 function pokerNextHand(g){
   var st0 = g.poker;
   if(g.finishAfter){ pokerFinish(g, st0); return; }
-  var ro = miniRoster(g, st0, st0.stacks), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
-  if(st) pokerBeginHand(g, st);
+  var ro = miniRoster(g, st0, st0.stacks, st0.buyIn), st = pkStartHand(ro.seats, ro.stacks, st0.n + 1, st0.total, st0.dealer);
+  if(st){ st.buyIn = st0.buyIn; pokerBeginHand(g, st); }
 }
 async function pokerApply(g, id, act){
   var st = g.poker, sec = pokerSecret;
