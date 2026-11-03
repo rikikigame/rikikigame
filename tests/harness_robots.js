@@ -122,6 +122,21 @@
       var resetTo = await walletReset();
       ok('portefeuille : « Remettre mes jetons au départ » redonne le départ (ligue ou 750)', resetTo === firstBank && (await myCasinoBank()) === firstBank, resetTo + ' / ' + firstBank);
       try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
+      // poker : même mise de départ pour tous (le plus pauvre), le reste reste en réserve, les arrivants en cours sont plafonnés
+      var pbG = { code: 'PBT', players: { a: { name: 'A', bank: 5000, joinedAt: 1 }, b: { name: 'B', bank: 700, joinedAt: 2 }, r: { name: 'R', isBot: true, joinedAt: 3 } } };
+      ok('poker : la mise de départ de la table = le solde du joueur le plus pauvre (robots ignorés)', pokerBuyIn(pbG, ['a', 'b', 'r']) === 700, String(pokerBuyIn(pbG, ['a', 'b', 'r'])));
+      pbG.players.c = { name: 'C', bank: 9000, joinedAt: 4 }; pbG.players.d = { name: 'D', bank: 300, joinedAt: 5 };
+      var pbRo = miniRoster(pbG, { seats: ['a', 'b', 'r'] }, { a: 700, b: 700, r: 700 }, 700);
+      ok('poker : un riche arrivé en cours s\'assoit avec la mise de la table, un pauvre avec son solde', pbRo.stacks.c === 700 && pbRo.stacks.d === 300, JSON.stringify(pbRo.stacks));
+      var pbMine = {}; pbMine[myId] = { name: 'Moi', bank: 5000, joinedAt: 1 };
+      var pbSt = { n: 1, result: { done: 1 }, stacks: {}, seats: [myId], buyIn: 700 }; pbSt.stacks[myId] = 640;
+      var pbDoc = { code: 'PBW', players: pbMine, poker: pbSt };
+      walletSaved = ''; try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
+      var pbSaveProfile = currentProfile; currentProfile = null;
+      try{ walletTick(pbDoc); await sleep(50); } finally { currentProfile = pbSaveProfile; }
+      var pbWallet = 0; try{ pbWallet = Number(localStorage.getItem('rikiki_wallet')); }catch(e){}
+      ok('poker : mon portefeuille = ce qui est resté de côté (4300) + ce qu\'il me reste à la table (640)', pbWallet === 4940, String(pbWallet));
+      try{ localStorage.removeItem('rikiki_wallet'); }catch(e){}
       // l'organisateur quitte : la main passe au joueur humain suivant (salon et casino en cours)
       var hoRef = claudeDb.doc('games/HOQT');
       await hoRef.set({ code: 'HOQT', hostId: myId, status: 'lobby', players: (function(){ var o = {}; o[myId] = { name: 'Moi', joinedAt: 1 }; o.zz1 = { name: 'Bob', joinedAt: 3 }; o.zz2 = { name: 'Ana', joinedAt: 2 }; o.bot1 = { name: 'Robot', isBot: true, joinedAt: 0 }; return o; })() });

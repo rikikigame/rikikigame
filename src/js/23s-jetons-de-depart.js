@@ -66,7 +66,15 @@ function walletTick(g){
   if(!st || !st.result || !st.stacks || !st.seats || st.seats.indexOf(myId) < 0 || typeof st.stacks[myId] !== 'number') return;
   var key = g.code + '|' + st.n + '|' + st.stacks[myId];
   if(key === walletSaved) return;
-  walletSaved = key; walletSave(st.stacks[myId]);
+  walletSaved = key;
+  // poker : seule la mise de départ de la table (st.buyIn) est en jeu, le reste de mes jetons est resté de côté
+  var reserve = (g.poker === st && typeof st.buyIn === 'number') ? Math.max(0, miniStartStack(g, myId) - st.buyIn) : 0;
+  walletSave(reserve + st.stacks[myId]);
+}
+// 1.16.0 : au poker, tout le monde s'assoit avec la même somme = le solde du joueur le plus pauvre de la table (les robots reçoivent la même somme) ; le reste de leurs jetons reste de côté
+function pokerBuyIn(g, ids){
+  var banks = ids.filter(function(id){ return g.players[id] && !g.players[id].isBot; }).map(function(id){ return miniStartStack(g, id); });
+  return banks.length ? Math.min.apply(null, banks) : CASINO_BASE_NEW;
 }
 // jetons de départ d'après la ligue : l'Elo du mois dernier (750 si on débute) + le petit bonus du mois en cours
 async function casinoLeagueBank(){

@@ -48,11 +48,11 @@ async function lateHostApply(list){
 }
 
 // les joueurs arrivés en cours de partie s'assoient au début de la main / manche / tour suivant, avec leurs jetons de départ
-function miniRoster(g, st0, stacksOf){
+function miniRoster(g, st0, stacksOf, cap0){ // cap0 : plafond de la mise de départ (poker : la mise de départ de la table)
   var seats = st0.seats.slice(), stacks = Object.assign({}, stacksOf), cap = maxPlayersOf(g);
   Object.keys(g.players || {}).filter(function(id){ return seats.indexOf(id) < 0; })
     .sort(function(a, b){ return (g.players[a].joinedAt || 0) - (g.players[b].joinedAt || 0); })
-    .forEach(function(id){ if(seats.length < cap){ seats.push(id); stacks[id] = miniStartStack(g, id); } });
+    .forEach(function(id){ if(seats.length < cap){ seats.push(id); stacks[id] = typeof cap0 === 'number' ? Math.min(cap0, miniStartStack(g, id)) : miniStartStack(g, id); } });
   return { seats: seats, stacks: stacks };
 }
 
