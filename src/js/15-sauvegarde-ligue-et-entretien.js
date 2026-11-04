@@ -167,6 +167,43 @@ async function purgeLegacyPins(){
   }catch(e){ console.error(e); maintUi.msg = 'Impossible : '+dbErrorText(e); }
   finally{ maintUi.busy = false; render(); }
 }
+// 1.16.1 : statistiques d'usage (organisateur) : parties de Rikiki et de chaque jeu du casino encore présentes dans la base (celles de moins de MAINT_DAYS jours si on nettoie)
+var STAT_KINDS = [['rikiki', 'Rikiki'], ['poker', 'Poker'], ['blackjack', 'Blackjack'], ['roulette', 'Roulette']];
+function gameKindOf(g){ return (g && STAT_KINDS.some(function(k){ return k[0] === g.kind; })) ? g.kind : 'rikiki'; }
+function gameStatsFrom(games){
+  var rows = {}; STAT_KINDS.forEach(function(k){ rows[k[0]] = { all:0, done:0, multi:0 }; });
+  (games || []).forEach(function(g){
+    if(!g) return;
+    var r = rows[gameKindOf(g)], humans = Object.keys(g.players || {}).filter(function(id){ return !(g.players[id] && g.players[id].isBot); }).length;
+    if(g.status === 'lobby') return; // une salle d'attente jamais lancée n'est pas une partie
+    r.all++;
+    if(g.status === 'game_over' || String(g.status || '').slice(-4) === '_end') r.done++;
+    if(humans >= 2) r.multi++;
+  });
+  return rows;
+}
+async function computeGameStats(){
+  if(!isAdmin() || maintUi.busy) return;
+  maintUi.busy = true; maintUi.msg = 'Comptage des parties…'; render();
+  try{
+    var all = await claudeDb.collection('games').get();
+    maintUi.stats = gameStatsFrom(all.docs.map(function(d){ return d.data(); }));
+    maintUi.msg = '';
+  }catch(e){ console.error(e); maintUi.msg = 'Impossible de compter : '+dbErrorText(e); }
+  finally{ maintUi.busy = false; render(); }
+}
+function pctOf(n, total){ return total ? Math.round(100 * n / total) + ' %' : '–'; }
+function renderGameStats(){
+  var st = maintUi.stats; if(!st) return '';
+  var tot = { all:0, done:0, multi:0 };
+  STAT_KINDS.forEach(function(k){ ['all','done','multi'].forEach(function(f){ tot[f] += st[k[0]][f]; }); });
+  var casino = ['poker','blackjack','roulette'].reduce(function(a, k){ return a + st[k].multi; }, 0);
+  return '<div class="eyebrow" style="margin:14px 0 4px;">Statistiques des parties</div>'
+    + '<p class="muted" style="font-size:12.5px; margin:0 0 6px;">Parties lancées encore présentes dans la base. « 2 humains + » = au moins 2 vrais joueurs (sans compter les robots).</p>'
+    + '<table style="width:100%; font-size:13px; border-collapse:collapse;"><tr style="text-align:left;"><th>Jeu</th><th>Lancées</th><th>Finies</th><th>2 humains +</th><th>Part</th></tr>'
+    + STAT_KINDS.map(function(k){ var r = st[k[0]]; return '<tr><td>'+k[1]+'</td><td>'+r.all+'</td><td>'+r.done+'</td><td>'+r.multi+'</td><td><strong>'+pctOf(r.multi, tot.multi)+'</strong></td></tr>'; }).join('')
+    + '<tr><td colspan="5" style="padding-top:6px;">Casino en tout : <strong>'+pctOf(casino, tot.multi)+'</strong> des parties à 2 humains +, Rikiki <strong>'+pctOf(st.rikiki.multi, tot.multi)+'</strong>.</td></tr></table>';
+}
 function renderMaintenancePanel(){
   if(!isAdmin() || !(usingFirebase || usingMock)) return '';
   var dis = maintUi.busy ? ' disabled' : '';
@@ -174,8 +211,10 @@ function renderMaintenancePanel(){
     + '<p class="muted" style="font-size:13px; margin:0 0 10px;">Réservé à l\'organisateur. Fais d\'abord une sauvegarde.</p>'
     + '<div class="row" style="gap:8px; flex-wrap:wrap;">'
     + '<button class="btn secondary small" data-action="maint-games"'+dis+'>Nettoyer les vieilles parties ('+MAINT_DAYS+' j)</button>'
+    + '<button class="btn secondary small" data-action="maint-stats"'+dis+'>📊 Statistiques des parties</button>'
     + (authOn() ? '<button class="btn secondary small" data-action="maint-pins"'+dis+'>Effacer les anciennes empreintes de code</button>' : '') + '</div>'
     + (maintUi.msg ? '<p style="font-size:13px; font-weight:700; margin:10px 0 0;">'+esc(maintUi.msg)+'</p>' : '')
+    + renderGameStats()
     + renderHideGames()
     + '</div>';
 }
@@ -198,7 +237,8 @@ document.addEventListener('click', function(e){
   p.then(function(){ league.loaded = false; return loadLeague(true); }).catch(function(err){ console.error(err); showToast(dbErrorText(err)); });
 });
 document.addEventListener('click', function(e){
-  var el = e.target.closest ? e.target.closest('[data-action="maint-games"], [data-action="maint-pins"]') : null; if(!el) return;
-  if(el.getAttribute('data-action')==='maint-games') cleanOldGames(); else purgeLegacyPins();
+  var el = e.target.closest ? e.target.closest('[data-action="maint-games"], [data-action="maint-pins"], [data-action="maint-stats"]') : null; if(!el) return;
+  var act = el.getAttribute('data-action');
+  if(act==='maint-games') cleanOldGames(); else if(act==='maint-stats') computeGameStats(); else purgeLegacyPins();
 });
 

@@ -8,6 +8,10 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.16.1 — 4 novembre 2026
+- Entretien (organisateur) : bouton « 📊 Statistiques des parties » = parties de Rikiki et de poker / blackjack / roulette, finies, à 2 humains +, et leur part en %.
+- Annonce dans le jeu (fenêtre « Du nouveau » + notes de version) : poker à mise égale, bonus quotidien de 250 jetons.
+
 ## 1.16.0 — 3 novembre 2026
 
 - Poker équilibré : à chaque table, tout le monde (robots compris) s'assoit avec la même somme, celle du joueur le plus pauvre de la table. Le reste des jetons de chacun reste de côté sur son compte et lui revient après la partie (plus ou moins ce qu'il a gagné ou perdu à la table). Les arrivants en cours de partie sont plafonnés à cette somme. Avant, un joueur à 5 000 jetons contre des joueurs à 700 faisait coucher tout le monde. Le salon affiche la somme de départ. Règles Firebase inchangées.
