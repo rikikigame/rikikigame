@@ -5,8 +5,9 @@
    - (Le sondage « nom du paquet » a été retiré en 1.11.0 : la maison s'appelle « Le Casino de Fredo ». Les anciennes règles Firebase pollVotes restent inchangées.) */
 var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
-  version: APP_VERSION, tour: '1.11', title: '🎰 Du nouveau sur Rikiki !',
+  version: APP_VERSION, tour: '1.16.1', title: '🎰 Du nouveau sur Rikiki !',
   items: [
+    '<!--casino--><strong>⚖️ Poker : tout le monde part avec la même somme</strong> : à la table, chacun s\'assoit avec autant de jetons que le joueur qui en a le moins (les robots aussi). Le reste de tes jetons t\'attend de côté. Et chaque jour où tu te connectes avec ton profil, tu reçois 250 jetons de bonus.',
     '<!--casino--><strong>🎰 Le Casino de Fredo</strong> : Fredo a toujours aimé les jeux d\'argent. Un soir, il s\'est dit qu\'un casino au café, ce serait quand même sympa. Il a ouvert une table, puis deux, puis trois. Tu le trouves sur l\'accueil, dans « Mini casino ».',
     '<!--casino--><strong>🎟️ Tes jetons sont sauvegardés</strong> : ce que tu gagnes ou perds au casino est enregistré, et tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils ; sans profil, sur ce téléphone). La toute première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Chaque jour où tu te connectes avec ton profil, tu reçois 250 jetons de bonus à ta première table. Le vrai moyen d\'en gagner, c\'est le Rikiki : chaque victoire en ligue en ligne rapporte 500 jetons. On joue tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
     '<!--casino--><strong>🃏 Poker</strong> : Texas Hold\'em de 2 à 8 joueurs, avec des blindes qui montent au fil des mains, le tapis et les pots annexes. Tes cartes restent secrètes, et celui qui a le plus de jetons à la fin gagne.',
@@ -41,7 +42,7 @@ var NEWS = {
 };
 var pollState = { open:false }, newsStep = null, notesOpen = false;
 // tant que le Mini casino est caché (lien secret #casino), la visite et les notes n'en parlent pas
-function newsSlides(){ var on = casinoVisible(); return NEWS_SLIDES.filter(function(sl){ return on || !sl.casino; }); }
+function newsSlides(){ var on = casinoVisible(), all = NEWS_SLIDES.filter(function(sl){ return on || !sl.casino; }), fresh = all.filter(function(sl){ return sl.fresh; }); return fresh.length ? fresh : all; } // 1.16.1 : la visite ne montre que la diapo nouvelle
 function newsItems(){ var on = casinoVisible(); return NEWS.items.filter(function(t){ return on || t.indexOf('<!--casino-->') < 0; }); }
 // ---- visite interactive (mêmes styles que le tuto des règles : tt-*) ----
 function newsShowcase(){ // quatre cartes Halloween (Roi, Dame, Valet, As de pique) : mur + portrait, comme dans le jeu
@@ -55,6 +56,8 @@ function newsCards(){ // trois cartes du nouveau jeu (Roi, Dame, Valet), sans pr
 }
 function newsChips(){ return '<div class="news-chips tt-a" aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; }
 var NEWS_SLIDES = [
+  { casino:true, fresh:true, t:'Poker : même mise pour tous ⚖️', d:'Fini les tables où un joueur a 6000 jetons et un autre 700. Tout le monde s\'assoit avec la même somme, celle du joueur qui en a le moins, robots compris. Le reste de tes jetons t\'attend de côté. Bonus : 250 jetons chaque jour où tu te connectes avec ton profil.',
+    s:function(){ return '<div class="tt-results">'+[['Le plus pauvre', '700'], ['Tous les autres', '700'], ['Le reste', 'de côté']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
   { casino:true, t:'Le Casino de Fredo 🎰', d:'Fredo a toujours adoré les jeux d\'argent. Un soir, au café, il s\'est dit : « Et si j\'ouvrais un casino ? » Eh bien voilà, c\'est fait !',
     s:function(){ return '<div class="news-sign tt-a" data-noi18n>Casino de Fredo</div><div class="news-chips tt-a"'+ttD(500)+' aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; } },
   { casino:true, t:'Trois jeux à la table', d:'Seul, entre amis ou avec des robots. On joue tant qu\'il reste des jetons. Tu choisis ton jeu dans « Mini casino », sur l\'accueil.',
