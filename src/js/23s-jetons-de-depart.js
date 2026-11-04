@@ -8,8 +8,8 @@
 var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, CASINO_BONUS_MAX = 150; // plafond : le solde sauvegardé peut grandir (voir le portefeuille ci-dessous)
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
 // 1.14.0 : le casino est un bonus, c'est le Rikiki qui fait gagner des jetons. Faillite = petite aide (une fois par jour), puis juste de quoi s'asseoir ;
-// chaque partie de ligue en ligne finie ajoute CASINO_GAME_BONUS jetons, et une victoire en fait CASINO_WIN_BONUS en tout (partie + victoire) à l'entrée à la table suivante.
-var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500, CASINO_GAME_BONUS = 100; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
+// chaque partie de ligue en ligne finie rapporte jetons selon la place : 1er 500, 2e 250, 3e 150, les autres CASINO_GAME_BONUS (100). Pas les points de la partie : les parties courtes en donneraient plus à l'entrée à la table suivante.
+var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_GAME_BONUS = 100, CASINO_RANK_PAY = [500, 250, 150]; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
 function monthBounds(key){ var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) - 1; return [new Date(y, m, 1).getTime(), new Date(y, m + 1, 1).getTime()]; }
@@ -85,20 +85,14 @@ async function casinoLeagueBank(){
   return casinoBankFrom(base, leagueTopDays(seasonOf(nowMs()), me.id));
 }
 function dayKeyNow(){ var d = new Date(nowMs()); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
-// victoires de ligue EN LIGNE (confirmées) de mon profil
-function myOnlineWins(){
+// mes parties de ligue en ligne finies, de la plus ancienne à la plus récente : [{ at, rank, n }] (null si je ne suis pas encore dans la ligue)
+function myOnlineHistory(){
   var m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
   if(!m) return null;
   var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
-  return x ? x.wins : 0;
+  return x ? x.history.slice().sort(function(a, b){ return (a.at || 0) - (b.at || 0); }) : [];
 }
-// parties de ligue en ligne finies par mon profil (null si je ne suis pas encore dans la ligue)
-function myOnlineGames(){
-  var m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
-  if(!m) return null;
-  var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
-  return x ? x.games : 0;
-}
+function casinoRankPay(rank){ return CASINO_RANK_PAY[(Number(rank) || 0) - 1] || CASINO_GAME_BONUS; }
 // cadeau ponctuel : tous ceux qui ont fini une partie de ligue en ligne pendant la fenêtre `from`..`to` reçoivent `amount` jetons + leurs points de ces parties, à réclamer avant `until`
 var CASINO_GIFT = { id: 'rikiki-2026-11-01', amount: 250, from: new Date(2026, 10, 1).getTime(), to: new Date(2026, 10, 2).getTime(), until: new Date(2026, 10, 9).getTime() };
 // mes parties de ligue en ligne finies entre a et b : { played: nombre, points: somme de mes points }
@@ -122,14 +116,12 @@ async function walletWinBonus(){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
     if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }
   }
-  var wins = myOnlineWins(), games = myOnlineGames();
-  if(wins === null || games === null) return total;
-  var paidW = walletMeta.winsPaid, paidG = walletMeta.gamesPaid;
-  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins, gamesPaid: games });
-  if(paidW === null && paidG === null) return total; // la toute première fois : simple repère, pas de rattrapage du passé
-  var nGames = paidG === null ? 0 : Math.max(0, games - paidG), nWins = paidW === null ? 0 : Math.max(0, wins - paidW);
-  // une partie finie = CASINO_GAME_BONUS ; une victoire porte le total de cette partie à CASINO_WIN_BONUS
-  return total + nGames * CASINO_GAME_BONUS + nWins * (CASINO_WIN_BONUS - CASINO_GAME_BONUS);
+  var hist = myOnlineHistory();
+  if(hist === null) return total;
+  var paid = walletMeta.gamesPaid;
+  walletMeta = Object.assign({}, walletMeta, { gamesPaid: hist.length });
+  if(paid === null) return total; // la toute première fois : simple repère, pas de rattrapage du passé
+  return total + hist.slice(Math.min(paid, hist.length)).reduce(function(sum, h){ return sum + casinoRankPay(h.rank); }, 0);
 }
 async function myCasinoBank(){
   var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
