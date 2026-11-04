@@ -1704,7 +1704,7 @@ var prefillCode = '';
 //   MINEUR   = nouvelle fonction qui ne casse rien
 //   CORRECTIF= correction de bug
 // Les anciens numéros entiers (v1 à v79) valent 0.N.0 : toute version 1.x.x est donc « plus récente ».
-var APP_VERSION = '1.16.1';
+var APP_VERSION = '1.17.0';
 // 1.11.0 : le Mini casino (Casino de Fredo) est d'abord CACHÉ : il n'apparaît qu'avec le lien secret rikikigame.com/#casino (mémorisé sur l'appareil ; #casino-off le recache).
 // Pour le montrer à tout le monde : passer CASINO_PUBLIC à true et republier. Un ami peut rejoindre une partie de casino avec le code sans le lien secret.
 var CASINO_PUBLIC = true; // 1.12.0 : le casino est ouvert à tout le monde (mettre false pour le recacher : lien secret #casino)
@@ -9223,11 +9223,12 @@ document.addEventListener('change', function(e){
    - (Le sondage « nom du paquet » a été retiré en 1.11.0 : la maison s'appelle « Le Casino de Fredo ». Les anciennes règles Firebase pollVotes restent inchangées.) */
 var NEWS = {
   // version = le vrai numéro du jeu (affiché dans les notes) ; tour = repère de la petite visite (gardé à '64' : les diapos ne rejouent pas pour ceux qui les ont vues)
-  version: APP_VERSION, tour: '1.16.1', title: '🎰 Du nouveau sur Rikiki !',
+  version: APP_VERSION, tour: '1.17.0', title: '🎰 Du nouveau sur Rikiki !',
   items: [
+    '<!--casino--><strong>🃏 Des jetons à chaque partie de Rikiki</strong> : chaque partie de ligue en ligne que tu finis te rapporte 100 jetons, et 500 si tu la gagnes. Tu les reçois à ta prochaine entrée au casino. Plus de panique si tu as tout perdu : joue une partie de Rikiki et tu repars.',
     '<!--casino--><strong>⚖️ Poker : tout le monde part avec la même somme</strong> : à la table, chacun s\'assoit avec autant de jetons que le joueur qui en a le moins (les robots aussi). Le reste de tes jetons t\'attend de côté. Et chaque jour où tu te connectes avec ton profil, tu reçois 250 jetons de bonus.',
     '<!--casino--><strong>🎰 Le Casino de Fredo</strong> : Fredo a toujours aimé les jeux d\'argent. Un soir, il s\'est dit qu\'un casino au café, ce serait quand même sympa. Il a ouvert une table, puis deux, puis trois. Tu le trouves sur l\'accueil, dans « Mini casino ».',
-    '<!--casino--><strong>🎟️ Tes jetons sont sauvegardés</strong> : ce que tu gagnes ou perds au casino est enregistré, et tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils ; sans profil, sur ce téléphone). La toute première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Chaque jour où tu te connectes avec ton profil, tu reçois 250 jetons de bonus à ta première table. Le vrai moyen d\'en gagner, c\'est le Rikiki : chaque victoire en ligue en ligne rapporte 500 jetons. On joue tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
+    '<!--casino--><strong>🎟️ Tes jetons sont sauvegardés</strong> : ce que tu gagnes ou perds au casino est enregistré, et tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils ; sans profil, sur ce téléphone). La toute première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Chaque jour où tu te connectes avec ton profil, tu reçois 250 jetons de bonus à ta première table. Le vrai moyen d\'en gagner, c\'est le Rikiki : chaque partie de ligue en ligne finie rapporte 100 jetons, et 500 si tu la gagnes. On joue tant qu\'il reste des jetons, et l\'organisateur peut arrêter la partie quand il veut.',
     '<!--casino--><strong>🃏 Poker</strong> : Texas Hold\'em de 2 à 8 joueurs, avec des blindes qui montent au fil des mains, le tapis et les pots annexes. Tes cartes restent secrètes, et celui qui a le plus de jetons à la fin gagne.',
     '<!--casino--><strong>🂡 Blackjack</strong> : seul contre le croupier ou à plusieurs. Mise de 10 à 500, blackjack payé 3 pour 2, et tu peux doubler. De 5 à 20 manches.',
     '<!--casino--><strong>🎡 Roulette</strong> : roulette européenne à 37 cases, seul ou à plusieurs. Pose tes jetons sur un numéro (35 contre 1), une couleur, pair ou impair, une douzaine ou une colonne, puis regarde la bille tourner. De 5 à 20 tours.',
@@ -9274,13 +9275,13 @@ function newsCards(){ // trois cartes du nouveau jeu (Roi, Dame, Valet), sans pr
 }
 function newsChips(){ return '<div class="news-chips tt-a" aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; }
 var NEWS_SLIDES = [
-  { casino:true, fresh:true, t:'Poker : même mise pour tous ⚖️', d:'Fini les tables où un joueur a 6000 jetons et un autre 700. Tout le monde s\'assoit avec la même somme, celle du joueur qui en a le moins, robots compris. Le reste de tes jetons t\'attend de côté. Bonus : 250 jetons chaque jour où tu te connectes avec ton profil.',
-    s:function(){ return '<div class="tt-results">'+[['Le plus pauvre', '700'], ['Tous les autres', '700'], ['Le reste', 'de côté']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
+  { casino:true, fresh:true, t:'Des jetons à chaque partie de Rikiki 🃏', d:'Tu as tout perdu au casino ? Joue une partie de Rikiki : chaque partie de ligue en ligne finie te rapporte 100 jetons, et 500 si tu la gagnes. Tu les reçois à ta prochaine entrée au casino. Au poker, tout le monde s\'assoit aussi avec la même somme.',
+    s:function(){ return '<div class="tt-results">'+[['Partie finie', '+100'], ['Partie gagnée', '+500'], ['Bonus du jour (profil)', '+250']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
   { casino:true, t:'Le Casino de Fredo 🎰', d:'Fredo a toujours adoré les jeux d\'argent. Un soir, au café, il s\'est dit : « Et si j\'ouvrais un casino ? » Eh bien voilà, c\'est fait !',
     s:function(){ return '<div class="news-sign tt-a" data-noi18n>Casino de Fredo</div><div class="news-chips tt-a"'+ttD(500)+' aria-hidden="true">'+['H','C','D','S'].map(function(su){ return '<span>'+casinoSymInline(su)+'</span>'; }).join('')+'</div>'; } },
   { casino:true, t:'Trois jeux à la table', d:'Seul, entre amis ou avec des robots. On joue tant qu\'il reste des jetons. Tu choisis ton jeu dans « Mini casino », sur l\'accueil.',
     s:function(){ return '<div class="tt-results">'+[['♠ Poker', 'Texas Hold\'em'], ['🃏 Blackjack', 'contre le croupier'], ['🎡 Roulette', 'rouge, noir, numéros…']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="muted">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
-  { casino:true, t:'Tes jetons sont sauvegardés 🎟️', d:'Ce que tu gagnes ou perds au casino est enregistré : tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils). La première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Bonus quotidien : 250 jetons chaque jour où tu te connectes avec ton profil. Chaque victoire en ligue au Rikiki rapporte 500 jetons.',
+  { casino:true, t:'Tes jetons sont sauvegardés 🎟️', d:'Ce que tu gagnes ou perds au casino est enregistré : tu repars avec au prochain lancement (avec ton profil, sur tous tes appareils). La première fois, tu pars avec tes points de ligue du mois dernier (750 si tu débutes). Bonus quotidien : 250 jetons chaque jour où tu te connectes avec ton profil. Chaque partie de ligue au Rikiki rapporte 100 jetons, et 500 si tu la gagnes.',
     s:function(){ return '<div class="tt-results">'+[['Ta première fois', '750'], ['Tu gagnes 200', '950'], ['Tu repars avec', '950']].map(function(r, i){ return '<div class="tt-res tt-a"'+ttD(i*320)+'><span>'+r[0]+'</span><span class="tt-ok">'+r[1]+'</span></div>'; }).join('')+'</div>'; } },
   { casino:true, t:'Nouvelles cartes 🎴', d:'Un nouveau jeu de cartes, où les symboles sont de vrais jetons de casino. Tu le choisis dans ⚙️ Paramètres, rubrique « Tes cartes ».', s:newsCards },
   { casino:true, t:'Une vraie ambiance 🎷', d:'Un décor animé, du jazz de club, des bruitages de jetons, de cartes et de roulette, et un croupier à chaque table. Tu peux tout couper dans ⚙️ Paramètres.', s:newsChips },
@@ -10706,7 +10707,7 @@ function renderCasinoLobby(g){
   if(isHost && n < maxPlayersOf(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
   if(!rl) html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // la roulette n'utilise pas de cartes : pas de choix de paquet dans son salon
-  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; +250 de bonus chaque jour où tu te connectes avec ton profil ; une victoire de ligue au Rikiki = +500) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
+  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; +250 de bonus chaque jour où tu te connectes avec ton profil ; une partie de ligue au Rikiki = +100, et +500 si tu la gagnes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
   html += '<div class="card-panel" style="margin-bottom:12px;"><div class="row between"><h2 style="font-size:20px;">Partie</h2></div>';
   html += '<div class="muted" style="font-size:13.5px; line-height:1.6;">'+(rl
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT
@@ -12032,8 +12033,8 @@ function croupierFor(g){
 var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, CASINO_BONUS_MAX = 150; // plafond : le solde sauvegardé peut grandir (voir le portefeuille ci-dessous)
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
 // 1.14.0 : le casino est un bonus, c'est le Rikiki qui fait gagner des jetons. Faillite = petite aide (une fois par jour), puis juste de quoi s'asseoir ;
-// chaque victoire en ligue (partie en ligne) ajoute CASINO_WIN_BONUS jetons à l'entrée à la table suivante.
-var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
+// chaque partie de ligue en ligne finie ajoute CASINO_GAME_BONUS jetons, et une victoire en fait CASINO_WIN_BONUS en tout (partie + victoire) à l'entrée à la table suivante.
+var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500, CASINO_GAME_BONUS = 100; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
 function monthBounds(key){ var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) - 1; return [new Date(y, m, 1).getTime(), new Date(y, m + 1, 1).getTime()]; }
@@ -12064,9 +12065,9 @@ function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CA
 // la TOUTE première fois. Après une faillite (moins de CASINO_BANK_MIN jetons) : petite aide de CASINO_RESCUE une fois par jour, puis CASINO_BANK_MIN.
 function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
 // petites notes rangées avec le solde (dans __json, sans changer les règles) : jour de la dernière aide de faillite, victoires de ligue déjà payées
-var walletMeta = { rescueDay: '', winsPaid: null, gift: '' };
+var walletMeta = { rescueDay: '', winsPaid: null, gamesPaid: null, gift: '' };
 function walletMetaFrom(d){
-  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
+  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gamesPaid: (d && typeof d.gamesPaid === 'number' && isFinite(d.gamesPaid)) ? d.gamesPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
 }
 async function walletRead(){
   var ref = walletRef(), remote = null, local = null, meta = null;
@@ -12081,7 +12082,7 @@ async function walletSave(chips){
   if(!isFinite(chips)) return;
   try{ localStorage.setItem('rikiki_wallet', String(chips)); localStorage.setItem('rikiki_wallet_meta', JSON.stringify(walletMeta)); }catch(e){}
   var ref = walletRef();
-  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gamesPaid: walletMeta.gamesPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
 }
 var walletSaved = '';
 // à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
@@ -12116,6 +12117,13 @@ function myOnlineWins(){
   var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
   return x ? x.wins : 0;
 }
+// parties de ligue en ligne finies par mon profil (null si je ne suis pas encore dans la ligue)
+function myOnlineGames(){
+  var m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
+  if(!m) return null;
+  var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
+  return x ? x.games : 0;
+}
 // cadeau ponctuel : tous ceux qui ont fini une partie de ligue en ligne pendant la fenêtre `from`..`to` reçoivent `amount` jetons + leurs points de ces parties, à réclamer avant `until`
 var CASINO_GIFT = { id: 'rikiki-2026-11-01', amount: 250, from: new Date(2026, 10, 1).getTime(), to: new Date(2026, 10, 2).getTime(), until: new Date(2026, 10, 9).getTime() };
 // mes parties de ligue en ligne finies entre a et b : { played: nombre, points: somme de mes points }
@@ -12139,13 +12147,14 @@ async function walletWinBonus(){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
     if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }
   }
-  var wins = myOnlineWins();
-  if(wins === null) return total;
-  if(walletMeta.winsPaid === null){ walletMeta = Object.assign({}, walletMeta, { winsPaid: wins }); return total; }
-  if(wins <= walletMeta.winsPaid) return total;
-  var n = wins - walletMeta.winsPaid;
-  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins });
-  return total + n * CASINO_WIN_BONUS;
+  var wins = myOnlineWins(), games = myOnlineGames();
+  if(wins === null || games === null) return total;
+  var paidW = walletMeta.winsPaid, paidG = walletMeta.gamesPaid;
+  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins, gamesPaid: games });
+  if(paidW === null && paidG === null) return total; // la toute première fois : simple repère, pas de rattrapage du passé
+  var nGames = paidG === null ? 0 : Math.max(0, games - paidG), nWins = paidW === null ? 0 : Math.max(0, wins - paidW);
+  // une partie finie = CASINO_GAME_BONUS ; une victoire porte le total de cette partie à CASINO_WIN_BONUS
+  return total + nGames * CASINO_GAME_BONUS + nWins * (CASINO_WIN_BONUS - CASINO_GAME_BONUS);
 }
 async function myCasinoBank(){
   var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
