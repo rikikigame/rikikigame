@@ -52,7 +52,7 @@ function renderCasinoLobby(g){
   if(isHost && n < maxPlayersOf(g)) html += '<button class="btn ghost" data-action="add-bot" style="margin-top:6px; padding-left:0;">+ Ajouter un bot</button>';
   html += '</div>';
   if(!rl) html += '<div class="card-panel" style="margin-bottom:12px;">'+renderDeckChoice()+'</div>'; // la roulette n'utilise pas de cartes : pas de choix de paquet dans son salon
-  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; +250 de bonus chaque jour où tu te connectes avec ton profil ; une partie de ligue au Rikiki = +100, et +500 si tu la gagnes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
+  var START = 'Tes jetons sont sauvegardés : tu repars avec ce que tu as gagné ou perdu (750 la première fois ; +250 de bonus chaque jour où tu te connectes avec ton profil ; une partie de ligue au Rikiki = +100, jusqu\'à +500 si tu la gagnes) · ', LIMIT = 'On joue tant qu\'il reste des jetons : tu t\'arrêtes quand tu veux.';
   html += '<div class="card-panel" style="margin-bottom:12px;"><div class="row between"><h2 style="font-size:20px;">Partie</h2></div>';
   html += '<div class="muted" style="font-size:13.5px; line-height:1.6;">'+(rl
       ? START+'mise minimum '+RL_MIN_BET+' · rouge, noir, numéros, douzaines…<br>Seul, ou à plusieurs · '+LIMIT

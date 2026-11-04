@@ -8,6 +8,9 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.17.1 — 4 novembre 2026
+- Jetons par partie de Rikiki selon la place : 1er 500, 2e 250, 3e 150, les autres 100 (plus les points de la partie : les parties courtes en donneraient trop). Textes mis à jour.
+
 ## 1.17.0 — 4 novembre 2026
 - Jetons à chaque partie de Rikiki : 100 par partie de ligue en ligne finie, 500 si elle est gagnée (versés à la prochaine entrée au casino ; pas de rattrapage du passé). Textes et annonce mis à jour.
 
