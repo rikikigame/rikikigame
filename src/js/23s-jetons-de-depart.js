@@ -8,8 +8,8 @@
 var CASINO_BASE_NEW = 750, CASINO_BANK_MIN = 100, CASINO_BANK_MAX = 100000000, CASINO_BONUS_MAX = 150; // plafond : le solde sauvegardé peut grandir (voir le portefeuille ci-dessous)
 var CASINO_BONUS_FIRST = 3, CASINO_BONUS_TOP3 = 2, CASINO_BONUS_TOP10 = 1;
 // 1.14.0 : le casino est un bonus, c'est le Rikiki qui fait gagner des jetons. Faillite = petite aide (une fois par jour), puis juste de quoi s'asseoir ;
-// chaque victoire en ligue (partie en ligne) ajoute CASINO_WIN_BONUS jetons à l'entrée à la table suivante.
-var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
+// chaque partie de ligue en ligne finie ajoute CASINO_GAME_BONUS jetons, et une victoire en fait CASINO_WIN_BONUS en tout (partie + victoire) à l'entrée à la table suivante.
+var CASINO_RESCUE = 250, CASINO_DAILY = 250, CASINO_WIN_BONUS = 500, CASINO_GAME_BONUS = 100; // CASINO_DAILY : bonus du jour pour tout joueur connecté avec son profil
 
 function prevMonthKey(ts){ var d = new Date(ts || nowMs()); return seasonOf(new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()); }
 function monthBounds(key){ var p = key.split('-'), y = Number(p[0]), m = Number(p[1]) - 1; return [new Date(y, m, 1).getTime(), new Date(y, m + 1, 1).getTime()]; }
@@ -40,9 +40,9 @@ function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CA
 // la TOUTE première fois. Après une faillite (moins de CASINO_BANK_MIN jetons) : petite aide de CASINO_RESCUE une fois par jour, puis CASINO_BANK_MIN.
 function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
 // petites notes rangées avec le solde (dans __json, sans changer les règles) : jour de la dernière aide de faillite, victoires de ligue déjà payées
-var walletMeta = { rescueDay: '', winsPaid: null, gift: '' };
+var walletMeta = { rescueDay: '', winsPaid: null, gamesPaid: null, gift: '' };
 function walletMetaFrom(d){
-  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
+  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gamesPaid: (d && typeof d.gamesPaid === 'number' && isFinite(d.gamesPaid)) ? d.gamesPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
 }
 async function walletRead(){
   var ref = walletRef(), remote = null, local = null, meta = null;
@@ -57,7 +57,7 @@ async function walletSave(chips){
   if(!isFinite(chips)) return;
   try{ localStorage.setItem('rikiki_wallet', String(chips)); localStorage.setItem('rikiki_wallet_meta', JSON.stringify(walletMeta)); }catch(e){}
   var ref = walletRef();
-  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gamesPaid: walletMeta.gamesPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
 }
 var walletSaved = '';
 // à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
@@ -92,6 +92,13 @@ function myOnlineWins(){
   var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
   return x ? x.wins : 0;
 }
+// parties de ligue en ligne finies par mon profil (null si je ne suis pas encore dans la ligue)
+function myOnlineGames(){
+  var m = myMember() || (currentProfile ? (league.members || []).filter(function(x){ return normName(x.name) === normName(currentProfile.pseudo); })[0] : null);
+  if(!m) return null;
+  var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
+  return x ? x.games : 0;
+}
 // cadeau ponctuel : tous ceux qui ont fini une partie de ligue en ligne pendant la fenêtre `from`..`to` reçoivent `amount` jetons + leurs points de ces parties, à réclamer avant `until`
 var CASINO_GIFT = { id: 'rikiki-2026-11-01', amount: 250, from: new Date(2026, 10, 1).getTime(), to: new Date(2026, 10, 2).getTime(), until: new Date(2026, 10, 9).getTime() };
 // mes parties de ligue en ligne finies entre a et b : { played: nombre, points: somme de mes points }
@@ -115,13 +122,14 @@ async function walletWinBonus(){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
     if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }
   }
-  var wins = myOnlineWins();
-  if(wins === null) return total;
-  if(walletMeta.winsPaid === null){ walletMeta = Object.assign({}, walletMeta, { winsPaid: wins }); return total; }
-  if(wins <= walletMeta.winsPaid) return total;
-  var n = wins - walletMeta.winsPaid;
-  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins });
-  return total + n * CASINO_WIN_BONUS;
+  var wins = myOnlineWins(), games = myOnlineGames();
+  if(wins === null || games === null) return total;
+  var paidW = walletMeta.winsPaid, paidG = walletMeta.gamesPaid;
+  walletMeta = Object.assign({}, walletMeta, { winsPaid: wins, gamesPaid: games });
+  if(paidW === null && paidG === null) return total; // la toute première fois : simple repère, pas de rattrapage du passé
+  var nGames = paidG === null ? 0 : Math.max(0, games - paidG), nWins = paidW === null ? 0 : Math.max(0, wins - paidW);
+  // une partie finie = CASINO_GAME_BONUS ; une victoire porte le total de cette partie à CASINO_WIN_BONUS
+  return total + nGames * CASINO_GAME_BONUS + nWins * (CASINO_WIN_BONUS - CASINO_GAME_BONUS);
 }
 async function myCasinoBank(){
   var w = await walletRead(), before = JSON.stringify(walletMeta), bonus = await walletWinBonus();
