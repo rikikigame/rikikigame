@@ -8307,6 +8307,17 @@ function precisionOf(g, id){
   log.forEach(function(r){ if(r.bids && r.bids[id] === r.tricksWon[id]) ok++; });
   return { ok: ok, n: log.length, pct: log.length ? Math.round(100 * ok / log.length) : 0 };
 }
+// 1.17.2 : dit clairement au joueur s'il gagne des jetons pour cette partie (et pourquoi sinon)
+function chipsRewardHtml(g, order){
+  if(g.kind || !g.players || !g.players[myId] || g.players[myId].isBot) return '';
+  var st = 'text-align:center; font-size:13.5px; margin:8px 0 0;', msg;
+  if(!(g.settings && g.settings.league)) msg = 'Pas de jetons : la ligue était décochée dans le salon. Pour en gagner, l\'hôte doit la laisser cochée.';
+  else if(onlineLeagueCheck(g)) msg = 'Pas de jetons pour cette partie (voir ci-dessus).';
+  else if(!currentProfile) msg = 'Pas de jetons : connecte-toi avec ton profil pour en gagner.';
+  else { var pay = casinoRankPay(order.indexOf(myId) + 1);
+    msg = '🎟️ <strong>+' + pay + ' jetons</strong> : ils arrivent à ta prochaine entrée au casino, une fois la partie confirmée par la majorité des joueurs.'; }
+  return '<p class="muted" style="'+st+'">'+msg+'</p>';
+}
 function renderGameOver(g){
   var order = rankingIds(g); // v64 : les joueurs remplacés finissent derniers, les retirés disparaissent
   var html = '<div style="text-align:center; margin:6px 0 16px;"><div class="eyebrow">'+g.roundPlan.length+' manches jouées</div>';
@@ -8325,6 +8336,7 @@ function renderGameOver(g){
     if(!why && iPlayLeague(g)){ var ad = attestDone[leagueGameId(g)];
       html += '<p class="muted" style="text-align:center; font-size:12px; margin:4px 0 0;">'+(ad==='ok' ? '🔒 Ton téléphone a confirmé le résultat.' : (ad==='bad' ? '⚠️ Ton téléphone ne confirme pas ce résultat.' : '🔒 Confirmation du résultat en cours…'))+'</p>'; }
   }
+  html += chipsRewardHtml(g, order);
   html += '<div style="text-align:center; margin:18px 0 6px;">'
     + (g.hostId===myId ? '<button class="btn" data-action="replay">↻ Rejouer (mêmes joueurs, mêmes règles)</button>'
                        : '<p class="muted" style="font-size:13.5px;">L\'hôte peut relancer une partie avec les mêmes joueurs.</p>')
