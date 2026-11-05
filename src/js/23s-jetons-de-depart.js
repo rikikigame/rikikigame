@@ -92,6 +92,7 @@ function myOnlineHistory(){
   var r = computeLeague('all', 'online'), all = r.ranked.concat(r.unranked), x = all.filter(function(y){ return y.id === m.id; })[0];
   return x ? x.history.slice().sort(function(a, b){ return (a.at || 0) - (b.at || 0); }) : [];
 }
+var CASINO_REWARD_FROM = new Date(2026, 10, 4).getTime(); // début des jetons de Rikiki (1.17.0)
 function casinoRankPay(rank){ return CASINO_RANK_PAY[(Number(rank) || 0) - 1] || CASINO_GAME_BONUS; }
 // cadeau ponctuel : tous ceux qui ont fini une partie de ligue en ligne pendant la fenêtre `from`..`to` reçoivent `amount` jetons + leurs points de ces parties, à réclamer avant `until`
 var CASINO_GIFT = { id: 'rikiki-2026-11-01', amount: 250, from: new Date(2026, 10, 1).getTime(), to: new Date(2026, 10, 2).getTime(), until: new Date(2026, 10, 9).getTime() };
@@ -120,7 +121,7 @@ async function walletWinBonus(){
   if(hist === null) return total;
   var paid = walletMeta.gamesPaid;
   walletMeta = Object.assign({}, walletMeta, { gamesPaid: hist.length });
-  if(paid === null) return total; // la toute première fois : simple repère, pas de rattrapage du passé
+  if(paid === null) paid = hist.filter(function(h){ return (h.at || 0) < CASINO_REWARD_FROM; }).length; // 1.17.4 : première fois : pas de rattrapage avant l'arrivée des jetons de Rikiki (4 novembre), mais on paie les parties finies depuis
   return total + hist.slice(Math.min(paid, hist.length)).reduce(function(sum, h){ return sum + casinoRankPay(h.rank); }, 0);
 }
 async function myCasinoBank(){
