@@ -466,7 +466,7 @@
       LANG = 'en'; var aEn = cardAriaLabel('S','A')==='Ace of spades' && cardAriaLabel('H','K')==='King of hearts'; LANG = langAvant;
       ok('accessibilité : description des cartes en français et en anglais', aFr && aEn, 'fr='+aFr+' en='+aEn);
       ok('accessibilité : la page de départ déclare sa langue et une description', document.documentElement.getAttribute('lang') && !!document.querySelector('meta[name="description"]') && document.getElementById('app').tagName==='MAIN');
-      var lgG = league.games, lgM = league.members, lgL = league.loaded, lkey = prevMonthKey(), mb = monthBounds(lkey), DAYMS = 86400000; league.loaded = true;
+      var llSave = loadLeague; loadLeague = async function(){}; /* 1.17.3 : l'entrée au casino recharge la ligue, ce qui effacerait la ligue d'essai */ var lgG = league.games, lgM = league.members, lgL = league.loaded, lkey = prevMonthKey(), mb = monthBounds(lkey), DAYMS = 86400000; league.loaded = true;
       league.members = [{ id:'mA', name:'Ana', userId:myId }, { id:'mB', name:'Bob' }];
       var mkc = function(day, ra, rb){ return { id:'o_T_'+day, at: mb[0] + day*DAYMS, season:lkey, mode:'online', rounds:5, players:[{ memberId:'mA', name:'Ana', rank:ra, score:1 }, { memberId:'mB', name:'Bob', rank:rb, score:0 }] }; };
       league.games = [mkc(1,1,2), mkc(2,1,2), mkc(3,1,2)]; // Ana gagne 3 parties de suite : classée dès la 3e, donc 1re jusqu'à la fin du mois
@@ -486,7 +486,7 @@
       try{ localStorage.removeItem('rikiki_wallet'); var wr0 = walletRef(); if(wr0) await wr0.delete(); localStorage.setItem('rikiki_wallet_meta', JSON.stringify({ rescueDay: dayKeyNow(), winsPaid: null, gift: '' })); }catch(e){} 
       ok('jetons de départ : sans fiche de ligue (invité, nouveau) = 750', await myCasinoBank() === CASINO_BASE_NEW);
       ok('jetons de départ : valeurs absentes ou folles = 750, bornes respectées', miniStartStack({ players:{ a:{}, b:{ bank:'x' }, c:{ bank:999999999 }, d:{ bank:1180 }, r:{ isBot:true, bank:3000 } } }, 'a') === 750 && miniStartStack({ players:{ b:{ bank:'x' } } }, 'b') === 750 && miniStartStack({ players:{ c:{ bank:999999999 } } }, 'c') === CASINO_BANK_MAX && miniStartStack({ players:{ d:{ bank:1180 } } }, 'd') === 1180 && miniStartStack({ players:{ r:{ isBot:true, bank:3000 } } }, 'r') === 750);
-      league.games = lgG; league.members = lgM; league.loaded = lgL;
+      league.games = lgG; league.members = lgM; league.loaded = lgL; loadLeague = llSave;
       var cv1 = casinoVisibleWith('#casino', null, false), cv2 = casinoVisibleWith('', '1', false), cv3 = casinoVisibleWith('', null, false), cv4 = casinoVisibleWith('#casino-off', '1', false), cv5 = casinoVisibleWith('', null, true);
       ok('statistiques des parties : comptage par jeu, salles vides et robots exclus', (function(){ var r = gameStatsFrom([{ status:'game_over', players:{a:{},b:{}} }, { kind:'poker', status:'poker_end', players:{a:{},b:{isBot:true}} }, { kind:'poker', status:'poker', players:{a:{},b:{}} }, { kind:'blackjack', status:'lobby', players:{a:{}} }]); return r.rikiki.all===1 && r.rikiki.done===1 && r.rikiki.multi===1 && r.poker.all===2 && r.poker.done===1 && r.poker.multi===1 && r.blackjack.all===0 && pctOf(1,4)==='25 %'; })());
       ok('Mini casino caché : visible seulement avec le lien secret (#casino), mémorisé, retiré par #casino-off, ou si CASINO_PUBLIC', cv1.show && cv1.store==='1' && cv2.show && !cv3.show && !cv4.show && cv4.store==='0' && cv5.show);
