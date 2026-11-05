@@ -111,7 +111,7 @@ async function walletWinBonus(){
   if(!currentProfile || !socialOn()) return 0;
   var total = 0, today = dayKeyNow();
   if(walletMeta.rescueDay !== today){ walletMeta = Object.assign({}, walletMeta, { rescueDay: today }); total += CASINO_DAILY; } // bonus quotidien : une fois par jour, à la première entrée à une table (le même repère sert à l'aide de faillite)
-  try{ await loadLeague(false, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return total; }
+  try{ await loadLeague(true, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return total; } // 1.17.3 : on force le rechargement, sinon la ligue en mémoire ignore la partie qui vient de finir
   if(walletMeta.gift !== CASINO_GIFT.id && nowMs() < CASINO_GIFT.until){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);
     if(gp.played > 0){ walletMeta = Object.assign({}, walletMeta, { gift: CASINO_GIFT.id }); total += CASINO_GIFT.amount + gp.points; }

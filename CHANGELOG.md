@@ -8,6 +8,9 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.17.3 — 5 novembre 2026
+- Correctif : les jetons gagnés au Rikiki n'apparaissaient pas quand la ligue était déjà chargée en mémoire (la partie qui venait de finir n'était pas vue). La ligue est maintenant rechargée à l'entrée au casino.
+
 ## 1.17.2 — 5 novembre 2026
 - Écran de fin de partie : indique les jetons gagnés (selon la place), ou la raison pour laquelle il n'y en a pas (ligue décochée, robots, partie rapide, pas de profil).
 
