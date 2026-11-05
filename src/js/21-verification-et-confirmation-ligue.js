@@ -200,12 +200,13 @@ function precisionOf(g, id){
 // 1.17.2 : dit clairement au joueur s'il gagne des jetons pour cette partie (et pourquoi sinon)
 function chipsRewardHtml(g, order){
   if(g.kind || !g.players || !g.players[myId] || g.players[myId].isBot) return '';
-  var st = 'text-align:center; font-size:13.5px; margin:8px 0 0;', msg;
-  if(!(g.settings && g.settings.league)) msg = 'Pas de jetons : la ligue était décochée dans le salon. Pour en gagner, l\'hôte doit la laisser cochée.';
-  else if(onlineLeagueCheck(g)) msg = 'Pas de jetons pour cette partie (voir ci-dessus).';
-  else if(!currentProfile) msg = 'Pas de jetons : connecte-toi avec ton profil pour en gagner.';
-  else { var pay = casinoRankPay(order.indexOf(myId) + 1);
-    msg = '🎟️ <strong>+' + pay + ' jetons</strong> : ils arrivent à ta prochaine entrée au casino, une fois la partie confirmée par la majorité des joueurs.'; }
+  var st = 'text-align:center; font-size:13.5px; margin:8px 0 0;', msg, soon = ' : ils arrivent à ta prochaine entrée au casino';
+  if(!currentProfile) msg = 'Pas de jetons : connecte-toi avec ton profil pour en gagner.';
+  else if(isCasualRewardGame(g)){ var c = casualPay(g);
+    msg = c ? '🎟️ <strong>+' + c + ' jetons</strong> (partie hors ligue, plafond ' + CASUAL_DAILY_MAX + ' par jour)' + soon + '.' : 'Pas de jetons pour cette partie.'; }
+  else if(g.settings && g.settings.league && !onlineLeagueCheck(g)){ var pay = casinoRankPay(order.indexOf(myId) + 1);
+    msg = '🎟️ <strong>+' + pay + ' jetons</strong>' + soon + ', une fois la partie confirmée par la majorité des joueurs.'; }
+  else msg = 'Pas de jetons pour cette partie.';
   return '<p class="muted" style="'+st+'">'+msg+'</p>';
 }
 function renderGameOver(g){

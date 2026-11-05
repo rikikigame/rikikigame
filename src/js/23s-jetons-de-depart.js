@@ -40,9 +40,10 @@ function casinoBankFrom(elo, days){ return Math.max(CASINO_BANK_MIN, Math.min(CA
 // la TOUTE première fois. Après une faillite (moins de CASINO_BANK_MIN jetons) : petite aide de CASINO_RESCUE une fois par jour, puis CASINO_BANK_MIN.
 function walletRef(){ return (currentProfile && currentProfile.key && socialOn()) ? claudeDb.doc('wallets/' + currentProfile.key) : null; }
 // petites notes rangées avec le solde (dans __json, sans changer les règles) : jour de la dernière aide de faillite, victoires de ligue déjà payées
-var walletMeta = { rescueDay: '', winsPaid: null, gamesPaid: null, gift: '' };
+var walletMeta = { rescueDay: '', winsPaid: null, gamesPaid: null, gift: '', casualIds: [], casualDay: '', casualSum: 0 };
 function walletMetaFrom(d){
-  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gamesPaid: (d && typeof d.gamesPaid === 'number' && isFinite(d.gamesPaid)) ? d.gamesPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '' };
+  return { rescueDay: (d && typeof d.rescueDay === 'string') ? d.rescueDay : '', winsPaid: (d && typeof d.winsPaid === 'number' && isFinite(d.winsPaid)) ? d.winsPaid : null, gamesPaid: (d && typeof d.gamesPaid === 'number' && isFinite(d.gamesPaid)) ? d.gamesPaid : null, gift: (d && typeof d.gift === 'string') ? d.gift : '',
+    casualIds: (d && Array.isArray(d.casualIds)) ? d.casualIds.slice(-40) : [], casualDay: (d && typeof d.casualDay === 'string') ? d.casualDay : '', casualSum: (d && typeof d.casualSum === 'number' && isFinite(d.casualSum)) ? d.casualSum : 0 };
 }
 async function walletRead(){
   var ref = walletRef(), remote = null, local = null, meta = null;
@@ -57,7 +58,7 @@ async function walletSave(chips){
   if(!isFinite(chips)) return;
   try{ localStorage.setItem('rikiki_wallet', String(chips)); localStorage.setItem('rikiki_wallet_meta', JSON.stringify(walletMeta)); }catch(e){}
   var ref = walletRef();
-  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gamesPaid: walletMeta.gamesPaid, gift: walletMeta.gift, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
+  if(ref){ try{ var doc = { chips: chips, at: nowMs(), rescueDay: walletMeta.rescueDay, winsPaid: walletMeta.winsPaid, gamesPaid: walletMeta.gamesPaid, gift: walletMeta.gift, casualIds: walletMeta.casualIds, casualDay: walletMeta.casualDay, casualSum: walletMeta.casualSum, __plain: { pkey: currentProfile.key, chips: chips } }; await ref.set(doc); }catch(e){ console.warn('portefeuille (envoi)', e); } }
 }
 var walletSaved = '';
 // à chaque fin de main / manche / tour, chacun enregistre SON solde (appelé toutes les secondes par miniTimerTick)
@@ -107,11 +108,54 @@ function myGamesBetween(a, b){
   });
   return out;
 }
+
+// 1.18.0 : parties hors ligue (robots, 2-3 joueurs, partie rapide, ligue décochée) : elles rapportent aussi des jetons, au barème de la ligue
+// × 0,5 à 2 joueurs (un 1 contre 1, robot compris), × 0,75 à 3, × 1 à 4 et plus (robots compris) ; plafond CASUAL_DAILY_MAX par jour. Pas de mode frauduleux.
+var CASUAL_DAILY_MAX = 1000, CASUAL_MIN_ROUNDS = 4;
+function casualFactor(n){ return n <= 2 ? 0.5 : (n === 3 ? 0.75 : 1); }
+function isCasualRewardGame(g){
+  if(!g || g.kind || g.status !== 'game_over' || !g.players || !g.players[myId] || g.players[myId].isBot || g.players[myId].excluded) return false;
+  if(fraudOn(g) || (g.roundPlan || []).length < CASUAL_MIN_ROUNDS) return false;
+  return !(g.settings && g.settings.league && !onlineLeagueCheck(g)); // une partie de ligue valide est payée par la ligue
+}
+// jetons que cette partie hors ligue me rapporte (0 si elle n'en rapporte pas)
+function casualPay(g){
+  if(!isCasualRewardGame(g)) return 0;
+  var order = rankingIds(g), i = order.indexOf(myId);
+  if(order.length < 2 || i < 0) return 0;
+  return Math.round(casinoRankPay(i + 1) * casualFactor(order.length));
+}
+function casualPending(){ try{ return JSON.parse(localStorage.getItem('rikiki_casual_pending') || '{}') || {}; }catch(e){ return {}; } }
+// à la fin de la partie : on note le gain sur l'appareil, il est versé à la prochaine entrée au casino
+function casualRewardMaybe(g){
+  if(!currentProfile || !socialOn()) return;
+  var amt = casualPay(g); if(!amt) return;
+  var gid = 'c_' + g.code + '_' + (g.startedAt || g.createdAt), t = casualPending();
+  if(t[gid] || walletMeta.casualIds.indexOf(gid) >= 0) return;
+  t[gid] = { amt: amt, day: dayKeyNow(), at: nowMs() };
+  try{ localStorage.setItem('rikiki_casual_pending', JSON.stringify(t)); }catch(e){}
+}
+// versement : du plus ancien au plus récent, dans la limite de CASUAL_DAILY_MAX par jour ; renvoie le total à ajouter au solde
+function casualClaim(){
+  var t = casualPending(), ids = Object.keys(t).sort(function(a, b){ return t[a].at - t[b].at; }), total = 0;
+  if(!ids.length) return 0;
+  var paidIds = walletMeta.casualIds.slice(), day = walletMeta.casualDay, sum = walletMeta.casualSum;
+  ids.forEach(function(id){
+    var e = t[id]; if(paidIds.indexOf(id) >= 0) return;
+    if(e.day !== day){ day = e.day; sum = 0; }
+    var give = Math.max(0, Math.min(e.amt, CASUAL_DAILY_MAX - sum));
+    sum += give; total += give; paidIds.push(id);
+  });
+  walletMeta = Object.assign({}, walletMeta, { casualIds: paidIds.slice(-40), casualDay: day, casualSum: sum });
+  try{ localStorage.removeItem('rikiki_casual_pending'); }catch(e){}
+  return total;
+}
 // bonus quotidien + jetons gagnés au Rikiki depuis la dernière fois (+ le cadeau ponctuel) ; la toute première fois on note juste le nombre de victoires (pas de rattrapage du passé)
 async function walletWinBonus(){
   if(!currentProfile || !socialOn()) return 0;
   var total = 0, today = dayKeyNow();
   if(walletMeta.rescueDay !== today){ walletMeta = Object.assign({}, walletMeta, { rescueDay: today }); total += CASINO_DAILY; } // bonus quotidien : une fois par jour, à la première entrée à une table (le même repère sert à l'aide de faillite)
+  total += casualClaim(); // 1.18.0 : parties hors ligue
   try{ await loadLeague(true, true); }catch(e){ console.warn('ligue (jetons gagnés)', e); return total; } // 1.17.3 : on force le rechargement, sinon la ligue en mémoire ignore la partie qui vient de finir
   if(walletMeta.gift !== CASINO_GIFT.id && nowMs() < CASINO_GIFT.until){
     var gp = myGamesBetween(CASINO_GIFT.from, CASINO_GIFT.to);

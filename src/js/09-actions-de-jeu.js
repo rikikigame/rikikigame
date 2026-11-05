@@ -194,6 +194,7 @@ function onGameUpdate(){
   witnessGame(gameDoc);
   fraudOnUpdate(gameDoc); // 1.9.0 : mode frauduleux (annonce du résultat, arbitrage de l'organisateur)
   try{ maybeAttest(gameDoc); }catch(e){ console.warn(e); } // v43 : confirmation de ligue
+  try{ casualRewardMaybe(gameDoc); }catch(e){ console.warn(e); } // 1.18.0 : jetons des parties hors ligue
   try{ serveHandRequests(gameDoc); }catch(e){ console.warn(e); } // v45 : l'hôte renvoie une main demandée
   if(gameDoc.status === 'dealing'){
     handleDealing();

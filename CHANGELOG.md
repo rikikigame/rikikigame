@@ -8,6 +8,9 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.18.0 — 5 novembre 2026
+- Jetons aussi pour les parties hors ligue (robots, 2-3 joueurs, partie rapide, ligue décochée) : barème de la ligue (500 / 250 / 150 / 100) × 0,5 à 2 joueurs, × 0,75 à 3, × 1 à 4 et plus, robots compris. Plafond de 1 000 par jour, pas de mode frauduleux. Versés à la prochaine entrée au casino ; l'écran de fin affiche le gain.
+
 ## 1.17.4 — 5 novembre 2026
 - Rattrapage : un joueur qui entrait au casino pour la première fois après avoir fini des parties de ligue depuis le 4 novembre perdait leurs jetons. Elles sont maintenant payées (selon la place) à cette première entrée.
 
