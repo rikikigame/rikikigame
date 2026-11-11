@@ -8,6 +8,9 @@ Le jeu suit le [versionnage sémantique](https://semver.org/lang/fr/) : **MAJEUR
 
 Avant la 1.0.0, les versions étaient de simples numéros (v1 à v79). Pour les comparer, un ancien numéro N vaut 0.N.0.
 
+## 1.19.0 — 11 novembre 2026
+- Référencement : deux nouvelles pages publiques en français, « Jouer au Rikiki en ligne » (gratuit, sans inscription, avec amis ou robots) et « Conseils et stratégie au Rikiki ». Ajoutées au plan du site, au menu des pages, à `llms.txt` et au texte de repli de l'accueil.
+
 ## 1.18.1 — 5 novembre 2026
 - Référencement : les pages légales (cookies, confidentialité, conditions, mentions légales, FR et EN) ne s'affichent plus dans Google (« noindex » + retirées du plan du site). Elles restent accessibles depuis le jeu.
 
